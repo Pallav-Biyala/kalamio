@@ -22,6 +22,7 @@ const ConnectionsPage = lazy(() => import("./pages/connections.page"));
 const PublicationPage = lazy(() => import("./pages/publication.page"));
 const CreatePublicationPage = lazy(() => import("./pages/create-publication.page"));
 const ManagePublicationsPage = lazy(() => import("./pages/manage-publications.page"));
+const MessagesPage = lazy(() => import("./pages/messages.page"));
 const AuthCallback = lazy(() => import("./pages/auth-callback.page"));
 const VerifyOtp = lazy(() => import("./pages/verify-otp.page"));
 const ForgotPassword = lazy(() => import("./pages/forgot-password.page"));
@@ -104,6 +105,7 @@ const App = () => {
                             <Route path="search/:query" element={<SearchPage />} />
                             <Route path="user/:id" element={<ProfilePage />} />
                             <Route path="publication/:slug" element={<PublicationPage />} />
+                            <Route path="messages" element={<MessagesPage />} />
                             <Route path="blog/:blog_id" element={<BlogPage />} />
                             <Route path="auth/callback" element={<AuthCallback />} />
                             <Route path="*" element={<PageNotFound />} />

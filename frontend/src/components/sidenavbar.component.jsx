@@ -86,6 +86,11 @@ const SideNav = () => {
                             Publications
                         </NavLink>
 
+                        <NavLink to="/messages" onClick={(e) => setpageState(e.target.innerText)} className="sidebar-link">
+                            <Icon name="chat" />
+                            Messages
+                        </NavLink>
+
                         <NavLink to="/editor" onClick={(e) => setpageState(e.target.innerText)} className="sidebar-link">
                             <Icon name="edit_note" />
                             Write
