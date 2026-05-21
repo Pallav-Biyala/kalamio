@@ -6,6 +6,7 @@ import NotificationCommentField from "./notification-comment-field.component";
 import { UserContext } from "../App";
 import api from "../common/api";
 import FollowButton from "./follow-button.component";
+import ConnectButton from "./connect-button.component";
 
 const NotificationCard = ({ data, index, notificationState }) => {
 
@@ -95,6 +96,20 @@ const NotificationCard = ({ data, index, notificationState }) => {
                     {type === 'follow' && (
                         <div className="mt-3">
                             <FollowButton targetUserId={user._id} size="sm" />
+                        </div>
+                    )}
+
+                    {/* Connect request — show accept/decline */}
+                    {type === 'connect_request' && (
+                        <div className="mt-3">
+                            <ConnectButton targetUserId={user._id} initialStatus="pending_received" size="sm" />
+                        </div>
+                    )}
+
+                    {/* Connect accepted — show connected state */}
+                    {type === 'connect_accepted' && (
+                        <div className="mt-3">
+                            <ConnectButton targetUserId={user._id} initialStatus="accepted" size="sm" />
                         </div>
                     )}
                 </div>

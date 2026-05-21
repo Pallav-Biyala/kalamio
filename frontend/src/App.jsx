@@ -18,6 +18,7 @@ const ChangePassword = lazy(() => import("./pages/change-password.page"));
 const EditProfile = lazy(() => import("./pages/edit-profile.page"));
 const Notifications = lazy(() => import("./pages/notifications.page"));
 const ManageBlogs = lazy(() => import("./pages/manage-blogs.page"));
+const ConnectionsPage = lazy(() => import("./pages/connections.page"));
 const AuthCallback = lazy(() => import("./pages/auth-callback.page"));
 const VerifyOtp = lazy(() => import("./pages/verify-otp.page"));
 const ForgotPassword = lazy(() => import("./pages/forgot-password.page"));
@@ -84,6 +85,7 @@ const App = () => {
                             <Route path="dashboard" element={<SideNav />} >
                                 <Route path="blogs" element={<ManageBlogs />} />
                                 <Route path="notifications" element={<Notifications />} />
+                                <Route path="connections" element={<ConnectionsPage />} />
                             </Route>
                             <Route path="settings" element={<SideNav />} >
                                 <Route path="edit-profile" element={<EditProfile />} />
