@@ -19,6 +19,7 @@ import notificationRoutes from './routes/notification.routes.js';
 import userRoutes from './routes/user.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
 import followRoutes from './routes/follow.routes.js';
+import connectRoutes from './routes/connect.routes.js';
 
 const server = express();
 const PORT = process.env.PORT || 8080;
@@ -62,6 +63,7 @@ server.use('/api', notificationRoutes);
 server.use('/api', userRoutes);
 server.use('/api', uploadRoutes);
 server.use('/api', followRoutes);
+server.use('/api', connectRoutes);
 
 // Catch-all 404 for undefined API routes
 server.use((req, res) => {

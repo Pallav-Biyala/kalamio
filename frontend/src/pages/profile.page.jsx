@@ -15,6 +15,7 @@ import PageNotFound from "./404.page";
 import Icon from "../components/Icon";
 import Avatar from "../components/Avatar";
 import FollowButton from "../components/follow-button.component";
+import ConnectButton from "../components/connect-button.component";
 
 export const profileDataStructure = {
     personal_info: {
@@ -45,7 +46,7 @@ const ProfilePage = () => {
 
     let { 
         personal_info: { fullname, username: profile_username, profile_img, bio }, 
-        account_info: { total_posts, total_reads, total_followers, total_following },
+        account_info: { total_posts, total_reads, total_followers, total_following, total_connections },
         social_links, joinedAt, _id: profileUserId
         } = profile;
 
@@ -179,6 +180,11 @@ const ProfilePage = () => {
                             <span className="font-semibold">{total_following.toLocaleString()}</span>
                             <span className="text-dark-grey text-sm">Following</span>
                         </div>
+                        <div className="flex items-center gap-2 bg-grey rounded-full py-2 px-4">
+                            <Icon name="handshake" className="text-black text-xl" />
+                            <span className="font-semibold">{(total_connections || 0).toLocaleString()}</span>
+                            <span className="text-dark-grey text-sm">Connections</span>
+                        </div>
                     </div>
 
                     <div className="flex gap-4 mt-2">
@@ -191,11 +197,17 @@ const ProfilePage = () => {
                             Edit Profile
                         </Link>
                         ) : (
-                        <FollowButton
-                            targetUserId={profileUserId}
-                            onFollowChange={handleFollowChange}
-                            size="md"
-                        />
+                        <div className="flex gap-3 flex-wrap">
+                            <FollowButton
+                                targetUserId={profileUserId}
+                                onFollowChange={handleFollowChange}
+                                size="md"
+                            />
+                            <ConnectButton
+                                targetUserId={profileUserId}
+                                size="md"
+                            />
+                        </div>
                         )}
                     </div>
 
