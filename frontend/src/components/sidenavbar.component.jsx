@@ -81,6 +81,11 @@ const SideNav = () => {
                             Connections
                         </NavLink>
 
+                        <NavLink to="/dashboard/publications" onClick={(e) => setpageState(e.target.innerText)} className="sidebar-link">
+                            <Icon name="import_contacts" />
+                            Publications
+                        </NavLink>
+
                         <NavLink to="/editor" onClick={(e) => setpageState(e.target.innerText)} className="sidebar-link">
                             <Icon name="edit_note" />
                             Write

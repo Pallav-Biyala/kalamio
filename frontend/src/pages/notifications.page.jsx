@@ -18,7 +18,7 @@ const Notifications = () => {
     const [ filter, setFilter ] = useState('all');
     const [ notifications, setNotifications ] = useState(null);
 
-    let filters = ['all', 'like', 'comment', 'reply', 'follow', 'connect_request'];
+    let filters = ['all', 'like', 'comment', 'reply', 'follow', 'connect_request', 'subscribe'];
 
     const fetchNotifications = ({ page, deletedDocCount=0 }) => {
         

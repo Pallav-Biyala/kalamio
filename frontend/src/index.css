@@ -1540,3 +1540,503 @@ body,
 .connection-card__actions {
     flex-shrink: 0;
 }
+
+/* ═══════════════════════════════════════════════
+   PUBLICATION + SUBSCRIBE SYSTEM
+   ═══════════════════════════════════════════════ */
+
+/* ── Subscribe Button ─────────────────────────── */
+.subscribe-btn {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    border: none;
+    border-radius: 9999px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.subscribe-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.subscribe-btn:active:not(:disabled) {
+    transform: scale(0.95);
+}
+
+.subscribe-btn__icon {
+    font-size: 16px !important;
+}
+
+.subscribe-btn--sm {
+    font-size: 13px;
+    padding: 6px 14px;
+}
+
+.subscribe-btn--sm .subscribe-btn__icon {
+    font-size: 14px !important;
+}
+
+.subscribe-btn--md {
+    font-size: 14px;
+    padding: 8px 20px;
+}
+
+/* State: Not subscribed — brand fill */
+.subscribe-btn--subscribe {
+    background: rgb(var(--c-brand));
+    color: #fff;
+}
+
+.subscribe-btn--subscribe:hover:not(:disabled) {
+    opacity: 0.9;
+}
+
+/* State: Subscribed — muted outline */
+.subscribe-btn--subscribed {
+    background: transparent;
+    color: rgb(var(--c-brand));
+    border: 1.5px solid rgb(var(--c-brand) / 0.3);
+}
+
+.subscribe-btn--subscribed:hover:not(:disabled) {
+    border-color: rgb(var(--c-brand) / 0.5);
+}
+
+/* State: Unsubscribe (hover) — red */
+.subscribe-btn--unsubscribe {
+    background: rgb(var(--c-red) / 0.08);
+    color: rgb(var(--c-red));
+    border: 1.5px solid rgb(var(--c-red) / 0.3);
+}
+
+.subscribe-btn--unsubscribe:hover:not(:disabled) {
+    background: rgb(var(--c-red) / 0.12);
+    border-color: rgb(var(--c-red) / 0.5);
+}
+
+/* ── Publication Page ─────────────────────────── */
+.publication-page {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.publication-header {
+    margin-bottom: 40px;
+}
+
+.publication-header__banner {
+    width: 100%;
+    height: 200px;
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 24px;
+    background: rgb(var(--c-grey));
+}
+
+.publication-header__banner img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.publication-header__content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.publication-header__title {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 32px;
+    font-weight: 700;
+    color: rgb(var(--c-black));
+    line-height: 1.2;
+}
+
+.publication-header__description {
+    font-size: 16px;
+    color: rgb(var(--c-dark-grey));
+    line-height: 1.6;
+}
+
+.publication-header__owner {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: rgb(var(--c-dark-grey));
+    text-decoration: none;
+}
+
+.publication-header__owner:hover strong {
+    text-decoration: underline;
+}
+
+.publication-header__owner strong {
+    color: rgb(var(--c-black));
+}
+
+.publication-header__meta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.publication-stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 14px;
+    color: rgb(var(--c-dark-grey));
+}
+
+.publication-stat__icon {
+    font-size: 18px !important;
+}
+
+.publication-header__tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.publication-tag {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 99px;
+    background: rgb(var(--c-grey));
+    color: rgb(var(--c-dark-grey));
+    text-decoration: none;
+    transition: background 0.15s;
+}
+
+.publication-tag:hover {
+    background: rgb(var(--c-border));
+}
+
+.publication-header__actions {
+    margin-top: 4px;
+}
+
+.publication-posts {
+    border-top: 1px solid rgb(var(--c-border));
+    padding-top: 24px;
+}
+
+.publication-posts__heading {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: rgb(var(--c-black));
+    margin-bottom: 20px;
+}
+
+/* ── Create Publication Form ──────────────────── */
+.create-pub {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.create-pub__title {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: rgb(var(--c-black));
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.create-pub__title-icon {
+    font-size: 28px !important;
+    color: rgb(var(--c-brand));
+}
+
+.create-pub__subtitle {
+    font-size: 15px;
+    color: rgb(var(--c-dark-grey));
+    line-height: 1.6;
+    margin-bottom: 32px;
+}
+
+.create-pub__form {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.create-pub__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.create-pub__label {
+    font-size: 14px;
+    font-weight: 600;
+    color: rgb(var(--c-black));
+}
+
+.create-pub__input,
+.create-pub__textarea {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    padding: 12px 16px;
+    border: 1.5px solid rgb(var(--c-border));
+    border-radius: 12px;
+    background: rgb(var(--c-grey));
+    color: rgb(var(--c-black));
+    outline: none;
+    transition: border-color 0.2s;
+    resize: vertical;
+}
+
+.create-pub__input:focus,
+.create-pub__textarea:focus {
+    border-color: rgb(var(--c-brand));
+}
+
+.create-pub__hint {
+    font-size: 12px;
+    color: rgb(var(--c-dark-grey));
+    text-align: right;
+}
+
+.create-pub__tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 14px;
+    border: 1.5px solid rgb(var(--c-border));
+    border-radius: 12px;
+    background: rgb(var(--c-grey));
+    min-height: 44px;
+    align-items: center;
+}
+
+.create-pub__tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 99px;
+    background: rgb(var(--c-brand) / 0.1);
+    color: rgb(var(--c-brand));
+}
+
+.create-pub__tag-remove {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: inherit;
+    display: flex;
+    align-items: center;
+    opacity: 0.7;
+}
+
+.create-pub__tag-remove:hover {
+    opacity: 1;
+}
+
+.create-pub__tag-input {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 14px;
+    color: rgb(var(--c-black));
+    flex: 1;
+    min-width: 120px;
+}
+
+.create-pub__submit {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 12px;
+    background: rgb(var(--c-black));
+    color: rgb(var(--c-white));
+    cursor: pointer;
+    transition: opacity 0.2s;
+    align-self: flex-start;
+}
+
+.create-pub__submit:hover:not(:disabled) {
+    opacity: 0.85;
+}
+
+.create-pub__submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ── Manage Publications Dashboard ────────────── */
+.pub-create-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 18px;
+    border-radius: 10px;
+    background: rgb(var(--c-black));
+    color: rgb(var(--c-white));
+    text-decoration: none;
+    transition: opacity 0.2s;
+}
+
+.pub-create-btn:hover {
+    opacity: 0.85;
+}
+
+.pub-manage-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px 0;
+    border-bottom: 1px solid rgb(var(--c-border));
+}
+
+.pub-manage-card__info {
+    min-width: 0;
+    flex: 1;
+}
+
+.pub-manage-card__title {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    color: rgb(var(--c-black));
+    text-decoration: none;
+    line-height: 1.3;
+}
+
+.pub-manage-card__title:hover {
+    text-decoration: underline;
+}
+
+.pub-manage-card__desc {
+    font-size: 14px;
+    color: rgb(var(--c-dark-grey));
+    margin-top: 4px;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.pub-manage-card__stats {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+    font-size: 13px;
+    color: rgb(var(--c-dark-grey));
+}
+
+.pub-manage-card__stats span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.pub-manage-card__actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.pub-manage-card__btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid rgb(var(--c-border));
+    background: transparent;
+    color: rgb(var(--c-dark-grey));
+    cursor: pointer;
+    transition: all 0.15s;
+    text-decoration: none;
+}
+
+.pub-manage-card__btn:hover {
+    background: rgb(var(--c-grey));
+    color: rgb(var(--c-black));
+}
+
+.pub-manage-card__btn--danger:hover {
+    background: rgb(var(--c-red) / 0.08);
+    color: rgb(var(--c-red));
+    border-color: rgb(var(--c-red) / 0.3);
+}
+
+/* ── Publication Card on Profile ──────────────── */
+.pub-profile-card {
+    padding: 20px 0;
+    border-bottom: 1px solid rgb(var(--c-border));
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pub-profile-card__title {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: rgb(var(--c-black));
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    line-height: 1.3;
+}
+
+.pub-profile-card__title:hover {
+    text-decoration: underline;
+}
+
+.pub-profile-card__icon {
+    font-size: 20px !important;
+    color: rgb(var(--c-brand));
+}
+
+.pub-profile-card__desc {
+    font-size: 14px;
+    color: rgb(var(--c-dark-grey));
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.pub-profile-card__meta {
+    display: flex;
+    gap: 12px;
+    font-size: 13px;
+    color: rgb(var(--c-dark-grey));
+}
+
+.pub-profile-card__meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}

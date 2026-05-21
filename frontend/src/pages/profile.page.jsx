@@ -16,6 +16,7 @@ import Icon from "../components/Icon";
 import Avatar from "../components/Avatar";
 import FollowButton from "../components/follow-button.component";
 import ConnectButton from "../components/connect-button.component";
+import SubscribeButton from "../components/subscribe-button.component";
 
 export const profileDataStructure = {
     personal_info: {
@@ -43,6 +44,7 @@ const ProfilePage = () => {
     let [ blogs, setBlogs ] = useState(null);
     let [ profileLoaded, setProfileLoaded ] = useState("");
     let [ followsYou, setFollowsYou ] = useState(false);
+    let [ publications, setPublications ] = useState(null);
 
     let { 
         personal_info: { fullname, username: profile_username, profile_img, bio }, 
@@ -69,6 +71,7 @@ const ProfilePage = () => {
             }
             setProfileLoaded(profileId);
             getBlogs({ user_id: user._id });
+            fetchPublications(user._id);
             setLoading(false);
         })
         .catch(err => {
@@ -120,7 +123,14 @@ const ProfilePage = () => {
         setLoading(true);
         setProfileLoaded("");
         setFollowsYou(false);
+        setPublications(null);
     }
+
+    const fetchPublications = (userId) => {
+        api.post("/user-publications", { user_id: userId })
+        .then(({ data }) => setPublications(data.publications))
+        .catch(() => setPublications([]));
+    };
 
     // Track follower count locally for instant UI update
     const [localFollowers, setLocalFollowers] = useState(null);
@@ -221,7 +231,7 @@ const ProfilePage = () => {
 
                     <div className="max-md:mt-12 w-full">
                     <InPageNavigation
-                        routes={["Blogs Published", "About"]}
+                        routes={["Blogs Published", "Publications", "About"]}
                         defaultHidden={["About"]}
                     >
 
@@ -249,6 +259,34 @@ const ProfilePage = () => {
                             state={blogs}
                             fetchDataFun={getBlogs}
                         />
+                        </>
+
+                        {/* Publications Tab */}
+                        <>
+                        {publications == null ? (
+                            <Loader />
+                        ) : publications.length ? (
+                            publications.map((pub, i) => (
+                                <AnimationWrapper key={pub._id} transition={{ duration: 0.4, delay: i * 0.05 }}>
+                                    <div className="pub-profile-card">
+                                        <Link to={`/publication/${pub.slug}`} className="pub-profile-card__title">
+                                            <Icon name="import_contacts" className="pub-profile-card__icon" />
+                                            {pub.title}
+                                        </Link>
+                                        {pub.description && (
+                                            <p className="pub-profile-card__desc">{pub.description}</p>
+                                        )}
+                                        <div className="pub-profile-card__meta">
+                                            <span><Icon name="group" className="text-sm" /> {pub.total_subscribers} subscribers</span>
+                                            <span><Icon name="article" className="text-sm" /> {pub.total_posts} posts</span>
+                                        </div>
+                                        <SubscribeButton publicationId={pub._id} size="sm" />
+                                    </div>
+                                </AnimationWrapper>
+                            ))
+                        ) : (
+                            <NoDataMessage message="No publications yet" />
+                        )}
                         </>
 
                         <AboutUser bio={bio} social_links={social_links} joinedAt={joinedAt} />
