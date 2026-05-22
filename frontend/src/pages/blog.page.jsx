@@ -11,6 +11,9 @@ import BlogContent from "../components/blog-content.component";
 import CommentsContainer, { fetchComments } from "../components/comments.component";
 import { saveReadingProgress } from "../components/keep-reading.component";
 import Avatar from "../components/Avatar";
+import Icon from "../components/Icon";
+import FollowButton from "../components/follow-button.component";
+import SubscribeButton from "../components/subscribe-button.component";
 
 
 export const blogStructure = {
@@ -36,7 +39,7 @@ const BlogPage = () => {
     const [ totalParentCommentsLoaded, setTotalParentCommentsLoaded ] = useState(0);
     const [ readingProgress, setReadingProgress ] = useState(0);
 
-    let { title, content, banner, author: { personal_info: { fullname, username: author_username, profile_img } }, publishedAt } = blog;
+    let { title, content, banner, author: { personal_info: { fullname, username: author_username, profile_img, bio }, account_info: { total_posts: author_total_posts, total_reads: author_total_reads } = {} }, publishedAt, publication } = blog;
 
     usePageTitle(title || 'Blog');
 
@@ -83,7 +86,7 @@ const BlogPage = () => {
     useEffect(() => {
 
         resetStates();
-
+        window.scrollTo(0, 0);
         fetchBlog();
 
     }, [blog_id])
@@ -128,6 +131,15 @@ const BlogPage = () => {
                                         {fullname}
                                         <br />
                                         <Link to={`/user/${author_username}`} className="text-dark-grey text-sm hover:text-black transition-colors">@{author_username}</Link>
+                                        {publication && (
+                                            <>
+                                                <span className="text-dark-grey text-sm"> in </span>
+                                                <Link to={`/publication/${publication.slug}`} className="blog-page__pub-link">
+                                                    <Icon name="import_contacts" className="blog-page__pub-link-icon" />
+                                                    {publication.title}
+                                                </Link>
+                                            </>
+                                        )}
                                     </p>
 
                                 </div>
@@ -148,6 +160,64 @@ const BlogPage = () => {
                         </div>
 
                         <BlogInteraction />
+
+                        {/* ── CTA Section ── */}
+                        <div className="blog-cta-section">
+
+                            {/* Author CTA */}
+                            <div className="blog-cta-card">
+                                <div className="blog-cta-card__header">
+                                    <span className="blog-cta-card__label">Written by</span>
+                                </div>
+                                <div className="blog-cta-card__body">
+                                    <Link to={`/user/${author_username}`} className="blog-cta-card__avatar-link">
+                                        <Avatar src={profile_img} alt={fullname} size={56} />
+                                    </Link>
+                                    <div className="blog-cta-card__info">
+                                        <Link to={`/user/${author_username}`} className="blog-cta-card__name">{fullname}</Link>
+                                        <p className="blog-cta-card__username">@{author_username}</p>
+                                        {bio && <p className="blog-cta-card__bio">{bio}</p>}
+                                        <div className="blog-cta-card__stats">
+                                            <span><Icon name="article" className="text-sm" /> {author_total_posts || 0} posts</span>
+                                            <span><Icon name="visibility" className="text-sm" /> {(author_total_reads || 0).toLocaleString()} reads</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="blog-cta-card__actions">
+                                    <Link to={`/user/${author_username}`} className="blog-cta-card__btn">View Profile</Link>
+                                    <FollowButton targetUserId={blog.author._id} size="sm" />
+                                </div>
+                            </div>
+
+                            {/* Publication CTA */}
+                            {publication && (
+                                <div className="blog-cta-card blog-cta-card--pub">
+                                    <div className="blog-cta-card__header">
+                                        <span className="blog-cta-card__label">
+                                            <Icon name="import_contacts" className="text-sm" /> Published in
+                                        </span>
+                                    </div>
+                                    <div className="blog-cta-card__body">
+                                        <div className="blog-cta-card__pub-icon-wrap">
+                                            <Icon name="menu_book" className="blog-cta-card__pub-icon" />
+                                        </div>
+                                        <div className="blog-cta-card__info">
+                                            <Link to={`/publication/${publication.slug}`} className="blog-cta-card__name">{publication.title}</Link>
+                                            {publication.description && <p className="blog-cta-card__bio">{publication.description}</p>}
+                                            <div className="blog-cta-card__stats">
+                                                <span><Icon name="group" className="text-sm" /> {publication.total_subscribers || 0} subscribers</span>
+                                                <span><Icon name="article" className="text-sm" /> {publication.total_posts || 0} posts</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="blog-cta-card__actions">
+                                        <Link to={`/publication/${publication.slug}`} className="blog-cta-card__btn">View Publication</Link>
+                                        <SubscribeButton publicationId={publication._id} size="sm" />
+                                    </div>
+                                </div>
+                            )}
+
+                        </div>
 
                         {
                             similarBlogs != null && similarBlogs.length ?

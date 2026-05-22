@@ -224,12 +224,12 @@ body,
 
     /* ── Sidebar ─────────────────────────────────── */
     .sidebar-link{
-        @apply flex gap-4 items-center py-5 text-dark-grey hover:text-black
+        @apply flex gap-4 items-center py-5 pl-5 text-dark-grey hover:text-black
                rounded-radius-sm transition-colors;
     }
 
     .sidebar-link.active{
-        @apply text-black border-r-2 border-black pl-6 -ml-6
+        @apply text-black border-r-2 border-black pl-6
                md:rounded-tl-lg md:rounded-bl-lg max-md:border-none font-medium;
         background-color: rgb(var(--c-black) / 0.05);
     }
@@ -776,6 +776,35 @@ body,
         font-size: 12px;
         color: rgb(var(--c-dark-grey));
         line-height: 1.3;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0;
+    }
+
+    .feed-card__pub-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        font-size: 11.5px;
+        font-weight: 600;
+        color: rgb(var(--c-brand));
+        text-decoration: none;
+        transition: opacity 0.15s;
+    }
+
+    .feed-card__pub-label:hover {
+        opacity: 0.75;
+        text-decoration: underline;
+    }
+
+    .feed-card__pub-icon {
+        font-size: 13px !important;
+    }
+
+    .feed-card__meta-dot {
+        margin: 0 5px;
+        color: rgb(var(--c-dark-grey));
     }
 
     .feed-card__menu {
@@ -1590,7 +1619,7 @@ body,
 /* State: Not subscribed — brand fill */
 .subscribe-btn--subscribe {
     background: rgb(var(--c-brand));
-    color: #fff;
+    color: rgb(var(--c-white));
 }
 
 .subscribe-btn--subscribe:hover:not(:disabled) {
@@ -1601,22 +1630,22 @@ body,
 .subscribe-btn--subscribed {
     background: transparent;
     color: rgb(var(--c-brand));
-    border: 1.5px solid rgb(var(--c-brand) / 0.3);
+    border: 1.5px solid rgb(var(--c-brand) / 0.35);
 }
 
 .subscribe-btn--subscribed:hover:not(:disabled) {
-    border-color: rgb(var(--c-brand) / 0.5);
+    border-color: rgb(var(--c-brand) / 0.6);
 }
 
 /* State: Unsubscribe (hover) — red */
 .subscribe-btn--unsubscribe {
-    background: rgb(var(--c-red) / 0.08);
+    background: rgb(var(--c-red) / 0.1);
     color: rgb(var(--c-red));
     border: 1.5px solid rgb(var(--c-red) / 0.3);
 }
 
 .subscribe-btn--unsubscribe:hover:not(:disabled) {
-    background: rgb(var(--c-red) / 0.12);
+    background: rgb(var(--c-red) / 0.15);
     border-color: rgb(var(--c-red) / 0.5);
 }
 
@@ -2643,5 +2672,230 @@ body,
 
     .msg-bubble {
         max-width: 85%;
+    }
+}
+
+/* ── Publish Form: Publication Selector ───────── */
+.publish-pub-selector {
+    margin-top: 8px;
+    padding: 16px;
+    border-radius: 12px;
+    background: rgb(var(--c-grey));
+    border: 1px solid rgb(var(--c-border));
+}
+
+.publish-pub-selector select {
+    width: 100%;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1.5px solid rgb(var(--c-border));
+    background: rgb(var(--c-white));
+    color: rgb(var(--c-black));
+    cursor: pointer;
+    appearance: auto;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.publish-pub-selector select option {
+    background: rgb(var(--c-white));
+    color: rgb(var(--c-black));
+    padding: 8px;
+}
+
+.publish-pub-selector select:focus {
+    border-color: rgb(var(--c-brand));
+}
+
+/* ═══════════════════════════════════════════════
+   BLOG PAGE — Publication Link + CTA Cards
+   ═══════════════════════════════════════════════ */
+
+/* ── Publication link in blog header ─────────── */
+.blog-page__pub-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 14px;
+    font-weight: 600;
+    color: rgb(var(--c-brand));
+    text-decoration: none;
+    text-transform: none;
+    transition: opacity 0.15s;
+}
+
+.blog-page__pub-link:hover {
+    opacity: 0.7;
+    text-decoration: underline;
+}
+
+.blog-page__pub-link-icon {
+    font-size: 15px !important;
+}
+
+/* ── CTA Section Container ────────────────────── */
+.blog-cta-section {
+    margin-top: 48px;
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* ── CTA Card ─────────────────────────────────── */
+.blog-cta-card {
+    border: 1.5px solid rgb(var(--c-border));
+    border-radius: 16px;
+    padding: 24px;
+    background: rgb(var(--c-white));
+    transition: border-color 0.2s;
+}
+
+.blog-cta-card:hover {
+    border-color: rgb(var(--c-brand) / 0.3);
+}
+
+.blog-cta-card__header {
+    margin-bottom: 16px;
+}
+
+.blog-cta-card__label {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: rgb(var(--c-dark-grey));
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.blog-cta-card__body {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.blog-cta-card__avatar-link {
+    flex-shrink: 0;
+    text-decoration: none;
+}
+
+.blog-cta-card__pub-icon-wrap {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: rgb(var(--c-brand) / 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.blog-cta-card__pub-icon {
+    font-size: 26px !important;
+    color: rgb(var(--c-brand));
+}
+
+.blog-cta-card__info {
+    flex: 1;
+    min-width: 0;
+}
+
+.blog-cta-card__name {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: rgb(var(--c-black));
+    text-decoration: none;
+    text-transform: capitalize;
+    display: block;
+}
+
+.blog-cta-card__name:hover {
+    text-decoration: underline;
+}
+
+.blog-cta-card__username {
+    font-size: 13px;
+    color: rgb(var(--c-dark-grey));
+    margin-top: 2px;
+}
+
+.blog-cta-card__bio {
+    font-size: 14px;
+    color: rgb(var(--c-dark-grey));
+    margin-top: 6px;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.blog-cta-card__stats {
+    display: flex;
+    gap: 16px;
+    margin-top: 10px;
+    font-size: 13px;
+    color: rgb(var(--c-dark-grey));
+}
+
+.blog-cta-card__stats span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* ── CTA Card Actions ─────────────────────────── */
+.blog-cta-card__actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid rgb(var(--c-border));
+}
+
+.blog-cta-card__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 18px;
+    border-radius: 9999px;
+    border: 1.5px solid rgb(var(--c-border));
+    background: transparent;
+    color: rgb(var(--c-black));
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.blog-cta-card__btn:hover {
+    background: rgb(var(--c-grey));
+    border-color: rgb(var(--c-dark-grey) / 0.3);
+}
+
+/* ── Responsive ───────────────────────────────── */
+@media (max-width: 640px) {
+    .blog-cta-card__body {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .blog-cta-card__stats {
+        justify-content: center;
+    }
+
+    .blog-cta-card__actions {
+        justify-content: center;
+        flex-wrap: wrap;
     }
 }

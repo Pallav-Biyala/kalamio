@@ -163,8 +163,9 @@ export const getPublicationBlogs = async (req, res) => {
 
         const blogs = await Blog.find({ publication: publication_id, draft: false })
             .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname -_id")
+            .populate("publication", "title slug")
             .sort({ publishedAt: -1 })
-            .select("blog_id title des banner activity tags readTime publishedAt")
+            .select("blog_id title des banner activity tags readTime publishedAt publication")
             .skip((page - 1) * maxLimit)
             .limit(maxLimit);
 

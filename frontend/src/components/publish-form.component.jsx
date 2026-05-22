@@ -1,6 +1,6 @@
 import toast from "react-hot-toast";
 import AnimationWrapper from "../common/page-animation";
-import { useContext } from "react";
+import { useContext, useEffect, useState } from "react";
 import { EditorContext } from "../pages/editor.pages";
 import Tag from "./tags.component";
 import Icon from "./Icon";
@@ -20,6 +20,24 @@ const PublishForm = () => {
     let { userAuth: { access_token } } = useContext(UserContext);
 
     let navigate = useNavigate();
+
+    const [publications, setPublications] = useState([]);
+    const [selectedPub, setSelectedPub] = useState("");
+
+    // Fetch user's publications on mount
+    useEffect(() => {
+        if (access_token) {
+            api.post("/my-publications")
+            .then(({ data }) => {
+                setPublications(data.publications || []);
+                // If editing and blog already has a publication, pre-select it
+                if (blog.publication) {
+                    setSelectedPub(blog.publication);
+                }
+            })
+            .catch(() => {});
+        }
+    }, [access_token]);
 
     const handleCloseEvent = () => {
         setEditorState("editor");
@@ -85,7 +103,8 @@ const PublishForm = () => {
         e.target.classList.add('disable');
 
         let blogObj = {
-            title, banner, des, content, tags, draft: false
+            title, banner, des, content, tags, draft: false,
+            publication: selectedPub || null
         }
 
         api.post("/create-blog", { ...blogObj, id: blog_id })
@@ -164,7 +183,30 @@ const PublishForm = () => {
 
                     <p className="mt-1 mb-6 text-dark-grey text-sm text-right">{ tagLimit - tags.length } Tags left</p>
 
-                    <button className="btn-brand px-8"
+                    {/* Publication Selector */}
+                    {publications.length > 0 && (
+                        <div className="publish-pub-selector">
+                            <p className="text-dark-grey mb-2 text-sm font-medium">
+                                <Icon name="import_contacts" className="text-base align-middle mr-1" />
+                                Add to Publication (optional)
+                            </p>
+                            <select
+                                className="input-box pl-4"
+                                value={selectedPub}
+                                onChange={(e) => setSelectedPub(e.target.value)}
+                            >
+                                <option value="">None — standalone blog</option>
+                                {publications.map(pub => (
+                                    <option key={pub._id} value={pub._id}>
+                                        {pub.title}
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="mt-1 text-dark-grey text-xs">This blog will appear in the selected publication and be visible to its subscribers.</p>
+                        </div>
+                    )}
+
+                    <button className="btn-brand px-8 mt-4"
                         onClick={publishBlog}
                     >Publish</button>
 
