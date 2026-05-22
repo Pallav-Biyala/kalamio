@@ -1,4 +1,5 @@
 import express from 'express';
+import { createServer } from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import "dotenv/config";
@@ -7,6 +8,7 @@ import "dotenv/config";
 import './config/env.js';
 import connectDB from './config/db.js';
 import { initializePassport } from './config/passport.js';
+import { initSocket } from './config/socket.js';
 
 // Middleware
 import errorHandler from './middleware/errorHandler.js';
@@ -20,8 +22,11 @@ import userRoutes from './routes/user.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
 import followRoutes from './routes/follow.routes.js';
 import connectRoutes from './routes/connect.routes.js';
+import publicationRoutes from './routes/publication.routes.js';
+import messageRoutes from './routes/message.routes.js';
 
 const server = express();
+const httpServer = createServer(server);
 const PORT = process.env.PORT || 8080;
 
 // Global middleware
@@ -50,6 +55,10 @@ server.use(cors({
 // Initialize Passport (Google OAuth)
 initializePassport(server);
 
+// Initialize Socket.IO and store reference for controllers
+const io = initSocket(httpServer, allowedOrigins);
+server.set('io', io);
+
 // Health check — Cloud Run uses this to verify container is alive
 server.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok' });
@@ -64,6 +73,8 @@ server.use('/api', userRoutes);
 server.use('/api', uploadRoutes);
 server.use('/api', followRoutes);
 server.use('/api', connectRoutes);
+server.use('/api', publicationRoutes);
+server.use('/api', messageRoutes);
 
 // Catch-all 404 for undefined API routes
 server.use((req, res) => {
@@ -74,7 +85,7 @@ server.use((req, res) => {
 server.use(errorHandler);
 
 // 1. Start listening IMMEDIATELY so Cloud Run sees port 8080 open
-server.listen(PORT, '0.0.0.0', () => {
+httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server listening on http://0.0.0.0:${PORT}`);
 
     // 2. Connect to DB AFTER server is already accepting traffic

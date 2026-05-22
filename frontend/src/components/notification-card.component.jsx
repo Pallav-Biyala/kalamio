@@ -68,7 +68,7 @@ const NotificationCard = ({ data, index, notificationState }) => {
     };
 
     // Social notifications (no blog context)
-    const isSocialNotification = ['follow', 'connect_request', 'connect_accepted'].includes(type);
+    const isSocialNotification = ['follow', 'connect_request', 'connect_accepted', 'subscribe'].includes(type);
 
     return (
         <div className={"p-6 border-b border-border " + (!seen ? "border-l-2 border-l-black" : "" )}>

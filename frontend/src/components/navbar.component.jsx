@@ -13,6 +13,7 @@ const Navbar = () => {
 
     const [ searchBoxVisibility, setSearchBoxVisibility ] = useState(false)
     const [ userNavPanel, setUserNavPanel ] = useState(false);
+    const [ unreadMessages, setUnreadMessages ] = useState(0);
     const { userAuth, userAuth: { access_token, profile_img, new_notification_available }, setUserAuth } =  useContext(UserContext);
 
     let { theme, setTheme } = useContext(ThemeContext);
@@ -26,6 +27,11 @@ const Navbar = () => {
             })
             .catch(err => {
             })
+
+            // Fetch unread message count
+            api.post("/messages/unread-total")
+            .then(({ data }) => setUnreadMessages(data.unread_total || 0))
+            .catch(() => {});
         }
 
     }, [access_token])
@@ -111,6 +117,16 @@ const Navbar = () => {
                                     {
                                         new_notification_available ? 
                                         <span className="notification-badge"></span> : " "
+                                    }
+                                </button>
+                            </Link>
+
+                            <Link to="/messages">
+                                <button className="w-12 h-12 rounded-full bg-grey relative hover:bg-grey/80 flex items-center justify-center transition-colors">
+                                    <Icon name="chat" className="text-2xl" />
+                                    {
+                                        unreadMessages > 0 ?
+                                        <span className="notification-badge">{unreadMessages > 9 ? '9+' : unreadMessages}</span> : " "
                                     }
                                 </button>
                             </Link>

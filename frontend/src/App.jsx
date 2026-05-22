@@ -19,6 +19,10 @@ const EditProfile = lazy(() => import("./pages/edit-profile.page"));
 const Notifications = lazy(() => import("./pages/notifications.page"));
 const ManageBlogs = lazy(() => import("./pages/manage-blogs.page"));
 const ConnectionsPage = lazy(() => import("./pages/connections.page"));
+const PublicationPage = lazy(() => import("./pages/publication.page"));
+const CreatePublicationPage = lazy(() => import("./pages/create-publication.page"));
+const ManagePublicationsPage = lazy(() => import("./pages/manage-publications.page"));
+const MessagesPage = lazy(() => import("./pages/messages.page"));
 const AuthCallback = lazy(() => import("./pages/auth-callback.page"));
 const VerifyOtp = lazy(() => import("./pages/verify-otp.page"));
 const ForgotPassword = lazy(() => import("./pages/forgot-password.page"));
@@ -86,6 +90,8 @@ const App = () => {
                                 <Route path="blogs" element={<ManageBlogs />} />
                                 <Route path="notifications" element={<Notifications />} />
                                 <Route path="connections" element={<ConnectionsPage />} />
+                                <Route path="publications" element={<ManagePublicationsPage />} />
+                                <Route path="create-publication" element={<CreatePublicationPage />} />
                             </Route>
                             <Route path="settings" element={<SideNav />} >
                                 <Route path="edit-profile" element={<EditProfile />} />
@@ -98,6 +104,8 @@ const App = () => {
                             <Route path="reset-password" element={<ResetPassword />} />
                             <Route path="search/:query" element={<SearchPage />} />
                             <Route path="user/:id" element={<ProfilePage />} />
+                            <Route path="publication/:slug" element={<PublicationPage />} />
+                            <Route path="messages" element={<MessagesPage />} />
                             <Route path="blog/:blog_id" element={<BlogPage />} />
                             <Route path="auth/callback" element={<AuthCallback />} />
                             <Route path="*" element={<PageNotFound />} />

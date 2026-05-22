@@ -5,7 +5,7 @@ import Avatar from "./Avatar";
 
 const BlogPostCard = ({ content, author, isLiked = false }) => {
 
-   let { publishedAt, tags, title, des, banner, activity: { total_likes, total_comments }, blog_id: id, readTime } = content;
+   let { publishedAt, tags, title, des, banner, activity: { total_likes, total_comments }, blog_id: id, readTime, publication } = content;
 
    let { fullname, profile_img, username } = author;
 
@@ -25,7 +25,16 @@ const BlogPostCard = ({ content, author, isLiked = false }) => {
                     <Avatar src={profile_img} alt={fullname} size={32} className="feed-card__avatar" />
                     <div className="feed-card__author-info">
                         <span className="feed-card__author-name">{fullname}</span>
-                        <span className="feed-card__meta">{displayReadTime} min read · {getRelativeTime(publishedAt)}</span>
+                        <span className="feed-card__meta">
+                            {publication && (
+                                <Link to={`/publication/${publication.slug}`} className="feed-card__pub-label" onClick={(e) => e.stopPropagation()}>
+                                    <Icon name="import_contacts" className="feed-card__pub-icon" />
+                                    {publication.title}
+                                </Link>
+                            )}
+                            {publication && <span className="feed-card__meta-dot">·</span>}
+                            {displayReadTime} min read · {getRelativeTime(publishedAt)}
+                        </span>
                     </div>
                 </Link>
                 <button className="feed-card__menu" aria-label="More options">

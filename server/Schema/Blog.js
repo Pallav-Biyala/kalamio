@@ -35,6 +35,11 @@ const blogSchema = mongoose.Schema({
         required: true,
         ref: 'users'
     },
+    publication: {
+        type: Schema.Types.ObjectId,
+        ref: 'publications',
+        default: null
+    },
     activity: {
         total_likes: {
             type: Number,

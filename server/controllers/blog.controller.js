@@ -2,6 +2,7 @@ import Blog from '../Schema/Blog.js';
 import User from '../Schema/User.js';
 import Notification from '../Schema/Notification.js';
 import Comment from '../Schema/Comment.js';
+import Publication from '../Schema/Publication.js';
 import { nanoid } from 'nanoid';
 import { escapeRegex } from '../utils/helpers.js';
 import { deleteMultipleFromS3 } from '../config/s3.js';
@@ -17,8 +18,9 @@ export const latestBlogs = (req, res) => {
 
     Blog.find({ draft: false })
     .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname -_id")
+    .populate("publication", "title slug")
     .sort({ "publishedAt": -1 })
-    .select("blog_id title des banner activity tags readTime publishedAt")
+    .select("blog_id title des banner activity tags readTime publishedAt publication")
     .limit(maxLimit)
     .skip((page - 1) * maxLimit)
     .then(blogs => {
@@ -49,8 +51,9 @@ export const trendingBlogs = (req, res) => {
 
     Blog.find({ draft: false })
     .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname -_id")
+    .populate("publication", "title slug")
     .sort({ "activity.total_reads": -1, "activity.total_likes": -1, "publishedAt": -1 })
-    .select("blog_id title des banner activity tags readTime publishedAt -_id")
+    .select("blog_id title des banner activity tags readTime publishedAt publication -_id")
     .limit(5)
     .then(blogs => {
         return res.status(200).json({ blogs })
@@ -82,8 +85,9 @@ export const searchBlogs = (req, res) => {
 
     Blog.find(findQuery)
     .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname -_id")
+    .populate("publication", "title slug")
     .sort({ "publishedAt": -1 })
-    .select("blog_id title des banner activity tags readTime publishedAt")
+    .select("blog_id title des banner activity tags readTime publishedAt publication")
     .skip((page - 1) * maxLimit)
     .limit(maxLimit)
     .then(blogs => {
@@ -168,7 +172,7 @@ export const createBlog = (req, res) => {
 
     let authorId = req.user;
 
-    let { title, banner, content, des, tags, draft, id } = req.body;
+    let { title, banner, content, des, tags, draft, id, publication } = req.body;
 
     // Sanitize basic strings
     title = title ? sanitizeHtml(title, sanitizeOptions) : '';
@@ -225,9 +229,30 @@ export const createBlog = (req, res) => {
             updateData.publishedAt = new Date();
         }
 
+        // Handle publication change on update
+        if (publication !== undefined) {
+            updateData.publication = publication || null;
+        }
+
         Blog.findOneAndUpdate({ blog_id, author: authorId }, updateData)
-        .then(blog => {
+        .then(async blog => {
             if (!blog) return res.status(403).json({ error: "You don't have permission to edit this blog" });
+
+            // If publication changed, update counters
+            const oldPubId = blog.publication?.toString() || null;
+            const newPubId = (publication || null)?.toString?.() || publication || null;
+
+            if (oldPubId !== newPubId) {
+                // Decrement old publication
+                if (oldPubId) {
+                    await Publication.findByIdAndUpdate(oldPubId, { $inc: { total_posts: -1 } });
+                }
+                // Increment new publication
+                if (newPubId) {
+                    await Publication.findByIdAndUpdate(newPubId, { $inc: { total_posts: 1 } });
+                }
+            }
+
             return res.status(200).json({ id: blog_id });
         })
         .catch(err => {
@@ -237,12 +262,18 @@ export const createBlog = (req, res) => {
     } else{
         
         let blog = new Blog({
-            title, des, banner, content, tags, author: authorId, blog_id: blog_id, draft: Boolean(draft), readTime: calculateReadTime(content, title, des)
+            title, des, banner, content, tags, author: authorId, blog_id: blog_id, draft: Boolean(draft), readTime: calculateReadTime(content, title, des),
+            publication: publication || undefined
         })
 
-        blog.save().then(blog => {
+        blog.save().then(async blog => {
 
         let incrementVal = draft ? 0 : 1;
+
+        // If blog is linked to a publication, increment its post count
+        if (publication && !draft) {
+            await Publication.findByIdAndUpdate(publication, { $inc: { total_posts: 1 } }).catch(() => {});
+        }
 
         User.findOneAndUpdate({ _id: authorId }, { $inc : { "account_info.total_posts" : incrementVal }, $push : { "blogs": blog._id } })
         .then(user => {
@@ -269,8 +300,9 @@ export const getBlog = (req, res) => {
     let incrementVal = mode != 'edit' ? 1 : 0;
 
     Blog.findOne({ blog_id })
-        .populate("author", "personal_info.fullname personal_info.username personal_info.profile_img")
-        .select("title des content banner activity publishedAt blog_id tags draft author")
+        .populate("author", "personal_info.fullname personal_info.username personal_info.profile_img personal_info.bio account_info.total_posts account_info.total_reads")
+        .populate("publication", "title slug description total_subscribers total_posts")
+        .select("title des content banner activity publishedAt blog_id tags draft author publication")
         .then(blog => {
             if (!blog) {
                 return res.status(404).json({ error: "Blog not found" });

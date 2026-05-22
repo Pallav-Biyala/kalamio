@@ -20,6 +20,6 @@ export const AUTH = {
     AUTH_CODE_EXPIRY_MS: 60_000,      // 60 seconds
 
     // JWT token expiration
-    ACCESS_TOKEN_EXPIRY: '15m',
+    ACCESS_TOKEN_EXPIRY: '7d',
     REFRESH_TOKEN_EXPIRY: '30d',
 };
