@@ -21,17 +21,26 @@ const FollowButton = ({ targetUserId, initiallyFollowing = null, onFollowChange,
     const [isFollowing, setIsFollowing] = useState(initiallyFollowing);
     const [loading, setLoading] = useState(false);
     const [hovered, setHovered] = useState(false);
+    const [followsYou, setFollowsYou] = useState(false);
 
     // Don't render if viewing own profile
     if (currentUserId === targetUserId) return null;
 
     // Fetch initial follow state if not provided
     useEffect(() => {
-        if (initiallyFollowing !== null || !access_token || !targetUserId) return;
+        if (!access_token || !targetUserId) return;
 
-        api.post("/is-following", { user_id: targetUserId })
-            .then(({ data }) => setIsFollowing(data.following))
-            .catch(() => setIsFollowing(false));
+        // Check if current user follows the target
+        if (initiallyFollowing === null) {
+            api.post("/is-following", { user_id: targetUserId })
+                .then(({ data }) => setIsFollowing(data.following))
+                .catch(() => setIsFollowing(false));
+        }
+
+        // Check if target user follows the current user
+        api.post("/is-following-back", { user_id: targetUserId })
+            .then(({ data }) => setFollowsYou(data.follows_you))
+            .catch(() => setFollowsYou(false));
     }, [targetUserId, access_token]);
 
     const handleClick = async (e) => {
@@ -76,7 +85,7 @@ const FollowButton = ({ targetUserId, initiallyFollowing = null, onFollowChange,
 
     const label = isFollowing 
         ? (hovered ? "Unfollow" : "Following") 
-        : "Follow";
+        : (followsYou ? "Follow Back" : "Follow");
 
     return (
         <button

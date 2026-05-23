@@ -422,3 +422,57 @@ export const getPendingCount = async (req, res) => {
         return res.status(500).json({ error: err.message });
     }
 };
+
+/**
+ * POST /api/connect/sent
+ * Get paginated list of pending connection requests sent by the user.
+ */
+export const getSentRequests = async (req, res) => {
+    try {
+        const user_id = req.user;
+        const { page = 1 } = req.body;
+        const maxLimit = 15;
+
+        const requests = await Connection.find({
+            requester: user_id,
+            status: 'pending'
+        })
+        .populate("recipient", "personal_info.fullname personal_info.username personal_info.profile_img personal_info.bio")
+        .sort({ requestedAt: -1 })
+        .skip((page - 1) * maxLimit)
+        .limit(maxLimit);
+
+        const results = requests.map(req => ({
+            ...req.recipient.toObject(),
+            requestedAt: req.requestedAt,
+            connectionId: req._id
+        }));
+
+        return res.status(200).json({ users: results });
+
+    } catch (err) {
+        console.error('[Connect] getSentRequests failed:', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+};
+
+/**
+ * POST /api/connect/sent-count
+ * Count pending connection requests sent by the user.
+ */
+export const getSentCount = async (req, res) => {
+    try {
+        const user_id = req.user;
+
+        const count = await Connection.countDocuments({
+            requester: user_id,
+            status: 'pending'
+        });
+
+        return res.status(200).json({ totalDocs: count });
+
+    } catch (err) {
+        console.error('[Connect] getSentCount failed:', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+};

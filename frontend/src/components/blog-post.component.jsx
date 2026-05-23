@@ -2,12 +2,36 @@ import { Link } from "react-router-dom";
 import { getRelativeTime } from "../common/date";
 import Icon from "./Icon";
 import Avatar from "./Avatar";
+import { useContext, useState, useEffect } from "react";
+import { UserContext } from "../App";
+import toast from "react-hot-toast";
+import api from "../common/api";
 
-const BlogPostCard = ({ content, author, isLiked = false }) => {
+const BlogPostCard = ({ content, author }) => {
 
-   let { publishedAt, tags, title, des, banner, activity: { total_likes, total_comments }, blog_id: id, readTime, publication } = content;
+   let { _id, publishedAt, tags, title, des, banner, activity: { total_likes, total_comments }, blog_id: id, readTime, publication } = content;
 
    let { fullname, profile_img, username } = author;
+
+   let { userAuth: { access_token } } = useContext(UserContext);
+
+   const [isLiked, setIsLiked] = useState(false);
+   const [likesCount, setLikesCount] = useState(total_likes);
+
+   useEffect(() => {
+       setLikesCount(total_likes);
+   }, [total_likes]);
+
+   useEffect(() => {
+        if(access_token){
+            api.post("/isliked-by-user", { _id })
+            .then(({ data: {result} }) => {
+                setIsLiked(Boolean(result));
+            })
+            .catch(err => {
+            })
+        }
+   }, [access_token, _id])
 
    const displayReadTime = readTime || 1;
 
@@ -15,6 +39,22 @@ const BlogPostCard = ({ content, author, isLiked = false }) => {
        if (n >= 1000) return (n / 1000).toFixed(1) + "K";
        return n;
    };
+
+   const handleLike = (e) => {
+       e.preventDefault();
+       if(access_token){
+           setIsLiked(preVal => !preVal);
+           setLikesCount(preVal => !isLiked ? preVal + 1 : preVal - 1);
+
+           api.post("/like-blog", { _id, isLikedByUser: isLiked })
+           .catch(err => {
+               // silently fail or revert
+           })
+       }
+       else{
+           toast.error("Please login to like this blog");
+       }
+   }
     
     return(
         <div className="feed-card">
@@ -67,10 +107,10 @@ const BlogPostCard = ({ content, author, isLiked = false }) => {
 
             {/* ── Action Bar ── */}
             <div className="feed-card__actions">
-                <span className={`feed-card__action${isLiked ? " feed-card__action--like" : ""}`}>
+                <button onClick={handleLike} className={`feed-card__action${isLiked ? " feed-card__action--like" : ""}`}>
                     <Icon name={isLiked ? "favorite" : "favorite_border"} />
-                    <span>{total_likes > 0 ? formatCount(total_likes) : "0"}</span>
-                </span>
+                    <span>{likesCount > 0 ? formatCount(likesCount) : "0"}</span>
+                </button>
                 <span className="feed-card__action">
                     <Icon name="chat_bubble_outline" />
                     <span>{total_comments > 0 ? total_comments : "0"}</span>

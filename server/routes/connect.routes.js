@@ -10,7 +10,9 @@ import {
     getConnections,
     getConnectionsCount,
     getPendingRequests,
-    getPendingCount
+    getPendingCount,
+    getSentRequests,
+    getSentCount
 } from '../controllers/connect.controller.js';
 
 const router = Router();
@@ -26,5 +28,7 @@ router.post("/connections", verifyJWT, getConnections);
 router.post("/connections-count", verifyJWT, getConnectionsCount);
 router.post("/connect/pending", verifyJWT, getPendingRequests);
 router.post("/connect/pending-count", verifyJWT, getPendingCount);
+router.post("/connect/sent", verifyJWT, getSentRequests);
+router.post("/connect/sent-count", verifyJWT, getSentCount);
 
 export default router;
