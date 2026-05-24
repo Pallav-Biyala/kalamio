@@ -11,6 +11,7 @@ import { generateOtp, verifyOtp } from '../services/otp.service.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email.service.js';
 import { AUTH } from '../constants/auth.constants.js';
 import { ERRORS } from '../constants/error-messages.js';
+import audit from '../middleware/auditLogger.js';
 
 // ─────────────────────────────────────────────
 // Signup — creates unverified user, sends OTP
@@ -88,8 +89,7 @@ export const signup = async (req, res) => {
         });
 
     } catch (err) {
-        console.error('[Signup Error]', err.message);
-        console.error('[Signup Stack]', err.stack);
+        req.log.error({ err }, '[Signup Error]');
 
         if (err.code === 11000) {
             return res.status(409).json({ error: ERRORS.EMAIL_EXISTS });
@@ -140,7 +140,7 @@ export const verifyEmail = async (req, res) => {
         });
 
     } catch (err) {
-        console.error('[Verify Email Error]', err.message);
+        req.log.error({ err }, '[Verify Email Error]');
         if (err.statusCode) {
             return res.status(err.statusCode).json({ error: err.message });
         }
@@ -178,7 +178,7 @@ export const resendOtp = async (req, res) => {
         });
 
     } catch (err) {
-        console.error('[Resend OTP Error]', err.message);
+        req.log.error({ err }, '[Resend OTP Error]');
         if (err.statusCode) {
             return res.status(err.statusCode).json({ error: err.message });
         }
@@ -256,6 +256,7 @@ export const signin = async (req, res) => {
 
         // Success — clear all login attempts for this identifier
         await LoginAttempt.deleteMany({ identifier });
+        audit.log(req, 'LOGIN_SUCCESS', { email: identifier });
 
         // Generate tokens and store hashed refresh token
         const tokens = generateTokenPair(user._id);
@@ -271,7 +272,7 @@ export const signin = async (req, res) => {
         });
 
     } catch (err) {
-        console.error('[Signin Error]', err.message);
+        req.log.error({ err }, '[Signin Error]');
         return res.status(500).json({ error: ERRORS.SERVER_ERROR });
     }
 };
@@ -302,7 +303,7 @@ export const googleAuthCallback = (req, res, next) => {
         try {
             // Passport error (strategy threw)
             if (err) {
-                console.error('[Google Auth Error]', err.message);
+                req.log.error({ err }, '[Google Auth Error]');
                 return res.redirect(
                     `${frontendUrl}/auth/callback?error=${encodeURIComponent(ERRORS.GOOGLE_AUTH_FAILED)}`
                 );
@@ -330,7 +331,7 @@ export const googleAuthCallback = (req, res, next) => {
             return res.redirect(`${frontendUrl}/auth/callback?code=${code}`);
 
         } catch (error) {
-            console.error('[Google Auth Callback Error]', error.message);
+            req.log.error({ err: error }, '[Google Auth Callback Error]');
             return res.redirect(
                 `${frontendUrl}/auth/callback?error=${encodeURIComponent(ERRORS.GOOGLE_AUTH_FAILED)}`
             );
@@ -381,7 +382,7 @@ export const exchangeAuthCode = async (req, res) => {
         });
 
     } catch (err) {
-        console.error('[Exchange Auth Code Error]', err.message);
+        req.log.error({ err }, '[Exchange Auth Code Error]');
         return res.status(500).json({ error: ERRORS.SERVER_ERROR });
     }
 };
@@ -410,7 +411,7 @@ export const forgotPassword = async (req, res) => {
         return res.status(200).json({ message: ERRORS.PASSWORD_RESET_SENT });
 
     } catch (err) {
-        console.error('[Forgot Password Error]', err.message);
+        req.log.error({ err }, '[Forgot Password Error]');
         if (err.statusCode) {
             return res.status(err.statusCode).json({ error: err.message });
         }
@@ -451,7 +452,7 @@ export const resetPassword = async (req, res) => {
         return res.status(200).json({ message: ERRORS.PASSWORD_RESET_SUCCESS });
 
     } catch (err) {
-        console.error('[Reset Password Error]', err.message);
+        req.log.error({ err }, '[Reset Password Error]');
         if (err.statusCode) {
             return res.status(err.statusCode).json({ error: err.message });
         }
@@ -493,7 +494,7 @@ export const refreshToken = async (req, res) => {
         return res.status(200).json({ access_token: newAccessToken });
 
     } catch (err) {
-        console.error('[Refresh Token Error]', err.message);
+        req.log.error({ err }, '[Refresh Token Error]');
         return res.status(500).json({ error: ERRORS.SERVER_ERROR });
     }
 };
@@ -508,10 +509,11 @@ export const logout = async (req, res) => {
             { $unset: { refreshToken: 1 } }
         );
 
+        audit.log(req, 'LOGOUT', {});
         return res.status(200).json({ message: "Logged out successfully" });
 
     } catch (err) {
-        console.error('[Logout Error]', err.message);
+        req.log.error({ err }, '[Logout Error]');
         return res.status(500).json({ error: ERRORS.SERVER_ERROR });
     }
 };
@@ -545,10 +547,11 @@ export const changePassword = async (req, res) => {
         const hashedPassword = await bcrypt.hash(newPassword, AUTH.SALT_ROUNDS);
         await User.updateOne({ _id: req.user }, { "personal_info.password": hashedPassword });
 
+        audit.log(req, 'PASSWORD_CHANGED', {});
         return res.status(200).json({ message: "Password changed successfully" });
 
     } catch (err) {
-        console.error('[Change Password Error]', err.message);
+        req.log.error({ err }, '[Change Password Error]');
         return res.status(500).json({ error: ERRORS.SERVER_ERROR });
     }
 };

@@ -12,8 +12,11 @@ import connectDB from './config/db.js';
 import { initializePassport } from './config/passport.js';
 import { initSocket } from './config/socket.js';
 
+import logger from './config/logger.js';
+
 // Middleware
 import errorHandler from './middleware/errorHandler.js';
+import requestLogger from './middleware/requestLogger.js';
 
 // Routes
 import authRoutes from './routes/auth.routes.js';
@@ -41,6 +44,9 @@ server.use(helmet({
 
 // Compress all API responses (gzip/brotli)
 server.use(compression());
+
+// Structured request logging (JSON with request IDs)
+server.use(requestLogger);
 
 // Default body limit — 10kb for most routes (prevents payload abuse)
 server.use(express.json({ limit: '10kb' }));
@@ -155,7 +161,7 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 // ── Start server ────────────────────────────────────────────────────
 // 1. Start listening IMMEDIATELY so Cloud Run sees port 8080 open
 httpServer.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Server listening on http://0.0.0.0:${PORT}`);
+    logger.info({ port: PORT }, `Server listening on http://0.0.0.0:${PORT}`);
 
     // 2. Connect to DB AFTER server is already accepting traffic
     connectDB().catch(err => {

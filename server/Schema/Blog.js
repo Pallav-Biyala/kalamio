@@ -69,6 +69,10 @@ const blogSchema = mongoose.Schema({
     draft: {
         type: Boolean,
         default: false
+    },
+    deletedAt: {
+        type: Date,
+        default: null
     }
 
 }, 
@@ -78,6 +82,18 @@ const blogSchema = mongoose.Schema({
     } 
 
 })
+
+// ── Soft delete: auto-filter deleted documents from all queries ─────
+// Queries explicitly requesting { deletedAt: { $ne: null } } still work.
+const softDeleteFilter = function() {
+    if (!this.getQuery().deletedAt) {
+        this.where({ deletedAt: null });
+    }
+};
+blogSchema.pre('find', softDeleteFilter);
+blogSchema.pre('findOne', softDeleteFilter);
+blogSchema.pre('findOneAndUpdate', softDeleteFilter);
+blogSchema.pre('countDocuments', softDeleteFilter);
 
 // ── Indexes for query performance ──────────────────────────────────
 blogSchema.index({ tags: 1 });
