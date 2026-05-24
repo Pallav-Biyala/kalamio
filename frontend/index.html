@@ -10,6 +10,17 @@
     <meta name="keywords" content="blog, writing, stories, articles, editor" />
     <meta name="theme-color" content="#1F1F1E" />
     <link rel="canonical" href="https://kalamio.com" />
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline';
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com;
+        font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com;
+        img-src 'self' data: blob: https://*.amazonaws.com https://lh3.googleusercontent.com;
+        connect-src 'self' https://kalamio.com https://dev.kalamio.com https://*.run.app wss://*.run.app;
+        frame-src 'none';
+        object-src 'none';
+        base-uri 'self';
+    " />
     <title>Kalamio</title>
 
     <!-- Block search engines on dev environment -->

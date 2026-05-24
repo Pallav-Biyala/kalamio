@@ -82,17 +82,26 @@ server.get('/health', (req, res) => {
     });
 });
 
-// ── Mount routes under /api prefix ──────────────────────────────────
-server.use('/api', authRoutes);
-server.use('/api', blogRoutes);
-server.use('/api', commentRoutes);
-server.use('/api', notificationRoutes);
-server.use('/api', userRoutes);
-server.use('/api', uploadRoutes);
-server.use('/api', followRoutes);
-server.use('/api', connectRoutes);
-server.use('/api', publicationRoutes);
-server.use('/api', messageRoutes);
+// ── Mount routes under /api/v1 prefix (versioned API) ───────────────
+server.use('/api/v1', authRoutes);
+server.use('/api/v1', blogRoutes);
+server.use('/api/v1', commentRoutes);
+server.use('/api/v1', notificationRoutes);
+server.use('/api/v1', userRoutes);
+server.use('/api/v1', uploadRoutes);
+server.use('/api/v1', followRoutes);
+server.use('/api/v1', connectRoutes);
+server.use('/api/v1', publicationRoutes);
+server.use('/api/v1', messageRoutes);
+
+// Backward compat: /api/* → /api/v1/* redirect (remove once all clients updated)
+server.use('/api', (req, res, next) => {
+    // Only redirect if not already /api/v1
+    if (!req.originalUrl.startsWith('/api/v1')) {
+        return res.redirect(307, req.originalUrl.replace('/api', '/api/v1'));
+    }
+    next();
+});
 
 // Catch-all 404 for undefined API routes
 server.use((req, res) => {
@@ -153,3 +162,6 @@ httpServer.listen(PORT, '0.0.0.0', () => {
         console.error('❌ DB connection error (non-fatal):', err.message);
     });
 });
+
+// Request timeout — kill stalled requests after 30 seconds
+httpServer.timeout = 30000;

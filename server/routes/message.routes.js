@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { verifyJWT } from '../middleware/auth.js';
 import asyncHandler from '../middleware/asyncHandler.js';
+import validate from '../middleware/validate.js';
+import { sendMessageSchema } from '../validators/schemas.js';
 import {
     sendMessage,
     getConversations,
@@ -17,7 +19,7 @@ import {
 const router = Router();
 
 // All messaging endpoints require authentication
-router.post("/message/send", verifyJWT, asyncHandler(sendMessage));
+router.post("/message/send", verifyJWT, validate(sendMessageSchema), asyncHandler(sendMessage));
 router.post("/conversations", verifyJWT, asyncHandler(getConversations));
 router.post("/conversations-count", verifyJWT, asyncHandler(getConversationsCount));
 router.post("/messages", verifyJWT, asyncHandler(getMessages));

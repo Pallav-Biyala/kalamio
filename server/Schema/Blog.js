@@ -79,8 +79,10 @@ const blogSchema = mongoose.Schema({
 
 })
 
-// Indexes for performance
+// ── Indexes for query performance ──────────────────────────────────
 blogSchema.index({ tags: 1 });
 blogSchema.index({ draft: 1, publishedAt: -1 });
+blogSchema.index({ author: 1, draft: 1, publishedAt: -1 });  // userWrittenBlogs, deleteBlog
+blogSchema.index({ publication: 1, draft: 1, publishedAt: -1 }); // publication blog listings
 
 export default mongoose.model("blogs", blogSchema);

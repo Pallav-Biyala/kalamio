@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { verifyJWT } from '../middleware/auth.js';
 import asyncHandler from '../middleware/asyncHandler.js';
+import validate from '../middleware/validate.js';
+import { updateProfileSchema } from '../validators/schemas.js';
 import { searchUsers, getProfile, updateProfileImg, updateProfile } from '../controllers/user.controller.js';
 
 const router = Router();
@@ -11,6 +13,6 @@ router.post("/get-profile", asyncHandler(getProfile));
 
 // Protected
 router.post("/update-profile-img", verifyJWT, asyncHandler(updateProfileImg));
-router.post("/update-profile", verifyJWT, asyncHandler(updateProfile));
+router.post("/update-profile", verifyJWT, validate(updateProfileSchema), asyncHandler(updateProfile));
 
 export default router;
