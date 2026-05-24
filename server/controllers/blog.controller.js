@@ -81,7 +81,7 @@ export const searchBlogs = (req, res) => {
         return res.status(400).json({ error: "Search query, tag, or author is required" });
     }
 
-    let maxLimit = limit ? limit : 2;
+    let maxLimit = Math.min(Math.max(parseInt(limit) || 2, 1), 20); // Cap at 20, default 2
 
     Blog.find(findQuery)
     .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname -_id")
@@ -465,13 +465,17 @@ export const userWrittenBlogsCount = (req, res) => {
 
 };
 
-// Delete blog
+// Delete blog (soft delete — marks with deletedAt timestamp)
 export const deleteBlog = (req, res) => {
 
     let user_id = req.user;
     let { blog_id } = req.body;
 
-    Blog.findOneAndDelete({ blog_id, author: user_id })
+    Blog.findOneAndUpdate(
+        { blog_id, author: user_id },
+        { deletedAt: new Date() },
+        { new: true }
+    )
     .then(blog => {
 
         if(!blog) {
@@ -505,17 +509,17 @@ export const deleteBlog = (req, res) => {
         // 3. Fire-and-forget S3 cleanup (non-blocking)
         if (imageUrls.length > 0) {
             deleteMultipleFromS3(imageUrls)
-                .catch(err => console.error('S3 cleanup failed:', err.message));
+                .catch(err => req.log?.error({ err }, 'S3 cleanup failed'));
         }
 
         Notification.deleteMany({ blog: blog._id })
-            .catch(err => console.error("notification delete error:", err.message));
+            .catch(err => req.log?.error({ err }, 'notification delete error'));
 
         Comment.deleteMany({ blog_id: blog._id })
-            .catch(err => console.error("comments delete error:", err.message));
+            .catch(err => req.log?.error({ err }, 'comments delete error'));
 
         User.findOneAndUpdate({ _id: user_id }, { $pull: { blogs: blog._id }, $inc: { "account_info.total_posts": -1 } })
-            .catch(err => console.error("user update error:", err.message));
+            .catch(err => req.log?.error({ err }, 'user update error'));
 
         return res.status(200).json({ status: "done" });
 

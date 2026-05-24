@@ -25,6 +25,9 @@ export const getProfile = (req, res) => {
     User.findOne({ "personal_info.username": username })
     .select("-personal_info.password -google_auth -updatedAt -blogs -refreshToken")
     .then(user => {
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
         return res.status(200).json(user)
     })
     .catch(err => {

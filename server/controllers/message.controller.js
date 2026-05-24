@@ -2,6 +2,7 @@ import Conversation from '../Schema/Conversation.js';
 import Message from '../Schema/Message.js';
 import Connection from '../Schema/Connection.js';
 import User from '../Schema/User.js';
+import sanitizeHtml from 'sanitize-html';
 
 /**
  * Helper: check if two users are connected (accepted connection).
@@ -109,11 +110,18 @@ export const sendMessage = async (req, res) => {
             return res.status(400).json({ error: "Recipient or conversation ID required" });
         }
 
+        // Sanitize message content — strip all HTML to prevent XSS
+        const sanitizedContent = sanitizeHtml(content.trim(), { allowedTags: [], allowedAttributes: {} });
+
+        if (!sanitizedContent.length) {
+            return res.status(400).json({ error: "Message content is required" });
+        }
+
         // Create the message
         const message = await new Message({
             conversation: conversation._id,
             sender: sender_id,
-            content: content.trim()
+            content: sanitizedContent
         }).save();
 
         // Update conversation's last_message and unread count
@@ -122,7 +130,7 @@ export const sendMessage = async (req, res) => {
             .toString();
 
         conversation.last_message = {
-            content: content.trim().substring(0, 100),
+            content: sanitizedContent.substring(0, 100),
             sender: sender_id,
             timestamp: message.sentAt
         };

@@ -1,5 +1,8 @@
 import { Router } from 'express';
 import { verifyJWT } from '../middleware/auth.js';
+import asyncHandler from '../middleware/asyncHandler.js';
+import validate from '../middleware/validate.js';
+import { sendMessageSchema } from '../validators/schemas.js';
 import {
     sendMessage,
     getConversations,
@@ -16,15 +19,15 @@ import {
 const router = Router();
 
 // All messaging endpoints require authentication
-router.post("/message/send", verifyJWT, sendMessage);
-router.post("/conversations", verifyJWT, getConversations);
-router.post("/conversations-count", verifyJWT, getConversationsCount);
-router.post("/messages", verifyJWT, getMessages);
-router.post("/messages/mark-read", verifyJWT, markRead);
-router.post("/messages/unread-total", verifyJWT, getUnreadTotal);
-router.post("/message-request/accept", verifyJWT, acceptMessageRequest);
-router.post("/message-request/decline", verifyJWT, declineMessageRequest);
-router.post("/message-request/count", verifyJWT, getRequestCount);
-router.post("/conversation/find", verifyJWT, findConversation);
+router.post("/message/send", verifyJWT, validate(sendMessageSchema), asyncHandler(sendMessage));
+router.post("/conversations", verifyJWT, asyncHandler(getConversations));
+router.post("/conversations-count", verifyJWT, asyncHandler(getConversationsCount));
+router.post("/messages", verifyJWT, asyncHandler(getMessages));
+router.post("/messages/mark-read", verifyJWT, asyncHandler(markRead));
+router.post("/messages/unread-total", verifyJWT, asyncHandler(getUnreadTotal));
+router.post("/message-request/accept", verifyJWT, asyncHandler(acceptMessageRequest));
+router.post("/message-request/decline", verifyJWT, asyncHandler(declineMessageRequest));
+router.post("/message-request/count", verifyJWT, asyncHandler(getRequestCount));
+router.post("/conversation/find", verifyJWT, asyncHandler(findConversation));
 
 export default router;

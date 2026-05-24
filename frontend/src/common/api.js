@@ -3,7 +3,7 @@ import { lookInSession, storeInSession, removeFromSession } from './session';
 import toast from 'react-hot-toast';
 
 const api = axios.create({
-    baseURL: import.meta.env.VITE_SERVER_DOMAIN + 'api',
+    baseURL: import.meta.env.VITE_SERVER_DOMAIN + 'api/v1',
 });
 
 // Auto-attach auth token from session
@@ -68,7 +68,7 @@ api.interceptors.response.use(
 
                 if (refresh_token) {
                     try {
-                        const { data } = await axios.post(`${import.meta.env.VITE_SERVER_DOMAIN}api/refresh-token`, { refresh_token });
+                        const { data } = await axios.post(`${import.meta.env.VITE_SERVER_DOMAIN}api/v1/refresh-token`, { refresh_token });
                         
                         // Update session with new tokens
                         userData.access_token = data.access_token;

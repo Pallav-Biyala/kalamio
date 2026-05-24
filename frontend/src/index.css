@@ -6,6 +6,25 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Accessibility: skip-to-content ──────────── */
+.skip-to-content {
+    position: absolute;
+    top: -100%;
+    left: 16px;
+    z-index: 9999;
+    padding: 12px 24px;
+    background: rgb(var(--c-black));
+    color: rgb(var(--c-white));
+    border-radius: 0 0 8px 8px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: top 0.2s ease;
+}
+.skip-to-content:focus {
+    top: 0;
+}
+
 /* ── Theme color tokens (RGB channels only) ───────── */
 /* Dark theme = default. Light theme = explicit override. */
 :root {

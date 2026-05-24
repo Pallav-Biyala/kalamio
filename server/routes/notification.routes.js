@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { verifyJWT } from '../middleware/auth.js';
+import asyncHandler from '../middleware/asyncHandler.js';
 import { newNotification, getNotifications, allNotificationsCount } from '../controllers/notification.controller.js';
 
 const router = Router();
 
 // All protected
-router.get("/new-notification", verifyJWT, newNotification);
-router.post("/notifications", verifyJWT, getNotifications);
-router.post("/all-notifications-count", verifyJWT, allNotificationsCount);
+router.get("/new-notification", verifyJWT, asyncHandler(newNotification));
+router.post("/notifications", verifyJWT, asyncHandler(getNotifications));
+router.post("/all-notifications-count", verifyJWT, asyncHandler(allNotificationsCount));
 
 export default router;

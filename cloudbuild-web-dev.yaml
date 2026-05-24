@@ -1,4 +1,5 @@
 steps:
+  # Step 1: Build Docker image (uses $COMMIT_SHA for traceability)
   - name: 'gcr.io/cloud-builders/docker'
     args:
       [
@@ -7,18 +8,20 @@ steps:
         '--build-arg', 'VITE_SERVER_DOMAIN=https://dev.kalamio.com/',
 
         '-t',
-        'us-central1-docker.pkg.dev/$PROJECT_ID/kalamio/frontend-dev:latest',
+        'us-central1-docker.pkg.dev/$PROJECT_ID/kalamio/frontend-dev:$COMMIT_SHA',
 
         './frontend'
       ]
 
+  # Step 2: Push image
   - name: 'gcr.io/cloud-builders/docker'
     args:
       [
         'push',
-        'us-central1-docker.pkg.dev/$PROJECT_ID/kalamio/frontend-dev:latest'
+        'us-central1-docker.pkg.dev/$PROJECT_ID/kalamio/frontend-dev:$COMMIT_SHA'
       ]
 
+  # Step 3: Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
@@ -27,7 +30,7 @@ steps:
         'deploy',
         'kalamio-web-development',
         '--image',
-        'us-central1-docker.pkg.dev/$PROJECT_ID/kalamio/frontend-dev:latest',
+        'us-central1-docker.pkg.dev/$PROJECT_ID/kalamio/frontend-dev:$COMMIT_SHA',
         '--region',
         'us-central1',
         '--platform',
@@ -36,7 +39,9 @@ steps:
       ]
 
 images:
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/kalamio/frontend-dev:latest'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/kalamio/frontend-dev:$COMMIT_SHA'
+
+timeout: '600s'
 
 options:
   logging: CLOUD_LOGGING_ONLY

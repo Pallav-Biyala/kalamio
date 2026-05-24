@@ -8,6 +8,12 @@ const connectDB = async (retryCount = 0) => {
         const conn = await mongoose.connect(process.env.DB_LOCATION, {
             autoIndex: true,
             serverSelectionTimeoutMS: 10000,
+            // Connection pool settings
+            maxPoolSize: 10,          // Max concurrent connections to MongoDB
+            minPoolSize: 2,           // Keep 2 connections warm for low-latency
+            maxIdleTimeMS: 30000,     // Close idle connections after 30s
+            connectTimeoutMS: 45000,  // Timeout for initial connection
+            socketTimeoutMS: 45000,   // Timeout for socket operations
         });
         console.log(`✅ MongoDB connected: ${conn.connection.host}`);
     } catch (err) {
@@ -23,4 +29,18 @@ const connectDB = async (retryCount = 0) => {
     }
 };
 
+// Monitor connection events
+mongoose.connection.on('error', (err) => {
+    console.error('⚠️  MongoDB connection error:', err.message);
+});
+
+mongoose.connection.on('disconnected', () => {
+    console.warn('⚠️  MongoDB disconnected');
+});
+
+mongoose.connection.on('reconnected', () => {
+    console.log('✅ MongoDB reconnected');
+});
+
 export default connectDB;
+

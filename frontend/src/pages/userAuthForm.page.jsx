@@ -88,7 +88,7 @@ const UserAuthForm = ( {type} ) => {
     const handleGoogleAuth = (e) => {
         e.preventDefault();
         // Redirect to server-side Google OAuth (Passport.js handles the flow)
-        window.location.href = `${import.meta.env.VITE_SERVER_DOMAIN}api/auth/google`;
+        window.location.href = `${import.meta.env.VITE_SERVER_DOMAIN}api/v1/auth/google`;
     }
 
     return(

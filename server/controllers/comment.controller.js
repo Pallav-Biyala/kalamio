@@ -1,6 +1,7 @@
 import Comment from '../Schema/Comment.js';
 import Blog from '../Schema/Blog.js';
 import Notification from '../Schema/Notification.js';
+import sanitizeHtml from 'sanitize-html';
 
 // Delete comments helper (recursive)
 const deleteComments = (_id) => {
@@ -41,14 +42,17 @@ export const addComment = (req, res) => {
 
     let { _id, comment, blog_author, replying_to, notification_id } = req.body;
 
-    if(!comment.length){
+    // Sanitize comment — strip all HTML to prevent XSS
+    const sanitizedComment = sanitizeHtml(comment, { allowedTags: [], allowedAttributes: {} });
+
+    if (!sanitizedComment.length) {
         return res.status(403).json({ error: "Write something to leave a comment" });
     }
 
     let commentObj = {
         blog_id: _id,
         blog_author,
-        comment,
+        comment: sanitizedComment,
         commented_by: user_id,
     }
 
