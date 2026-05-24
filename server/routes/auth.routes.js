@@ -14,7 +14,7 @@ import {
     logout,
     changePassword,
 } from '../controllers/auth.controller.js';
-import { authLimiter } from '../middleware/rateLimiter.js';
+import { authLimiter, otpLimiter } from '../middleware/rateLimiter.js';
 import { verifyJWT } from '../middleware/auth.js';
 
 const router = Router();
@@ -22,9 +22,9 @@ const router = Router();
 // ── Public routes (no JWT required) ──────────────
 router.post("/signup",          authLimiter, signup);
 router.post("/signin",          authLimiter, signin);
-router.post("/verify-email",    authLimiter, verifyEmail);
-router.post("/resend-otp",      authLimiter, resendOtp);
-router.post("/forgot-password", authLimiter, forgotPassword);
+router.post("/verify-email",    otpLimiter,  verifyEmail);
+router.post("/resend-otp",      otpLimiter,  resendOtp);
+router.post("/forgot-password", otpLimiter,  forgotPassword);
 router.post("/reset-password",  authLimiter, resetPassword);
 router.post("/refresh-token",   authLimiter, refreshToken);
 

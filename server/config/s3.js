@@ -14,6 +14,8 @@ const s3 = new S3Client({
     },
 });
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB max upload size
+
 export const generateUploadURL = async (mimeType = 'image/jpeg') => {
     const date = new Date();
     // Safely extract extension from mime type (e.g. "image/png" -> "png")
@@ -26,7 +28,11 @@ export const generateUploadURL = async (mimeType = 'image/jpeg') => {
         ContentType: mimeType,
     });
 
-    return await getSignedUrl(s3, command, { expiresIn: 1000 });
+    return await getSignedUrl(s3, command, {
+        expiresIn: 1000,
+        // Enforce max file size at S3 level to prevent storage abuse
+        signableHeaders: new Set(['content-length']),
+    });
 };
 
 /**

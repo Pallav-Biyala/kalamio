@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import express from 'express';
 import { verifyJWT } from '../middleware/auth.js';
 import {
     latestBlogs,
@@ -18,6 +19,9 @@ import {
 
 const router = Router();
 
+// Larger body limit for blog content (editor data can be large)
+const largeBody = express.json({ limit: '10mb' });
+
 // Public
 router.post("/latest-blogs", latestBlogs);
 router.post("/all-latest-blogs-count", allLatestBlogsCount);
@@ -26,8 +30,8 @@ router.post("/search-blogs", searchBlogs);
 router.post("/search-blogs-count", searchBlogsCount);
 router.post("/get-blog", getBlog);
 
-// Protected
-router.post("/create-blog", verifyJWT, createBlog);
+// Protected — create-blog gets a larger body limit for editor content
+router.post("/create-blog", verifyJWT, largeBody, createBlog);
 router.post("/like-blog", verifyJWT, likeBlog);
 router.post("/isliked-by-user", verifyJWT, isLikedByUser);
 router.post("/user-written-blogs", verifyJWT, userWrittenBlogs);

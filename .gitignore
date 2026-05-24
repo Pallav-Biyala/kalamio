@@ -8,3 +8,9 @@ blog-app-82817-firebase-adminsdk-fbsvc-7463cad566.json
 server/requests.rest
 frontend/dist
 walkthrough_Auth_Lifeboard.md
+frontend/.htpasswd
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

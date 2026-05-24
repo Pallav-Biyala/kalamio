@@ -1,5 +1,5 @@
 # ---- Build Stage ----
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -23,6 +23,16 @@ COPY nginx.conf /etc/nginx/conf.d/
 COPY .htpasswd /etc/nginx/.htpasswd
 COPY --from=builder /app/dist /usr/share/nginx/html
 
+# Ensure nginx user owns the files
+RUN chown -R nginx:nginx /usr/share/nginx/html
+
+# Switch to non-root user
+USER nginx
+
 EXPOSE 8080
+
+# Health check for container orchestrators
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/ || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]
