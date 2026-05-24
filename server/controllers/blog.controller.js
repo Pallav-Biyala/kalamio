@@ -81,7 +81,7 @@ export const searchBlogs = (req, res) => {
         return res.status(400).json({ error: "Search query, tag, or author is required" });
     }
 
-    let maxLimit = limit ? limit : 2;
+    let maxLimit = Math.min(Math.max(parseInt(limit) || 2, 1), 20); // Cap at 20, default 2
 
     Blog.find(findQuery)
     .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname -_id")

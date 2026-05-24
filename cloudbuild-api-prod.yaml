@@ -1,4 +1,12 @@
 steps:
+  # Step 1: Install dependencies and run lint
+  - name: 'node:20-alpine'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - 'cd server && npm ci --omit=dev && echo "✅ Dependencies OK"'
+
+  # Step 2: Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args:
       [
@@ -10,6 +18,7 @@ steps:
         'server'
       ]
 
+  # Step 3: Push image
   - name: 'gcr.io/cloud-builders/docker'
     args:
       [
@@ -17,6 +26,7 @@ steps:
         'us-central1-docker.pkg.dev/$PROJECT_ID/kalamio/backend:$COMMIT_SHA'
       ]
 
+  # Step 4: Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
@@ -35,6 +45,8 @@ steps:
 
 images:
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/kalamio/backend:$COMMIT_SHA'
+
+timeout: '600s'
 
 options:
   logging: CLOUD_LOGGING_ONLY

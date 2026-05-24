@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import passport from 'passport';
+import asyncHandler from '../middleware/asyncHandler.js';
 import {
     signup,
     signin,
@@ -20,21 +21,21 @@ import { verifyJWT } from '../middleware/auth.js';
 const router = Router();
 
 // ── Public routes (no JWT required) ──────────────
-router.post("/signup",          authLimiter, signup);
-router.post("/signin",          authLimiter, signin);
-router.post("/verify-email",    otpLimiter,  verifyEmail);
-router.post("/resend-otp",      otpLimiter,  resendOtp);
-router.post("/forgot-password", otpLimiter,  forgotPassword);
-router.post("/reset-password",  authLimiter, resetPassword);
-router.post("/refresh-token",   authLimiter, refreshToken);
+router.post("/signup",          authLimiter, asyncHandler(signup));
+router.post("/signin",          authLimiter, asyncHandler(signin));
+router.post("/verify-email",    otpLimiter,  asyncHandler(verifyEmail));
+router.post("/resend-otp",      otpLimiter,  asyncHandler(resendOtp));
+router.post("/forgot-password", otpLimiter,  asyncHandler(forgotPassword));
+router.post("/reset-password",  authLimiter, asyncHandler(resetPassword));
+router.post("/refresh-token",   authLimiter, asyncHandler(refreshToken));
 
 // ── Google OAuth 2.0 (server-side redirect flow) ──
 router.get("/auth/google", googleAuthRedirect);
 router.get("/auth/google/callback", googleAuthCallback);
-router.post("/exchange-auth-code", authLimiter, exchangeAuthCode);
+router.post("/exchange-auth-code", authLimiter, asyncHandler(exchangeAuthCode));
 
 // ── Protected routes (JWT required) ──────────────
-router.post("/change-password", verifyJWT, changePassword);
-router.post("/logout",          verifyJWT, logout);
+router.post("/change-password", verifyJWT, asyncHandler(changePassword));
+router.post("/logout",          verifyJWT, asyncHandler(logout));
 
 export default router;

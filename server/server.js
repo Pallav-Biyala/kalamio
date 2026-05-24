@@ -2,6 +2,7 @@ import express from 'express';
 import { createServer } from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
 import mongoose from 'mongoose';
 import "dotenv/config";
 
@@ -37,6 +38,9 @@ server.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow S3 image loading
     crossOriginEmbedderPolicy: false, // Allow embedding cross-origin resources (S3 images)
 }));
+
+// Compress all API responses (gzip/brotli)
+server.use(compression());
 
 // Default body limit — 10kb for most routes (prevents payload abuse)
 server.use(express.json({ limit: '10kb' }));

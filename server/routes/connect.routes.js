@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { verifyJWT } from '../middleware/auth.js';
+import asyncHandler from '../middleware/asyncHandler.js';
 import {
     sendConnectRequest,
     acceptConnection,
@@ -18,17 +19,17 @@ import {
 const router = Router();
 
 // All connect endpoints require authentication
-router.post("/connect/send", verifyJWT, sendConnectRequest);
-router.post("/connect/accept", verifyJWT, acceptConnection);
-router.post("/connect/decline", verifyJWT, declineConnection);
-router.post("/connect/withdraw", verifyJWT, withdrawConnection);
-router.post("/connect/remove", verifyJWT, removeConnection);
-router.post("/connect/status", verifyJWT, connectionStatus);
-router.post("/connections", verifyJWT, getConnections);
-router.post("/connections-count", verifyJWT, getConnectionsCount);
-router.post("/connect/pending", verifyJWT, getPendingRequests);
-router.post("/connect/pending-count", verifyJWT, getPendingCount);
-router.post("/connect/sent", verifyJWT, getSentRequests);
-router.post("/connect/sent-count", verifyJWT, getSentCount);
+router.post("/connect/send", verifyJWT, asyncHandler(sendConnectRequest));
+router.post("/connect/accept", verifyJWT, asyncHandler(acceptConnection));
+router.post("/connect/decline", verifyJWT, asyncHandler(declineConnection));
+router.post("/connect/withdraw", verifyJWT, asyncHandler(withdrawConnection));
+router.post("/connect/remove", verifyJWT, asyncHandler(removeConnection));
+router.post("/connect/status", verifyJWT, asyncHandler(connectionStatus));
+router.post("/connections", verifyJWT, asyncHandler(getConnections));
+router.post("/connections-count", verifyJWT, asyncHandler(getConnectionsCount));
+router.post("/connect/pending", verifyJWT, asyncHandler(getPendingRequests));
+router.post("/connect/pending-count", verifyJWT, asyncHandler(getPendingCount));
+router.post("/connect/sent", verifyJWT, asyncHandler(getSentRequests));
+router.post("/connect/sent-count", verifyJWT, asyncHandler(getSentCount));
 
 export default router;
