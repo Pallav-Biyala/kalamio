@@ -23,8 +23,15 @@ COPY nginx.conf /etc/nginx/conf.d/
 COPY .htpasswd /etc/nginx/.htpasswd
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Ensure nginx user owns the files
-RUN chown -R nginx:nginx /usr/share/nginx/html
+# Fix permissions for non-root nginx user:
+# - PID file moved to /tmp (writable by any user)
+# - Cache, log, and config dirs owned by nginx
+RUN sed -i 's|pid\s*/run/nginx.pid;|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf && \
+    chown -R nginx:nginx /usr/share/nginx/html \
+                         /var/cache/nginx \
+                         /var/log/nginx \
+                         /etc/nginx/conf.d && \
+    chmod -R 755 /var/cache/nginx /var/log/nginx
 
 # Switch to non-root user
 USER nginx
