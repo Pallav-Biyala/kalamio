@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { getRelativeTime } from "../common/date";
 import Icon from "./Icon";
 import Avatar from "./Avatar";
@@ -9,6 +9,7 @@ import api from "../common/api";
 
 const BlogPostCard = ({ content, author }) => {
 
+   const navigate = useNavigate();
    let { _id, publishedAt, tags, title, des, banner, activity: { total_likes, total_comments }, blog_id: id, readTime, publication } = content;
 
    let { fullname, profile_img, username } = author;
@@ -67,10 +68,10 @@ const BlogPostCard = ({ content, author }) => {
                         <span className="feed-card__author-name">{fullname}</span>
                         <span className="feed-card__meta">
                             {publication && (
-                                <Link to={`/publication/${publication.slug}`} className="feed-card__pub-label" onClick={(e) => e.stopPropagation()}>
+                                <span className="feed-card__pub-label" onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(`/publication/${publication.slug}`); }} role="link" tabIndex={0}>
                                     <Icon name="import_contacts" className="feed-card__pub-icon" />
                                     {publication.title}
-                                </Link>
+                                </span>
                             )}
                             {publication && <span className="feed-card__meta-dot">·</span>}
                             {displayReadTime} min read · {getRelativeTime(publishedAt)}
@@ -92,7 +93,7 @@ const BlogPostCard = ({ content, author }) => {
                     {tags && tags.length > 0 && (
                         <div className="feed-card__tags" onClick={(e) => e.preventDefault()}>
                             {tags.slice(0, 3).map((tag, i) => (
-                                <Link key={i} to={`/search/${tag}`} className="feed-card__tag">#{tag}</Link>
+                                <span key={i} className="feed-card__tag" onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(`/search/${tag}`); }} role="link" tabIndex={0}>#{tag}</span>
                             ))}
                         </div>
                     )}
