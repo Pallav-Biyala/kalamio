@@ -41,7 +41,7 @@ const SideNav = () => {
         <>
             <section className="relative flex py-0 m-0 max-md:flex-col" style={{ gap: 0, padding: 0 }}>
                 
-                <div className="sticky top-0 z-30">
+                <div className="sticky top-0 md:top-[80px] z-30">
 
                     <div className="md:hidden bg-surface py-1 border-b border-border flex flex-nowrap overflow-x-auto">
                         <button ref={sideBarIconTab} className="p-5 capitalize" onClick={changePageState}>

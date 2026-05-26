@@ -87,8 +87,8 @@ const Navbar = () => {
                     <Icon name="search" className="absolute right-[10%] md:pointer-events-none md:left-5 top-1/2 -translate-y-1/2 text-xl text-dark-grey" />
                 </div>
 
-                <div className="flex items-center gap-2 sm:gap-3 md:gap-6 ml-auto">
-                    <button className="md:hidden bg-grey w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center hover:bg-grey/80 transition-colors"
+                <div className="flex items-center gap-3 md:gap-6 ml-auto">
+                    <button className="md:hidden bg-grey w-12 h-12 rounded-full flex items-center justify-center hover:bg-grey/80 transition-colors"
                     onClick={()=>setSearchBoxVisibility(currentVal => !currentVal)}
                     >
                         <Icon name="search" className="text-xl" />
@@ -100,7 +100,7 @@ const Navbar = () => {
                     </Link>
 
                     <button 
-                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-grey relative hover:bg-grey/80 flex items-center justify-center transition-colors"
+                        className="w-12 h-12 rounded-full bg-grey relative hover:bg-grey/80 flex items-center justify-center transition-colors"
                         onClick={changeTheme}
                         aria-label="Toggle theme"
                     >
@@ -112,7 +112,7 @@ const Navbar = () => {
                         access_token ?
                         <>
                             <Link to="/dashboard/notifications">
-                                <button className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-grey relative hover:bg-grey/80 flex items-center justify-center transition-colors">
+                                <button className="w-12 h-12 rounded-full bg-grey relative hover:bg-grey/80 flex items-center justify-center transition-colors">
                                     <Icon name="notifications" className="text-2xl" />
                                     {
                                         new_notification_available ? 
@@ -122,7 +122,7 @@ const Navbar = () => {
                             </Link>
 
                             <Link to="/messages">
-                                <button className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-grey relative hover:bg-grey/80 flex items-center justify-center transition-colors">
+                                <button className="w-12 h-12 rounded-full bg-grey relative hover:bg-grey/80 flex items-center justify-center transition-colors">
                                     <Icon name="chat" className="text-2xl" />
                                     {
                                         unreadMessages > 0 ?
@@ -132,7 +132,7 @@ const Navbar = () => {
                             </Link>
 
                             <div className="relative" onClick={handleUserNavPanel} onBlur={handleBlur}>
-                                <button className="w-10 h-10 sm:w-12 sm:h-12 mt-1">
+                                <button className="w-12 h-12 mt-1">
                                     <Avatar src={profile_img} alt="Profile" size={44} />
                                 </button>
 
