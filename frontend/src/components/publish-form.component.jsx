@@ -130,7 +130,7 @@ const PublishForm = () => {
 
     return(
         <AnimationWrapper>
-            <section className="w-screen min-h-screen grid items-center lg:grid-cols-2 py-16 lg:gap-4">
+            <section className="w-full min-h-screen grid items-center lg:grid-cols-2 py-16 lg:gap-4 px-4 sm:px-6">
 
                 <button className="w-10 h-10 absolute right-[5vw] z-10 top-[5%] lg:top-[10%] rounded-full bg-grey hover:bg-grey/80 flex items-center justify-center transition-colors"
                     onClick={handleCloseEvent}
@@ -145,7 +145,7 @@ const PublishForm = () => {
                         <img src={banner} alt="Blog banner" />
                     </div>
 
-                    <h1 className="text-4xl font-bold mt-4 leading-tight line-clamp-2">{ title }</h1>
+                    <h1 className="text-3xl sm:text-4xl font-bold mt-4 leading-tight line-clamp-2">{ title }</h1>
 
                     <p className="font-merriweather line-clamp-2 text-xl leading-7 mt-4 text-dark-grey">{ des }</p>
                 </div>

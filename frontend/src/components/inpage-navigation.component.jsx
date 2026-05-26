@@ -25,7 +25,7 @@ const InPageNavigation = ({ routes, defaultHidden = [], defaultActiveIndex = 0, 
 
     useEffect(() => {
 
-        if(width > 766 && inPageNavIndex != defaultActiveIndex){
+        if(width >= 1024 && inPageNavIndex != defaultActiveIndex){
             changePageState(activeTabRef.current, defaultActiveIndex);
         }
 
@@ -52,7 +52,7 @@ const InPageNavigation = ({ routes, defaultHidden = [], defaultActiveIndex = 0, 
                             <button
                             ref={ i == defaultActiveIndex ? activeTabRef : null }
                             key={i}
-                            className={"p-4 px-5 capitalize font-medium text-sm tracking-wide " + ( inPageNavIndex == i ? "text-black" : "text-dark-grey hover:text-black/70 " ) + (defaultHidden.includes(route) ? "md:hidden " : " ") + "transition-colors"}
+                            className={"p-4 px-5 capitalize font-medium text-sm tracking-wide " + ( inPageNavIndex == i ? "text-black" : "text-dark-grey hover:text-black/70 " ) + (defaultHidden.includes(route) ? "lg:hidden " : " ") + "transition-colors"}
                             onClick={(e) => { changePageState(e.target, i) }}
                             >
                                 { route }

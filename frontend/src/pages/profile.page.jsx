@@ -150,12 +150,12 @@ const ProfilePage = () => {
           <Loader />
         ) : (
             profile_username.length ? 
-                <section className="h-cover md:flex flex-row-reverse items-start gap-5 min-[1100px]:gap-12">
-                    <div className="flex flex-col max-md:items-center gap-5 min-w-[250px] md:w-[50%] md:pl-8 md:border-l border-border md:sticky md:top-[100px] md:py-10 ">
+                <section className="h-cover lg:flex flex-row-reverse items-start gap-5 min-[1100px]:gap-12">
+                    <div className="flex flex-col max-lg:items-center gap-5 min-w-[250px] lg:w-[50%] lg:pl-8 lg:border-l border-border lg:sticky lg:top-[100px] lg:py-10 ">
                     
                     {/* Avatar with gradient ring */}
                     <div className="relative">
-                        <div className="w-48 h-48 md:w-32 md:h-32 rounded-full p-[3px] flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgb(var(--c-brand)), rgb(var(--c-accent)))' }}>
+                        <div className="w-48 h-48 lg:w-32 lg:h-32 rounded-full p-[3px] flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgb(var(--c-brand)), rgb(var(--c-accent)))' }}>
                             <Avatar src={profile_img} alt={fullname} size={120} />
                         </div>
                     </div>
@@ -222,14 +222,14 @@ const ProfilePage = () => {
                     </div>
 
                     <AboutUser
-                        className="max-md:hidden"
+                        className="max-lg:hidden"
                         bio={bio}
                         social_links={social_links}
                         joinedAt={joinedAt}
                     />
                     </div>
 
-                    <div className="max-md:mt-12 w-full">
+                    <div className="max-lg:mt-12 w-full">
                     <InPageNavigation
                         routes={["Blogs Published", "Publications", "About"]}
                         defaultHidden={["About"]}

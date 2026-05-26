@@ -69,7 +69,7 @@ const BlogInteraction = () => {
 
             <hr className="border-border my-2" />
 
-            <div className="flex gap-6 justify-between py-1">
+            <div className="flex gap-4 sm:gap-6 justify-between flex-wrap py-1">
                 <div className="flex gap-3 items-center">
 
                     <button 
@@ -91,7 +91,7 @@ const BlogInteraction = () => {
 
                 </div>
 
-                <div className="flex gap-6 items-center">
+                <div className="flex gap-4 sm:gap-6 items-center">
 
                     {
                         username == author_username ?

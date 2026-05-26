@@ -41,7 +41,7 @@ const SideNav = () => {
         <>
             <section className="relative flex py-0 m-0 max-md:flex-col" style={{ gap: 0, padding: 0 }}>
                 
-                <div className="sticky top-[80px] z-30">
+                <div className="sticky top-0 z-30">
 
                     <div className="md:hidden bg-surface py-1 border-b border-border flex flex-nowrap overflow-x-auto">
                         <button ref={sideBarIconTab} className="p-5 capitalize" onClick={changePageState}>
@@ -55,7 +55,7 @@ const SideNav = () => {
                         <hr ref={activeTabLine} className="absolute bottom-0 duration-500 border-black border-[1.5px]" />
                     </div>
 
-                    <div className={"min-w-[200px] h-[calc(100vh-80px-60px)] md:h-cover md:sticky top-24 overflow-y-auto py-6 pl-0 pr-0 md:border-border md:border-r absolute max-md:top-[64px] bg-surface max-md:w-[calc(100%+80px)] max-md:px-16 max-md:-ml-7 duration-500 " + (!showSideNav ? "max-md:opacity-0 max-md:pointer-events-none" : "opacity-100 pointer-events-auto")}>
+                    <div className={"min-w-[200px] h-[calc(100vh-80px-60px)] md:h-cover md:sticky top-24 overflow-y-auto py-6 pl-0 pr-0 md:border-border md:border-r absolute max-md:top-[64px] bg-surface max-md:w-full max-md:px-4 duration-500 " + (!showSideNav ? "max-md:opacity-0 max-md:pointer-events-none" : "opacity-100 pointer-events-auto")}>
                         
                         <h1 className="text-sm font-semibold text-dark-grey uppercase tracking-wider mb-3 pl-5">Dashboard</h1>
                         <hr className="border-border mb-6 mr-6" />
@@ -113,7 +113,7 @@ const SideNav = () => {
 
                 </div>
 
-                <div className="max-md:-mt-8 mt-5 w-full pl-8">
+                <div className="max-md:mt-2 mt-5 w-full pl-4 lg:pl-8">
                     <Outlet />
                 </div>
 

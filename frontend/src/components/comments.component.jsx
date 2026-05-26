@@ -53,7 +53,7 @@ const CommentsContainer = () => {
                 onClick={() => setCommentsWrapper(false)}
             />
 
-            <div className={"max-sm:w-full fixed " + ( commentsWrapper ? "top-0 sm:right-0" : "top-[100%] sm:right-[-100%]" ) + " duration-500 ease-out max-sm:right-0 sm:top-0 w-[30%] min-w-[350px] h-full z-50 bg-surface shadow-xl p-8 px-16 overflow-y-auto overflow-x-hidden"}>
+            <div className={"max-sm:w-full fixed " + ( commentsWrapper ? "top-0 sm:right-0" : "top-[100%] sm:right-[-100%]" ) + " duration-500 ease-out max-sm:right-0 sm:top-0 w-[30%] min-w-[350px] h-full z-50 bg-surface shadow-xl p-8 px-4 sm:px-10 overflow-y-auto overflow-x-hidden"}>
                 
                 <div className="relative">
                     <h1 className="text-xl font-semibold">Comments</h1>

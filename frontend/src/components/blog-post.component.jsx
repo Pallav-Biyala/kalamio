@@ -118,11 +118,11 @@ const BlogPostCard = ({ content, author }) => {
                 </span>
                 <span className="feed-card__action">
                     <Icon name="bookmark_border" />
-                    <span>Save</span>
+                    <span className="hidden sm:inline">Save</span>
                 </span>
                 <span className="feed-card__action feed-card__action--share">
                     <Icon name="ios_share" />
-                    <span>Share</span>
+                    <span className="hidden sm:inline">Share</span>
                 </span>
             </div>
         </div>

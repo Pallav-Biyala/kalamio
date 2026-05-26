@@ -117,7 +117,7 @@ const SearchPage = () => {
         </InPageNavigation>
       </div>
 
-      <div className="min-w-[40%] lg:min-w-[350px] max-w-min border-l border-border pl-8 pt-3 max-md:hidden">
+      <div className="min-w-[40%] lg:min-w-[350px] max-w-min border-l border-border pl-8 pt-3 hidden lg:block">
 
             <h1 className="font-medium text-xl mb-8 flex items-center gap-2">
                 Users

@@ -129,7 +129,7 @@ const VerifyOtp = () => {
                     </p>
 
                     {/* OTP Inputs */}
-                    <div className="flex justify-center gap-3 mb-10" onPaste={handlePaste}>
+                    <div className="flex justify-center gap-2 sm:gap-3 mb-10" onPaste={handlePaste}>
                         {otp.map((digit, index) => (
                             <input
                                 key={index}
@@ -140,7 +140,7 @@ const VerifyOtp = () => {
                                 value={digit}
                                 onChange={e => handleChange(index, e.target.value)}
                                 onKeyDown={e => handleKeyDown(index, e)}
-                                className="w-12 h-14 text-center text-2xl font-bold border-2 border-border rounded-lg focus:border-black focus:outline-none bg-grey/30 transition-colors"
+                                className="w-10 h-12 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-bold border-2 border-border rounded-lg focus:border-black focus:outline-none bg-grey/30 transition-colors"
                                 autoFocus={index === 0}
                             />
                         ))}

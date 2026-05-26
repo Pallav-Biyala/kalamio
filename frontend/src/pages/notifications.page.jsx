@@ -65,12 +65,12 @@ const Notifications = () => {
 
             <h1 className="max-md:hidden">Recent Notifications</h1>
 
-            <div className="my-8 flex gap-6">
+            <div className="my-8 flex gap-3 md:gap-6 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                 {
                     filters.map((filterName, i) => {
                         return <button 
                             key={i} 
-                            className={"py-2 " + ( filter == filterName ? "btn-dark" : "btn-light")}
+                            className={"py-2 whitespace-nowrap flex-shrink-0 " + ( filter == filterName ? "btn-dark" : "btn-light")}
                             onClick={handleFilter}
                         >{filterName}</button>
                     })

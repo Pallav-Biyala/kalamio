@@ -159,16 +159,16 @@ const CommentCard = ({ index, leftVal, commentData }) => {
     }
 
     return (
-        <div className="w-full" style={{ paddingLeft: `${leftVal * 10}px` }}>
-            <div className="my-5 p-6 rounded-md border border-border">
-                <div className="flex gap-3 items-center mb-8">
+        <div className="w-full" style={{ paddingLeft: `min(${leftVal * 10}px, 15vw)` }}>
+            <div className="my-5 p-4 sm:p-6 rounded-md border border-border">
+                <div className="flex flex-wrap gap-2 sm:gap-3 items-center mb-4 sm:mb-8">
                     <Avatar src={profile_img} alt={commented_by_username} size={24} />
 
         
                     {/* <p className="line-clamp-1">{fullname} @{commented_by_username}</p> */}
                     <p className="line-clamp-1">{fullname}</p>
-                    <p>@{commented_by_username}</p>
-                    <p className="min-w-full">{getDay(commentedAt)}</p>
+                    <p className="text-dark-grey">@{commented_by_username}</p>
+                    <p className="text-dark-grey text-sm">{getDay(commentedAt)}</p>
                 </div>
 
                 <p className="font-inter text-xl ml-3">{comment}</p>
