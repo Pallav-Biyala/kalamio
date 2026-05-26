@@ -465,7 +465,7 @@ export const resetPassword = async (req, res) => {
 // ─────────────────────────────────────────────
 export const refreshToken = async (req, res) => {
     try {
-        const { refreshToken: token } = req.body;
+        const { refresh_token: token } = req.body;
 
         if (!token) {
             return res.status(401).json({ error: ERRORS.REFRESH_TOKEN_INVALID });
