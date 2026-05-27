@@ -80,7 +80,7 @@ api.interceptors.response.use(
                         originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
                         isRefreshing = false;
                         
-                        // Retry original request
+                        // Retry original request with new token
                         return api(originalRequest);
                     } catch (err) {
                         processQueue(err, null);
@@ -92,16 +92,20 @@ api.interceptors.response.use(
                     }
                 }
             }
+
+            // No session or no refresh token — clear everything and redirect
+            isRefreshing = false;
+            removeFromSession("user");
+            toast.error("Session expired. Please log in again.");
+            setTimeout(() => window.location.href = "/signin", 1500);
+            return Promise.reject(error);
         }
 
+        // ── Non-401 error handling ─────────────────────────────────────
         if (status === 429) {
             toast.error("Too many requests. Please slow down.");
         } else if (status >= 500) {
             toast.error("Server error. Please try again later.");
-        } else if (status === 401) {
-            // For 401s where there is no refresh token, or retry already failed
-            toast.error("Session expired. Please log in again.");
-            removeFromSession("user");
         }
 
         return Promise.reject(error);
