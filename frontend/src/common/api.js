@@ -46,8 +46,12 @@ api.interceptors.response.use(
 
         // If 401 and we haven't retried yet (and it's not a login-flow endpoint)
         if (status === 401 && !originalRequest._retry && !isAuthFlow) {
+            console.log('[TokenRefresh] 401 received for:', originalRequest.url);
+            console.log('[TokenRefresh] isRefreshing:', isRefreshing, '| queueLength:', failedQueue.length);
+
             // If already refreshing, queue the request
             if (isRefreshing) {
+                console.log('[TokenRefresh] Queuing request:', originalRequest.url);
                 return new Promise(function(resolve, reject) {
                     failedQueue.push({ resolve, reject });
                 }).then(token => {
@@ -62,14 +66,22 @@ api.interceptors.response.use(
             isRefreshing = true;
 
             const userSession = lookInSession("user");
+            console.log('[TokenRefresh] Session exists:', !!userSession);
+
             if (userSession) {
                 const userData = JSON.parse(userSession);
                 const { refresh_token } = userData;
+                console.log('[TokenRefresh] refresh_token exists:', !!refresh_token);
+                console.log('[TokenRefresh] refresh_token preview:', refresh_token?.substring(0, 20) + '...');
 
                 if (refresh_token) {
                     try {
-                        const { data } = await axios.post(`${import.meta.env.VITE_SERVER_DOMAIN}api/v1/refresh-token`, { refresh_token });
-                        
+                        const refreshUrl = `${import.meta.env.VITE_SERVER_DOMAIN}api/v1/refresh-token`;
+                        console.log('[TokenRefresh] Calling:', refreshUrl);
+
+                        const { data } = await axios.post(refreshUrl, { refresh_token });
+                        console.log('[TokenRefresh] ✅ Success! New access_token received');
+
                         // Update session with new tokens
                         userData.access_token = data.access_token;
                         if (data.refresh_token) userData.refresh_token = data.refresh_token;
@@ -83,6 +95,7 @@ api.interceptors.response.use(
                         // Retry original request with new token
                         return api(originalRequest);
                     } catch (err) {
+                        console.error('[TokenRefresh] ❌ Refresh FAILED:', err.response?.status, err.response?.data);
                         processQueue(err, null);
                         isRefreshing = false;
                         removeFromSession("user");
@@ -94,6 +107,7 @@ api.interceptors.response.use(
             }
 
             // No session or no refresh token — clear everything and redirect
+            console.error('[TokenRefresh] ❌ No session or no refresh_token found');
             isRefreshing = false;
             removeFromSession("user");
             toast.error("Session expired. Please log in again.");

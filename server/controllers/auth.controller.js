@@ -467,29 +467,40 @@ export const refreshToken = async (req, res) => {
     try {
         const { refresh_token: token } = req.body;
 
+        console.log('[RefreshToken] Body keys:', Object.keys(req.body));
+        console.log('[RefreshToken] token received:', !!token, token?.substring(0, 20));
+
         if (!token) {
+            console.log('[RefreshToken] ❌ FAIL: no token in body');
             return res.status(401).json({ error: ERRORS.REFRESH_TOKEN_INVALID });
         }
 
         // Verify JWT signature
         const decoded = verifyRefreshToken(token);
+        console.log('[RefreshToken] JWT verify result:', !!decoded, decoded?.id);
         if (!decoded) {
+            console.log('[RefreshToken] ❌ FAIL: JWT signature invalid or expired');
             return res.status(401).json({ error: ERRORS.REFRESH_TOKEN_INVALID });
         }
 
         // Find user and verify stored refresh token matches
         const user = await User.findById(decoded.id).select('+refreshToken');
+        console.log('[RefreshToken] User found:', !!user, '| has stored hash:', !!user?.refreshToken);
         if (!user || !user.refreshToken) {
+            console.log('[RefreshToken] ❌ FAIL: user not found or no stored refreshToken');
             return res.status(401).json({ error: ERRORS.REFRESH_TOKEN_INVALID });
         }
 
         const isMatch = await bcrypt.compare(token, user.refreshToken);
+        console.log('[RefreshToken] bcrypt compare result:', isMatch);
         if (!isMatch) {
+            console.log('[RefreshToken] ❌ FAIL: bcrypt compare mismatch');
             return res.status(401).json({ error: ERRORS.REFRESH_TOKEN_INVALID });
         }
 
         // Issue new access token only
         const newAccessToken = generateAccessToken(user._id);
+        console.log('[RefreshToken] ✅ SUCCESS: new access_token issued');
 
         return res.status(200).json({ access_token: newAccessToken });
 
