@@ -62,98 +62,100 @@ const ReelCard = ({ blog }) => {
 
     return (
         <div className="reel-card">
-            {/* Background image layer */}
-            {banner && (
-                <div className="reel-card__bg">
-                    <img src={banner} alt="" draggable="false" />
-                </div>
-            )}
-
-            {/* Gradient overlays */}
-            <div className="reel-card__gradient-top" />
-            <div className="reel-card__gradient-bottom" />
-
-            {/* Top bar — read time pill */}
-            <div className="reel-card__top">
-                <div className="reel-card__read-time">
-                    <Icon name="schedule" className="reel-card__read-time-icon" />
-                    {displayReadTime} min read
-                </div>
-            </div>
-
-            {/* Right side action buttons */}
-            <div className="reel-card__actions">
-                <button
-                    className={`reel-card__action-btn ${isLiked ? "reel-card__action-btn--liked" : ""}`}
-                    onClick={handleLike}
-                    aria-label="Like"
-                >
-                    <Icon name={isLiked ? "favorite" : "favorite_border"} filled={isLiked} />
-                    <span>{formatCount(likesCount)}</span>
-                </button>
-
-                <Link to={`/blog/${blog_id}`} className="reel-card__action-btn" aria-label="Comments">
-                    <Icon name="chat_bubble_outline" />
-                    <span>{formatCount(total_comments)}</span>
-                </Link>
-
-                <button className="reel-card__action-btn" aria-label="Bookmark">
-                    <Icon name="bookmark_border" />
-                    <span>Save</span>
-                </button>
-
-                <button className="reel-card__action-btn" aria-label="Share">
-                    <Icon name="share" />
-                    <span>Share</span>
-                </button>
-
-                {/* Read Full — distinctive button at bottom of actions */}
-                <Link to={`/blog/${blog_id}`} className="reel-card__read-btn" aria-label="Read full blog">
-                    <Icon name="auto_stories" />
-                    <span>Read</span>
-                </Link>
-            </div>
-
-            {/* Bottom content overlay */}
-            <div className="reel-card__content">
-                {/* Author row */}
-                <Link to={`/user/${username}`} className="reel-card__author">
-                    <Avatar src={profile_img} alt={fullname} size={36} />
-                    <div className="reel-card__author-info">
-                        <span className="reel-card__author-name">{fullname}</span>
-                        <span className="reel-card__author-meta">@{username} · {getRelativeTime(publishedAt)}</span>
-                    </div>
-                </Link>
-
-                {/* Title */}
-                <h2 className="reel-card__title">{title}</h2>
-
-                {/* Description — expandable */}
-                {des && (
-                    <div className={`reel-card__des ${showFullDes ? "reel-card__des--expanded" : ""}`}>
-                        <p>{des}</p>
-                        {des.length > 100 && !showFullDes && (
-                            <button className="reel-card__des-toggle" onClick={() => setShowFullDes(true)}>
-                                more
-                            </button>
-                        )}
+            <div className="reel-card__inner">
+                {/* Background image layer */}
+                {banner && (
+                    <div className="reel-card__bg">
+                        <img src={banner} alt="" draggable="false" />
                     </div>
                 )}
 
-                {/* Tags */}
-                {tags && tags.length > 0 && (
-                    <div className="reel-card__tags">
-                        {tags.slice(0, 4).map((tag, i) => (
-                            <span
-                                key={i}
-                                className="reel-card__tag"
-                                onClick={() => navigate(`/search/${tag}`)}
-                            >
-                                #{tag}
-                            </span>
-                        ))}
+                {/* Gradient overlays */}
+                <div className="reel-card__gradient-top" />
+                <div className="reel-card__gradient-bottom" />
+
+                {/* Top bar — read time pill */}
+                <div className="reel-card__top">
+                    <div className="reel-card__read-time">
+                        <Icon name="schedule" className="reel-card__read-time-icon" />
+                        {displayReadTime} min read
                     </div>
-                )}
+                </div>
+
+                {/* Right side action buttons */}
+                <div className="reel-card__actions">
+                    <button
+                        className={`reel-card__action-btn ${isLiked ? "reel-card__action-btn--liked" : ""}`}
+                        onClick={handleLike}
+                        aria-label="Like"
+                    >
+                        <Icon name={isLiked ? "favorite" : "favorite_border"} filled={isLiked} />
+                        <span>{formatCount(likesCount)}</span>
+                    </button>
+
+                    <Link to={`/blog/${blog_id}`} className="reel-card__action-btn" aria-label="Comments">
+                        <Icon name="chat_bubble_outline" />
+                        <span>{formatCount(total_comments)}</span>
+                    </Link>
+
+                    <button className="reel-card__action-btn" aria-label="Bookmark">
+                        <Icon name="bookmark_border" />
+                        <span>Save</span>
+                    </button>
+
+                    <button className="reel-card__action-btn" aria-label="Share">
+                        <Icon name="share" />
+                        <span>Share</span>
+                    </button>
+
+                    {/* Read Full — distinctive button at bottom of actions */}
+                    <Link to={`/blog/${blog_id}`} className="reel-card__read-btn" aria-label="Read full blog">
+                        <Icon name="auto_stories" />
+                        <span>Read</span>
+                    </Link>
+                </div>
+
+                {/* Bottom content overlay */}
+                <div className="reel-card__content">
+                    {/* Author row */}
+                    <Link to={`/user/${username}`} className="reel-card__author">
+                        <Avatar src={profile_img} alt={fullname} size={36} />
+                        <div className="reel-card__author-info">
+                            <span className="reel-card__author-name">{fullname}</span>
+                            <span className="reel-card__author-meta">@{username} · {getRelativeTime(publishedAt)}</span>
+                        </div>
+                    </Link>
+
+                    {/* Title */}
+                    <h2 className="reel-card__title">{title}</h2>
+
+                    {/* Description — expandable */}
+                    {des && (
+                        <div className={`reel-card__des ${showFullDes ? "reel-card__des--expanded" : ""}`}>
+                            <p>{des}</p>
+                            {des.length > 100 && !showFullDes && (
+                                <button className="reel-card__des-toggle" onClick={() => setShowFullDes(true)}>
+                                    more
+                                </button>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Tags */}
+                    {tags && tags.length > 0 && (
+                        <div className="reel-card__tags">
+                            {tags.slice(0, 4).map((tag, i) => (
+                                <span
+                                    key={i}
+                                    className="reel-card__tag"
+                                    onClick={() => navigate(`/search/${tag}`)}
+                                >
+                                    #{tag}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

@@ -3141,6 +3141,47 @@ body,
     justify-content: flex-end;
 }
 
+/* Inner container — full pass-through on mobile */
+.reel-card__inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    overflow: hidden;
+}
+
+/* Desktop: center the card in a phone-like container */
+@media (min-width: 1024px) {
+    .reel-card {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .reel-card__inner {
+        position: relative;
+        width: 100%;
+        max-width: 500px;
+        height: 92vh;
+        border-radius: 20px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .reel-card__bg {
+        border-radius: 20px;
+    }
+
+    .reel-card__gradient-top {
+        border-radius: 20px 20px 0 0;
+    }
+}
+
 /* ── Background Image ─────────────────────────────── */
 .reel-card__bg {
     position: absolute;
@@ -3234,20 +3275,20 @@ body,
 /* ── Right Side Action Buttons ────────────────────── */
 .reel-card__actions {
     position: absolute;
-    right: 10px;
-    bottom: 90px;
+    right: 8px;
+    bottom: calc(90px + env(safe-area-inset-bottom));
     z-index: 3;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
 }
 
 @media (min-width: 1024px) {
     .reel-card__actions {
-        right: 20px;
-        bottom: 180px;
-        gap: 8px;
+        right: 10px;
+        bottom: 28px;
+        gap: 4px;
     }
 }
 
@@ -3257,8 +3298,8 @@ body,
     align-items: center;
     justify-content: center;
     gap: 2px;
-    width: 48px;
-    height: 56px;
+    width: 44px;
+    height: 48px;
     color: #fff;
     cursor: pointer;
     background: none;
@@ -3273,8 +3314,8 @@ body,
 }
 
 .reel-card__action-btn .material-symbols-rounded {
-    font-size: 26px;
-    filter: drop-shadow(0 1px 6px rgba(0, 0, 0, 0.4));
+    font-size: 24px;
+    filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.4));
     font-variation-settings: 'wght' 400, 'FILL' 0;
 }
 
@@ -3311,8 +3352,8 @@ body,
     align-items: center;
     justify-content: center;
     gap: 3px;
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.15);
     backdrop-filter: blur(16px);
@@ -3323,11 +3364,11 @@ body,
     text-decoration: none;
     transition: all 0.2s ease;
     -webkit-tap-highlight-color: transparent;
-    margin-top: 4px;
+    margin-top: 2px;
 }
 
 .reel-card__read-btn .material-symbols-rounded {
-    font-size: 20px;
+    font-size: 18px;
     font-variation-settings: 'wght' 300, 'FILL' 0;
 }
 
@@ -3348,20 +3389,21 @@ body,
 .reel-card__content {
     position: relative;
     z-index: 2;
-    padding: 0 14px;
+    padding: 0 16px;
     padding-bottom: calc(90px + env(safe-area-inset-bottom));
-    padding-right: 60px;
+    padding-right: 54px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 @media (min-width: 1024px) {
     .reel-card__content {
-        padding: 0 28px;
-        padding-bottom: 48px;
-        padding-right: 80px;
-        max-width: 680px;
+        padding: 0 16px;
+        padding-bottom: 28px;
+        padding-right: 54px;
+        max-width: 500px;
+        gap: 8px;
     }
 }
 
@@ -3414,7 +3456,7 @@ body,
 
 @media (min-width: 1024px) {
     .reel-card__title {
-        font-size: 26px !important;
+        font-size: 22px !important;
     }
 }
 
