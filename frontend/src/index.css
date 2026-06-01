@@ -575,19 +575,36 @@ body,
         }
     }
 
-    .mobile-top-bar__logo {
-        @apply flex-none;
-        width: 36px;
-        height: auto;
+    .mobile-top-bar__brand {
+        @apply flex items-center gap-2 no-underline;
+        text-decoration: none;
     }
 
-    .mobile-top-bar__logo img {
-        @apply w-full h-auto;
+    .mobile-top-bar__brand-icon {
+        width: 32px;
+        height: 32px;
+        object-fit: contain;
+    }
+
+    .mobile-top-bar__brand-name {
+        font-family: 'Cormorant Garamond', serif;
+        font-size: 22px;
+        font-weight: 700;
+        color: rgb(var(--c-black));
+        letter-spacing: -0.3px;
+    }
+
+    .mobile-top-bar__actions {
+        @apply flex items-center gap-0;
     }
 
     .mobile-top-bar__icon-btn {
-        @apply flex items-center justify-center w-10 h-10 rounded-full text-dark-grey
+        @apply flex items-center justify-center w-11 h-11 rounded-full text-dark-grey
                transition-colors;
+    }
+
+    .mobile-top-bar__icon-btn .material-symbols-outlined {
+        font-size: 24px;
     }
 
     .mobile-top-bar__icon-btn:hover {

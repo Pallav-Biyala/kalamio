@@ -38,29 +38,35 @@ const MobileTopBar = () => {
                 </div>
             ) : (
                 <>
-                    <button
-                        className="mobile-top-bar__icon-btn"
-                        onClick={() => setSearchOpen(true)}
-                    >
-                        <Icon name="search" className="text-xl" />
-                    </button>
-
-                    <Link to="/" className="mobile-top-bar__logo">
+                    {/* Left: Logo + Brand name */}
+                    <Link to="/" className="mobile-top-bar__brand">
                         <img
                             src={theme === "light" ? darkLogo : lightLogo}
-                            alt="Notelys logo"
+                            alt="Kalamio logo"
+                            className="mobile-top-bar__brand-icon"
                         />
+                        <span className="mobile-top-bar__brand-name">Kalamio</span>
                     </Link>
 
-                    <Link
-                        to={access_token ? "/dashboard/notifications" : "/signin"}
-                        className="mobile-top-bar__icon-btn relative"
-                    >
-                        <Icon name="notifications" className="text-xl" />
-                        {access_token && new_notification_available && (
-                            <span className="notification-badge !w-2 !h-2"></span>
-                        )}
-                    </Link>
+                    {/* Right: Search + Notification */}
+                    <div className="mobile-top-bar__actions">
+                        <button
+                            className="mobile-top-bar__icon-btn"
+                            onClick={() => setSearchOpen(true)}
+                        >
+                            <Icon name="search" className="text-xl" />
+                        </button>
+
+                        <Link
+                            to={access_token ? "/dashboard/notifications" : "/signin"}
+                            className="mobile-top-bar__icon-btn relative"
+                        >
+                            <Icon name="notifications" className="text-xl" />
+                            {access_token && new_notification_available && (
+                                <span className="notification-badge !w-2 !h-2"></span>
+                            )}
+                        </Link>
+                    </div>
                 </>
             )}
         </header>
