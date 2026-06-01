@@ -2,7 +2,8 @@ import api from "../common/api";
 import usePageTitle from "../common/usePageTitle";
 import Icon from "../components/Icon";
 import AnimationWrapper from "../common/page-animation";
-import { useContext, useEffect, useState, useRef } from "react";
+import { useContext, useEffect, useState, useRef, useCallback } from "react";
+import { Link } from "react-router-dom";
 import Loader from "../components/loader.component";
 import BlogPostCard from "../components/blog-post.component";
 import MinimalBlogPost from "../components/nobanner-blog-post.component";
@@ -38,6 +39,19 @@ const HomePage = () => {
   ];
 
   const tabsRef = useRef(null);
+  const tabsSpacerRef = useRef(null);
+
+  // Keep spacer in sync when tabs switch to fixed
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const isFixed = document.body.classList.contains('scroll-down') || document.body.classList.contains('scroll-up');
+      if (tabsSpacerRef.current && tabsRef.current) {
+        tabsSpacerRef.current.style.height = isFixed ? tabsRef.current.offsetHeight + 'px' : '0px';
+      }
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   const fetchLatestBlogs = ({page = 1}) => {
     api
@@ -174,6 +188,18 @@ const HomePage = () => {
 
           {/* Category tabs */}
           <div className="category-tabs" ref={tabsRef}>
+            {/* Explore Icon Button (Mobile Only, similar to YouTube) */}
+            <div className="flex items-center lg:hidden flex-shrink-0 py-2 pr-2">
+                <Link 
+                    to="/search/" 
+                    className="flex items-center justify-center bg-grey hover:bg-border transition-colors rounded-radius-sm text-black"
+                    style={{ width: "36px", height: "36px" }}
+                >
+                    <Icon name="explore" className="text-xl" />
+                </Link>
+                <div className="h-6 w-[1.5px] bg-border ml-3"></div>
+            </div>
+
             {categories.map((category, i) => {
               const isActive = 
                 (category === "For You" && pageState === "home") ||
@@ -192,6 +218,8 @@ const HomePage = () => {
               );
             })}
           </div>
+          {/* Spacer: fills the gap when category-tabs switches to position:fixed */}
+          <div ref={tabsSpacerRef} className="category-tabs-spacer" style={{ height: 0 }} />
 
           {/* Blog feed */}
           <div className="home-feed__list">

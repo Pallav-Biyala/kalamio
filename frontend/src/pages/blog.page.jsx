@@ -1,6 +1,6 @@
 import api from "../common/api";
 import usePageTitle from "../common/usePageTitle";
-import { createContext, useEffect, useState, useCallback } from "react";
+import { createContext, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import AnimationWrapper from "../common/page-animation";
 import Loader from "../components/loader.component";
@@ -37,27 +37,10 @@ const BlogPage = () => {
     const [ isLikedByUser, setLikedByUser ] = useState(false);
     const [ commentsWrapper, setCommentsWrapper ] = useState(false);
     const [ totalParentCommentsLoaded, setTotalParentCommentsLoaded ] = useState(0);
-    const [ readingProgress, setReadingProgress ] = useState(0);
 
     let { title, content, banner, author: { personal_info: { fullname, username: author_username, profile_img, bio }, account_info: { total_posts: author_total_posts, total_reads: author_total_reads } = {} }, publishedAt, publication } = blog;
 
     usePageTitle(title || 'Blog');
-
-    // Reading progress bar
-    const handleScroll = useCallback(() => {
-        const scrollTop = window.scrollY;
-        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-        if (docHeight > 0) {
-            setReadingProgress((scrollTop / docHeight) * 100);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (!loading) {
-            window.addEventListener('scroll', handleScroll, { passive: true });
-            return () => window.removeEventListener('scroll', handleScroll);
-        }
-    }, [loading, handleScroll]);
 
     const fetchBlog = () => {
         api.post("/get-blog", { blog_id })
@@ -98,7 +81,6 @@ const BlogPage = () => {
         setLikedByUser(false);
         setCommentsWrapper(false);
         setTotalParentCommentsLoaded(0);
-        setReadingProgress(0);
     }
 
     return (
@@ -107,12 +89,6 @@ const BlogPage = () => {
                 loading ? <Loader />
                 :
                 <BlogContext.Provider value={{ blog, setBlog, isLikedByUser, setLikedByUser, commentsWrapper, setCommentsWrapper, totalParentCommentsLoaded, setTotalParentCommentsLoaded }}>
-
-                    {/* Reading Progress Bar */}
-                    <div 
-                        className="reading-progress" 
-                        style={{ width: `${readingProgress}%` }}
-                    />
 
                     <CommentsContainer />
                     
@@ -160,9 +136,13 @@ const BlogPage = () => {
                         </div>
 
                         <BlogInteraction />
+                    </div>
 
-                        {/* ── CTA Section ── */}
-                        <div className="blog-cta-section">
+                    {/* ── Footer Section (CTAs & Similar Blogs) ── */}
+                    <div className="border-t border-border py-10 mt-10 sm:mt-16">
+                        <div className="max-w-[900px] center max-lg:px-[5vw]">
+                            {/* ── CTA Section ── */}
+                            <div className="blog-cta-section !mt-0">
 
                             {/* Author CTA */}
                             <div className="blog-cta-card">
@@ -240,7 +220,7 @@ const BlogPage = () => {
                                 </>
                             : ""
                         }
-                        
+                        </div>
                     </div>
                 </BlogContext.Provider>
             }

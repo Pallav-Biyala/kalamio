@@ -5,18 +5,26 @@ import Icon from "./Icon";
 
 const BottomTabBar = () => {
 
-    const { userAuth: { access_token, new_notification_available } } = useContext(UserContext);
+    const { userAuth: { access_token } } = useContext(UserContext);
 
     return (
         <nav className="bottom-tab-bar">
             <NavLink to="/" end className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>
-                <Icon name="home" className="text-2xl" />
-                <span>Home</span>
+                {({ isActive }) => (
+                    <>
+                        <Icon name="home" className="text-2xl" filled={isActive} />
+                        <span>Home</span>
+                    </>
+                )}
             </NavLink>
 
-            <NavLink to="/search/" className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>
-                <Icon name="explore" className="text-2xl" />
-                <span>Explore</span>
+            <NavLink to="/reads" className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>
+                {({ isActive }) => (
+                    <>
+                        <Icon name="auto_stories" className="text-2xl" filled={isActive} />
+                        <span>Reads</span>
+                    </>
+                )}
             </NavLink>
 
             <Link to={access_token ? "/editor" : "/signin"} className="bottom-tab-bar__create">
@@ -24,31 +32,42 @@ const BottomTabBar = () => {
             </Link>
 
             {access_token ? (
-                <NavLink to="/dashboard/notifications" className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>
-                    <div className="relative">
-                        <Icon name="notifications" className="text-2xl" />
-                        {new_notification_available && (
-                            <span className="notification-badge !w-1.5 !h-1.5 !top-0 !right-0"></span>
-                        )}
-                    </div>
-                    <span>Activity</span>
+                <NavLink to="/messages" className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>
+                    {({ isActive }) => (
+                        <>
+                            <Icon name="chat_bubble_outline" className="text-2xl" filled={isActive} />
+                            <span>Chat</span>
+                        </>
+                    )}
                 </NavLink>
             ) : (
                 <NavLink to="/signin" className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>
-                    <Icon name="notifications" className="text-2xl" />
-                    <span>Activity</span>
+                    {({ isActive }) => (
+                        <>
+                            <Icon name="chat_bubble_outline" className="text-2xl" filled={isActive} />
+                            <span>Chat</span>
+                        </>
+                    )}
                 </NavLink>
             )}
 
             {access_token ? (
                 <NavLink to="/settings/edit-profile" className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>
-                    <Icon name="person" className="text-2xl" />
-                    <span>Profile</span>
+                    {({ isActive }) => (
+                        <>
+                            <Icon name="person" className="text-2xl" filled={isActive} />
+                            <span>Profile</span>
+                        </>
+                    )}
                 </NavLink>
             ) : (
                 <NavLink to="/signin" className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>
-                    <Icon name="person" className="text-2xl" />
-                    <span>Profile</span>
+                    {({ isActive }) => (
+                        <>
+                            <Icon name="person" className="text-2xl" filled={isActive} />
+                            <span>Profile</span>
+                        </>
+                    )}
                 </NavLink>
             )}
         </nav>

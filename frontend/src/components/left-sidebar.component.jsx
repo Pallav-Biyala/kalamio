@@ -11,6 +11,7 @@ const navItems = [
     { to: "/", icon: "home", label: "Home", end: true },
     { to: "/search/", icon: "explore", label: "Explore" },
     { to: "/dashboard/notifications", icon: "notifications", label: "Activity", authOnly: true },
+    { to: "/messages", icon: "chat_bubble_outline", label: "Chat", authOnly: true },
     { to: "/settings/edit-profile", icon: "person", label: "Profile", authOnly: true },
     { to: "/dashboard/blogs", icon: "draft", label: "Drafts", authOnly: true },
 ];

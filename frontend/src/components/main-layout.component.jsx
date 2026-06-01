@@ -1,5 +1,5 @@
 import { useContext, useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { ThemeContext, UserContext } from "../App";
 import LeftSidebar from "./left-sidebar.component";
 import BottomTabBar from "./bottom-tab-bar.component";
@@ -15,6 +15,8 @@ const MainLayout = () => {
     const { userAuth: { access_token, profile_img }, setUserAuth } = useContext(UserContext);
     const [userNavPanel, setUserNavPanel] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
+    const isReadsPage = location.pathname === "/reads";
 
     // Check for new notifications
     useEffect(() => {
@@ -26,6 +28,31 @@ const MainLayout = () => {
                 .catch(() => {});
         }
     }, [access_token]);
+
+    // Track scroll direction for mobile header and sticky tabs
+    useEffect(() => {
+        let lastScrollY = window.scrollY;
+        const handleScroll = () => {
+            const currentScrollY = window.scrollY;
+            
+            if (currentScrollY <= 0) {
+                // At top: restore absolute flow
+                document.body.classList.remove('scroll-down', 'scroll-up');
+            } else if (currentScrollY > 57 && currentScrollY > lastScrollY) {
+                // Scrolling down past header height
+                document.body.classList.add('scroll-down');
+                document.body.classList.remove('scroll-up');
+            } else if (currentScrollY < lastScrollY) {
+                // Scrolling up
+                document.body.classList.add('scroll-up');
+                document.body.classList.remove('scroll-down');
+            }
+            lastScrollY = currentScrollY;
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     const handleSearch = (e) => {
         let query = e.target.value;
@@ -45,8 +72,8 @@ const MainLayout = () => {
             {/* Desktop left sidebar — hidden on mobile */}
             <LeftSidebar />
 
-            {/* Mobile top bar — hidden on desktop */}
-            <MobileTopBar />
+            {/* Mobile top bar — hidden on desktop and on reads page */}
+            {!isReadsPage && <MobileTopBar />}
 
             {/* Main content area */}
             <main className="app-layout__main">

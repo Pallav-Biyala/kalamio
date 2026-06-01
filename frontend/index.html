@@ -23,7 +23,7 @@
     " />
     <title>Kalamio</title>
 
-    <!-- Splash screen styles — in <head> so they survive React mounting -->
+    <!-- Splash screen styles -->
     <style>
       #splash {
         position: fixed;
@@ -33,10 +33,16 @@
         align-items: center;
         justify-content: center;
         background: #1f1f1e;
+        opacity: 1;
+        transition: opacity 0.4s ease, transform 0.4s ease;
+      }
+      #splash.splash-hide {
+        opacity: 0;
+        pointer-events: none;
       }
       #splash-logo {
-        width: 56px;
-        height: 56px;
+        width: 96px;
+        height: 96px;
         object-fit: contain;
         animation: splash-pulse 1.8s ease-in-out infinite;
       }
@@ -64,12 +70,11 @@
     </script>
   </head>
   <body>
-    <div id="root" role="application" aria-label="Kalamio">
-      <!-- Splash — shown instantly, replaced when React mounts -->
-      <div id="splash" aria-hidden="true">
-        <img src="/splash-logo.png" alt="" width="56" height="56" id="splash-logo" />
-      </div>
+    <!-- Splash — outside #root so React doesn't auto-remove it -->
+    <div id="splash" aria-hidden="true">
+      <img src="/splash-logo.png" alt="" width="56" height="56" id="splash-logo" />
     </div>
+    <div id="root" role="application" aria-label="Kalamio"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

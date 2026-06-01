@@ -9,6 +9,7 @@ import Loader from "./components/loader.component";
 const UserAuthForm = lazy(() => import("./pages/userAuthForm.page"));
 const Editor = lazy(() => import("./pages/editor.pages"));
 const HomePage = lazy(() => import("./pages/home.page"));
+const ReadsPage = lazy(() => import("./pages/reads.page"));
 const SearchPage = lazy(() => import("./pages/search.page"));
 const PageNotFound = lazy(() => import("./pages/404.page"));
 const ProfilePage = lazy(() => import("./pages/profile.page"));
@@ -58,6 +59,16 @@ const App = () => {
             });
         });
 
+        // Dismiss splash screen after a minimum display time
+        const splash = document.getElementById("splash");
+        if (splash) {
+            const timer = setTimeout(() => {
+                splash.classList.add("splash-hide");
+                splash.addEventListener("transitionend", () => splash.remove(), { once: true });
+            }, 1500);
+            return () => clearTimeout(timer);
+        }
+
     }, [])
 
     return (
@@ -86,6 +97,7 @@ const App = () => {
                         <Route path="/editor/:blog_id" element={<Editor/>} />
                         <Route path="/" element={<MainLayout />} >
                             <Route index element={<HomePage />} />
+                        <Route path="reads" element={<ReadsPage />} />
                             <Route path="dashboard" element={<SideNav />} >
                                 <Route path="blogs" element={<ManageBlogs />} />
                                 <Route path="notifications" element={<Notifications />} />
