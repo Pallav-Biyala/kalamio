@@ -9,7 +9,8 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('react-dom') || id.includes('react-router')) {
+            const path = id.replace(/\\/g, '/');
+            if (path.includes('/node_modules/react/') || path.includes('/node_modules/react-dom/') || path.includes('/node_modules/react-router')) {
               return 'vendor-react';
             }
             if (id.includes('@tiptap/')) {
