@@ -320,7 +320,7 @@ const HomePage = () => {
           <div className="home-sidebar__section">
             <div className="home-sidebar__header">
               <div className="home-sidebar__title">
-                🔥 Trending Now
+                <Icon name="trending_up" /> Trending Now
               </div>
               <span className="home-sidebar__view-all">View all</span>
             </div>

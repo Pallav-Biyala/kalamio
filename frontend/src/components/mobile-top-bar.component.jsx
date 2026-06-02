@@ -10,13 +10,22 @@ const MobileTopBar = () => {
     const { userAuth: { access_token, new_notification_available } } = useContext(UserContext);
     const { theme } = useContext(ThemeContext);
     const [searchOpen, setSearchOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
     const navigate = useNavigate();
 
-    const handleSearch = (e) => {
-        let query = e.target.value;
-        if (e.keyCode === 13 && query.length) {
-            navigate(`/search/${query}`);
+    const handleSearchKeyDown = (e) => {
+        if (e.keyCode === 13 && searchQuery.length) {
+            navigate(`/search/${searchQuery}`);
             setSearchOpen(false);
+            setSearchQuery("");
+        }
+    };
+
+    const handleSearchClick = () => {
+        if (searchQuery.length) {
+            navigate(`/search/${searchQuery}`);
+            setSearchOpen(false);
+            setSearchQuery("");
         }
     };
 
@@ -27,14 +36,29 @@ const MobileTopBar = () => {
                     <Icon name="search" className="text-xl text-dark-grey" />
                     <input
                         type="text"
-                        placeholder="Search blogs, topics or writers..."
+                        placeholder="Search"
                         className="mobile-top-bar__search-input"
-                        onKeyDown={handleSearch}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={handleSearchKeyDown}
                         autoFocus
                     />
-                    <button onClick={() => setSearchOpen(false)} className="p-1">
-                        <Icon name="close" className="text-xl text-dark-grey" />
-                    </button>
+                    {searchQuery.length > 0 && (
+                        <div className="flex items-center gap-1">
+                            <button onClick={() => setSearchQuery("")} className="text-dark-grey hover:text-black flex items-center justify-center p-1 transition-colors">
+                                <Icon name="close" className="text-lg" />
+                            </button>
+                            <div className="w-[1px] h-5 bg-border mx-1"></div>
+                            <button onClick={handleSearchClick} className="text-black hover:opacity-80 flex items-center justify-center p-1 transition-colors">
+                                <Icon name="search" className="text-lg" />
+                            </button>
+                        </div>
+                    )}
+                    {!searchQuery.length && (
+                        <button onClick={() => setSearchOpen(false)} className="p-1 text-dark-grey hover:text-black">
+                            <Icon name="close" className="text-xl" />
+                        </button>
+                    )}
                 </div>
             ) : (
                 <>
@@ -54,14 +78,14 @@ const MobileTopBar = () => {
                             className="mobile-top-bar__icon-btn"
                             onClick={() => setSearchOpen(true)}
                         >
-                            <Icon name="search" className="text-xl" />
+                            <Icon name="search" className="text-2xl" />
                         </button>
 
                         <Link
                             to={access_token ? "/dashboard/notifications" : "/signin"}
                             className="mobile-top-bar__icon-btn relative"
                         >
-                            <Icon name="notifications" className="text-xl" />
+                            <Icon name="notifications" className="text-2xl" />
                             {access_token && new_notification_available && (
                                 <span className="notification-badge !w-2 !h-2"></span>
                             )}

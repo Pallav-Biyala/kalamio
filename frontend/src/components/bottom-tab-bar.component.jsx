@@ -2,10 +2,11 @@ import { useContext } from "react";
 import { NavLink, Link } from "react-router-dom";
 import { UserContext } from "../App";
 import Icon from "./Icon";
+import Avatar from "./Avatar";
 
 const BottomTabBar = () => {
 
-    const { userAuth: { access_token } } = useContext(UserContext);
+    const { userAuth: { access_token, profile_img } } = useContext(UserContext);
 
     return (
         <nav className="bottom-tab-bar">
@@ -55,8 +56,12 @@ const BottomTabBar = () => {
                 <NavLink to="/settings/edit-profile" className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>
                     {({ isActive }) => (
                         <>
-                            <Icon name="person" className="text-2xl" filled={isActive} />
-                            <span>Profile</span>
+                            {profile_img ? (
+                                <Avatar src={profile_img} size={24} />
+                            ) : (
+                                <Icon name="person" className="text-2xl" filled={isActive} />
+                            )}
+                            <span>You</span>
                         </>
                     )}
                 </NavLink>
@@ -65,7 +70,7 @@ const BottomTabBar = () => {
                     {({ isActive }) => (
                         <>
                             <Icon name="person" className="text-2xl" filled={isActive} />
-                            <span>Profile</span>
+                            <span>You</span>
                         </>
                     )}
                 </NavLink>

@@ -14,6 +14,7 @@ const MainLayout = () => {
 
     const { userAuth: { access_token, profile_img }, setUserAuth } = useContext(UserContext);
     const [userNavPanel, setUserNavPanel] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
     const navigate = useNavigate();
     const location = useLocation();
     const isReadsPage = location.pathname === "/reads";
@@ -54,10 +55,15 @@ const MainLayout = () => {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    const handleSearch = (e) => {
-        let query = e.target.value;
-        if (e.keyCode === 13 && query.length) {
-            navigate(`/search/${query}`);
+    const handleSearchKeyDown = (e) => {
+        if (e.keyCode === 13 && searchQuery.length) {
+            navigate(`/search/${searchQuery}`);
+        }
+    };
+
+    const handleSearchClick = () => {
+        if (searchQuery.length) {
+            navigate(`/search/${searchQuery}`);
         }
     };
 
@@ -83,13 +89,24 @@ const MainLayout = () => {
                         <Icon name="search" className="text-xl text-dark-grey" />
                         <input
                             type="text"
-                            placeholder="Search blogs, topics or writers..."
+                            placeholder="Search"
                             className="desktop-top-bar__search-input"
-                            onKeyDown={handleSearch}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={handleSearchKeyDown}
                         />
-                        <div className="desktop-top-bar__shortcut">
-                            <kbd>⌘</kbd><kbd>K</kbd>
-                        </div>
+                        {searchQuery.length > 0 && (
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setSearchQuery("")} className="text-dark-grey hover:text-black flex items-center justify-center p-1 transition-colors">
+                                    <Icon name="close" className="text-xl" />
+                                </button>
+                                <div className="w-[1px] h-5 bg-border mx-1"></div>
+                                <button onClick={handleSearchClick} className="text-black hover:opacity-80 flex items-center justify-center p-1 transition-colors">
+                                    <Icon name="search" className="text-xl" />
+                                </button>
+                            </div>
+                        )}
+
                     </div>
 
                     <div className="flex items-center gap-4 ml-auto flex-none">
