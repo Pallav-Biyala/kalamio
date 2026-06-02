@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.29.7",
-    "@microlink/react": "^5.5.25",
     "@tiptap/extension-character-count": "^2.27.2",
     "@tiptap/extension-code-block-lowlight": "^2.27.2",
     "@tiptap/extension-color": "^2.27.2",
