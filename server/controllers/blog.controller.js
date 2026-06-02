@@ -138,16 +138,33 @@ const sanitizeOptions = {
     }
 };
 
-// Calculate read time from EditorJS content blocks (200 WPM)
+// Recursively count words in Tiptap JSON nodes
+const countWordsInTiptapNodes = (nodes) => {
+    let words = 0;
+    if (!Array.isArray(nodes)) return 0;
+    for (const node of nodes) {
+        if (node.type === 'text' && node.text) {
+            words += node.text.replace(/<[^>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
+        }
+        if (node.content) {
+            words += countWordsInTiptapNodes(node.content);
+        }
+    }
+    return words;
+};
+
+// Calculate read time from content (supports both EditorJS and Tiptap formats)
 const calculateReadTime = (content, title = '', des = '') => {
     let totalWords = 0;
-
-    // Count title + description words
     if (title) totalWords += title.split(/\s+/).filter(Boolean).length;
     if (des) totalWords += des.split(/\s+/).filter(Boolean).length;
 
-    // Count words from content blocks
-    if (content && content.blocks) {
+    // Tiptap JSON format
+    if (content && content.type === 'doc' && Array.isArray(content.content)) {
+        totalWords += countWordsInTiptapNodes(content.content);
+    }
+    // Legacy EditorJS format
+    else if (content && content.blocks) {
         content.blocks.forEach(block => {
             let text = '';
             if (block.data) {
@@ -158,7 +175,6 @@ const calculateReadTime = (content, title = '', des = '') => {
                 }
                 if (block.data.code) text += ' ' + block.data.code;
             }
-            // Strip HTML tags
             text = text.replace(/<[^>]*>/g, ' ');
             totalWords += text.split(/\s+/).filter(Boolean).length;
         });
@@ -179,17 +195,54 @@ export const createBlog = (req, res) => {
     des = des ? sanitizeHtml(des, sanitizeOptions) : '';
     tags = tags ? tags.map(tag => sanitizeHtml(tag, sanitizeOptions)) : [];
 
-    // Sanitize EditorJS blocks
-    if (content && content.blocks) {
-        content.blocks = content.blocks.map(block => {
-            if (block.data && block.data.text) {
-                block.data.text = sanitizeHtml(block.data.text, sanitizeOptions);
-            }
-            if (block.data && block.data.items) {
-                block.data.items = block.data.items.map(item => sanitizeHtml(item, sanitizeOptions));
-            }
-            return block;
-        });
+    // Sanitize content (supports both Tiptap and EditorJS formats)
+    if (content) {
+        if (content.type === 'doc' && Array.isArray(content.content)) {
+            // Tiptap JSON format — recursively sanitize text nodes
+            const sanitizeTiptapNodes = (nodes) => {
+                if (!Array.isArray(nodes)) return nodes;
+                return nodes.map(node => {
+                    if (node.type === 'text' && node.text) {
+                        node.text = sanitizeHtml(node.text, sanitizeOptions);
+                    }
+                    if (node.content) {
+                        node.content = sanitizeTiptapNodes(node.content);
+                    }
+                    if (node.marks) {
+                        node.marks = node.marks.map(mark => {
+                            if (mark.type === 'link' && mark.attrs && mark.attrs.href) {
+                                // Sanitize link URLs — remove javascript: and data: protocols
+                                const href = mark.attrs.href;
+                                if (/^(javascript|data):/i.test(href.trim())) {
+                                    mark.attrs.href = '#';
+                                }
+                            }
+                            return mark;
+                        });
+                    }
+                    // Sanitize embed URLs
+                    if (node.type === 'embed' && node.attrs && node.attrs.url) {
+                        const embedUrl = node.attrs.url;
+                        if (/^(javascript|data):/i.test(embedUrl.trim())) {
+                            node.attrs.url = '';
+                        }
+                    }
+                    return node;
+                });
+            };
+            content.content = sanitizeTiptapNodes(content.content);
+        } else if (content.blocks) {
+            // Legacy EditorJS format
+            content.blocks = content.blocks.map(block => {
+                if (block.data && block.data.text) {
+                    block.data.text = sanitizeHtml(block.data.text, sanitizeOptions);
+                }
+                if (block.data && block.data.items) {
+                    block.data.items = block.data.items.map(item => sanitizeHtml(item, sanitizeOptions));
+                }
+                return block;
+            });
+        }
     }
     
     if(!title.length){
@@ -206,7 +259,12 @@ export const createBlog = (req, res) => {
             return res.status(403).json({ error: "You must provide blog banner to publish it" });
         }
     
-        if(!content.blocks.length){
+        // Validate content exists (supports both formats)
+        const hasContent = content?.type === 'doc'
+            ? (content.content && content.content.length > 0)
+            : (content?.blocks && content.blocks.length > 0);
+        
+        if(!hasContent){
             return res.status(403).json({ error: "There must be some blog content to publish it" });
         }
     
@@ -490,20 +548,40 @@ export const deleteBlog = (req, res) => {
             imageUrls.push(blog.banner);
         }
 
-        // 2. Inline images from EditorJS content blocks
+        // 2. Extract image URLs from content for S3 cleanup
         if (blog.content) {
-            const blocks = Array.isArray(blog.content)
-                ? blog.content[0]?.blocks || []
-                : blog.content?.blocks || [];
-
-            blocks.forEach(block => {
-                if (block.type === 'image' && block.data?.file?.url) {
-                    const url = block.data.file.url;
-                    if (url.includes('amazonaws.com')) {
-                        imageUrls.push(url);
+            const rawContent = Array.isArray(blog.content) ? blog.content[0] : blog.content;
+            
+            if (rawContent?.type === 'doc' && rawContent.content) {
+                // Tiptap format — recursively find image nodes
+                const findTiptapImages = (nodes) => {
+                    if (!Array.isArray(nodes)) return;
+                    for (const node of nodes) {
+                        if (node.type === 'image' && node.attrs?.src) {
+                            if (node.attrs.src.includes('amazonaws.com')) {
+                                imageUrls.push(node.attrs.src);
+                            }
+                        }
+                        if (node.type === 'fileAttachment' && node.attrs?.url) {
+                            if (node.attrs.url.includes('amazonaws.com')) {
+                                imageUrls.push(node.attrs.url);
+                            }
+                        }
+                        if (node.content) findTiptapImages(node.content);
                     }
-                }
-            });
+                };
+                findTiptapImages(rawContent.content);
+            } else {
+                // Legacy EditorJS format
+                const blocks = rawContent?.blocks || [];
+                blocks.forEach(block => {
+                    if (block.type === 'image' && block.data?.file?.url) {
+                        if (block.data.file.url.includes('amazonaws.com')) {
+                            imageUrls.push(block.data.file.url);
+                        }
+                    }
+                });
+            }
         }
 
         // 3. Fire-and-forget S3 cleanup (non-blocking)

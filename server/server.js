@@ -29,6 +29,7 @@ import followRoutes from './routes/follow.routes.js';
 import connectRoutes from './routes/connect.routes.js';
 import publicationRoutes from './routes/publication.routes.js';
 import messageRoutes from './routes/message.routes.js';
+import metadataRoutes from './routes/metadata.routes.js';
 
 const server = express();
 const httpServer = createServer(server);
@@ -99,6 +100,7 @@ server.use('/api/v1', followRoutes);
 server.use('/api/v1', connectRoutes);
 server.use('/api/v1', publicationRoutes);
 server.use('/api/v1', messageRoutes);
+server.use('/api/v1', metadataRoutes);
 
 // Backward compat: /api/* → /api/v1/* redirect (remove once all clients updated)
 server.use('/api', (req, res, next) => {

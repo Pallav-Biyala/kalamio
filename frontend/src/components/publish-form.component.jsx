@@ -15,7 +15,7 @@ const PublishForm = () => {
 
     let { blog_id } = useParams();
     
-    let { blog, blog: { banner, title, tags, des, content }, setEditorState, setBlog } = useContext(EditorContext);
+    let { blog, blog: { banner, title, tags, des, content }, setEditorState, setBlog, textEditor } = useContext(EditorContext);
 
     let { userAuth: { access_token } } = useContext(UserContext);
 
@@ -98,12 +98,28 @@ const PublishForm = () => {
             return toast.error("Enter at least 1 tag to help us rank your blog");
         }
 
+        // Get latest content from Tiptap editor
+        let finalContent = content;
+        if (textEditor && typeof textEditor.getJSON === 'function') {
+            finalContent = textEditor.getJSON();
+        }
+
+        // Validate content exists
+        const hasContent = finalContent?.type === 'doc'
+            ? (finalContent.content && finalContent.content.length > 0 &&
+               !(finalContent.content.length === 1 && finalContent.content[0].type === 'paragraph' && !finalContent.content[0].content))
+            : (finalContent?.blocks && finalContent.blocks.length > 0);
+
+        if (!hasContent) {
+            return toast.error("Write something in your blog to publish it");
+        }
+
         let loadingToast = toast.loading("Publishing....");
 
         e.target.classList.add('disable');
 
         let blogObj = {
-            title, banner, des, content, tags, draft: false,
+            title, banner, des, content: finalContent, tags, draft: false,
             publication: selectedPub || null
         }
 

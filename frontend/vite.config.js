@@ -7,22 +7,21 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Split large vendor libraries into separate cached chunks
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-editor': [
-            '@editorjs/editorjs',
-            '@editorjs/header',
-            '@editorjs/image',
-            '@editorjs/list',
-            '@editorjs/quote',
-            '@editorjs/embed',
-            '@editorjs/code',
-            '@editorjs/link',
-            '@editorjs/inline-code',
-            '@editorjs/marker',
-          ],
-          'vendor-axios': ['axios'],
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react-dom') || id.includes('react-router')) {
+              return 'vendor-react';
+            }
+            if (id.includes('@tiptap/')) {
+              return 'vendor-editor';
+            }
+            if (id.includes('lowlight') || id.includes('highlight.js')) {
+              return 'vendor-highlight';
+            }
+            if (id.includes('axios')) {
+              return 'vendor-axios';
+            }
+          }
         },
       },
     },

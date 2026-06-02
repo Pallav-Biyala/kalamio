@@ -5,18 +5,17 @@ import AnimationWrapper from "../common/page-animation";
 import lightBanner from "../imgs/blog banner light.png";
 import darkBanner from "../imgs/blog banner dark.png";
 import { uploadImage } from "../common/aws";
-import { useContext, useEffect, useMemo } from "react";
+import { useContext, useEffect, useRef, useCallback } from "react";
 import toast from "react-hot-toast";
 import { EditorContext } from "../pages/editor.pages";
-import EditorJS from "@editorjs/editorjs";
-import { tools } from "./tools.component";
+import TiptapEditor from "./editor/TiptapEditor";
 import api from "../common/api";
 import { ThemeContext, UserContext } from "../App";
 import Icon from "./Icon";
 
 const BlogEditor = () => {
 
-    let { blog, setBlog, textEditor, setTextEditor, setEditorState } = useContext(EditorContext);
+    let { blog, setBlog, setTextEditor, setEditorState } = useContext(EditorContext);
     let { title, banner, content, tags, des } = blog;
 
     let { userAuth: { access_token } } = useContext(UserContext);
@@ -25,27 +24,27 @@ const BlogEditor = () => {
 
     let navigate = useNavigate();
 
-    // Calculate word count from title
-    const wordCount = useMemo(() => {
-        return title ? title.split(/\s+/).filter(Boolean).length : 0;
-    }, [title]);
+    // Ref to hold the Tiptap editor instance
+    const editorRef = useRef(null);
 
-    useEffect(() => {
-        if(!textEditor){
-            setTextEditor(new EditorJS({
-                holder: "textEditor",
-                data: Array.isArray(content) ? content[0] : content,
-                tools: tools,
-                placeholder: "Let's write an awesome story"
-            }));
-        }
-    }, [])
+    const handleEditorReady = useCallback((editor) => {
+        editorRef.current = editor;
+        setTextEditor(editor);
+    }, [setTextEditor]);
+
+    const handleEditorUpdate = useCallback((json) => {
+        setBlog(prev => ({ ...prev, content: json }));
+    }, [setBlog]);
 
     const handleBanner = (e) => {
         let img = e.target.files[0];
 
         if(img){
             
+            if (!img.type.startsWith('image/')) {
+                return toast.error("Please select an image file (.png, .jpg, .jpeg)");
+            }
+
             let loadingToast = toast.loading("Uploading....");
 
             uploadImage(img).then((url) => {
@@ -59,6 +58,7 @@ const BlogEditor = () => {
             })
             .catch(err => {
                 toast.dismiss(loadingToast);
+                console.error("Banner upload error:", err);
                 toast.error(err?.response?.data?.error || err.message || "Upload failed");
             })
         }
@@ -96,19 +96,21 @@ const BlogEditor = () => {
             return toast.error("Write blog title to publish it");
         }
 
-        if(textEditor?.isReady){
-            textEditor.save().then(data => {
-                if(data.blocks.length){
-                    setBlog({ ...blog, content: data });
-                    setEditorState("publish")
-                }else {
-                    return toast.error("Write something in your blog to publish it")
-                }
-            })
-            .catch((err) => {
-            })
+        // Get content from the Tiptap editor
+        const editor = editorRef.current;
+        if (editor) {
+            const data = editor.getJSON();
+            // Check if there's actual content (more than just an empty paragraph)
+            const hasContent = data.content && data.content.length > 0 && 
+                !(data.content.length === 1 && data.content[0].type === 'paragraph' && !data.content[0].content);
+            
+            if (hasContent) {
+                setBlog({ ...blog, content: data });
+                setEditorState("publish");
+            } else {
+                return toast.error("Write something in your blog to publish it");
+            }
         }
-
     }
 
     const handleSaveDraft = (e) => {
@@ -125,36 +127,52 @@ const BlogEditor = () => {
         
         e.target.classList.add('disable');
         
-        if(textEditor?.isReady){
-            textEditor.save().then( content => {
+        const editor = editorRef.current;
+        const editorContent = editor ? editor.getJSON() : { type: 'doc', content: [] };
 
-                let blogObj = {
-                    title, banner, des, content, tags, draft: true
-                }
-                
-                api.post("/create-blog", { ...blogObj, id: blog_id })
-                .then(() => {
-        
-                    e.target.classList.remove('disable');
-                            
-                    toast.dismiss(loadingToast);
-                    toast.success("Saved 👍");
-                
-                    setTimeout(() => {
-                        navigate("/dashboard/blogs?tab=draft");
-                    }, 500);
-                })
-                .catch(( { response } ) => {
-                    e.target.classList.remove('disable');
-                    toast.dismiss(loadingToast);
-                
-                    return toast.error(response.data.error);
-                
-                })
-            })
+        let blogObj = {
+            title, banner, des, content: editorContent, tags, draft: true
         }
+        
+        api.post("/create-blog", { ...blogObj, id: blog_id })
+        .then(() => {
+    
+            e.target.classList.remove('disable');
+                    
+            toast.dismiss(loadingToast);
+            toast.success("Saved 👍");
+        
+            setTimeout(() => {
+                navigate("/dashboard/blogs?tab=draft");
+            }, 500);
+        })
+        .catch(( { response } ) => {
+            e.target.classList.remove('disable');
+            toast.dismiss(loadingToast);
+        
+            return toast.error(response.data.error);
+        
+        })
 
     }
+
+    // Prepare initial content for the editor
+    const getInitialContent = () => {
+        if (!content || (Array.isArray(content) && content.length === 0)) {
+            return null; // New post — empty editor
+        }
+        const normalized = Array.isArray(content) ? content[0] : content;
+        // Tiptap format
+        if (normalized?.type === 'doc') {
+            return normalized;
+        }
+        // EditorJS format — can't load in Tiptap
+        if (normalized?.blocks) {
+            toast.error("This post uses a legacy editor format. Content has been loaded as read-only. Please recreate if you need to edit.", { duration: 5000 });
+            return null;
+        }
+        return null;
+    };
 
     return(
         <>
@@ -164,11 +182,6 @@ const BlogEditor = () => {
                 </Link>
                 <p className="max-md:hidden text-black line-clamp-1 w-full font-medium">
                     { title.length ? title : "New Blog" }
-                </p>
-
-                {/* Word count indicator */}
-                <p className="max-md:hidden text-dark-grey text-sm whitespace-nowrap">
-                    {wordCount} {wordCount === 1 ? 'word' : 'words'}
                 </p>
 
                 <div className="flex gap-4 ml-auto">
@@ -215,14 +228,25 @@ const BlogEditor = () => {
                         <textarea
                             defaultValue={title}
                             placeholder="Blog Title"
-                            className="text-4xl font-bold w-full h-20 outline-none resize-none mt-10 leading-tight placeholder:opacity-30 bg-transparent"
+                            className="text-4xl font-bold w-full outline-none resize-none mt-10 leading-tight placeholder:opacity-30 bg-transparent border-none focus:ring-0 focus:outline-none overflow-hidden p-0"
+                            style={{ minHeight: '52px' }}
                             onKeyDown={handleTitleKeyDown}
                             onChange={handleTitleChange}
+                            ref={(el) => {
+                                if (el) {
+                                    el.style.height = 'auto';
+                                    el.style.height = el.scrollHeight + 'px';
+                                }
+                            }}
                         ></textarea>
 
                         <hr className="w-full opacity-10 my-5" />
 
-                        <div id="textEditor" className="font-merriweather"></div>
+                        <TiptapEditor
+                            content={getInitialContent()}
+                            onUpdate={handleEditorUpdate}
+                            onEditorReady={handleEditorReady}
+                        />
 
                     </div>
                 </section>

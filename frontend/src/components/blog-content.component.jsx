@@ -1,3 +1,21 @@
+import TiptapRenderer from './editor/utils/tiptap-renderer';
+
+// ── Format Detection ──
+const isTiptapContent = (content) => {
+    if (!content) return false;
+    if (Array.isArray(content)) {
+        return content[0]?.type === 'doc';
+    }
+    return content?.type === 'doc';
+};
+
+// ── Legacy EditorJS Rendering (preserved for backward compat) ──
+
+// function to handle spaces in quotes.
+const cleanHTML = (html = "") => {
+    return html.replace(/&nbsp;/g, " ").trim();
+};
+
 const Img = ({ url, caption }) => {
     return (
         <div>
@@ -34,12 +52,7 @@ const List = ({ style, items }) => {
     )
 }
 
-// function to handle spaces in quotes.
-const cleanHTML = (html = "") => {
-    return html.replace(/&nbsp;/g, " ").trim();
-};
-
-const BlogContent = ({ block }) => {
+const EditorJSBlock = ({ block }) => {
 
     let { type, data } = block;
 
@@ -67,5 +80,26 @@ const BlogContent = ({ block }) => {
     }
 
 }
+
+// ── Main Component (auto-detects format) ──
+const BlogContent = ({ content }) => {
+    const normalizedContent = Array.isArray(content) ? content[0] : content;
+
+    if (isTiptapContent(content)) {
+        return <TiptapRenderer content={normalizedContent} />;
+    }
+
+    // Legacy EditorJS rendering
+    const blocks = normalizedContent?.blocks || [];
+    return (
+        <>
+            {blocks.map((block, i) => (
+                <div key={i} className="my-4 md:my-8">
+                    <EditorJSBlock block={block} />
+                </div>
+            ))}
+        </>
+    );
+};
 
 export default BlogContent;

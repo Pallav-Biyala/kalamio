@@ -130,6 +130,11 @@ body,
         border-color: rgb(var(--c-black) / 0.4);
     }
 
+    input:focus-visible, textarea:focus-visible, select:focus-visible {
+        @apply ring-0 outline-none;
+        border-color: inherit;
+    }
+
     html{
         @apply overflow-x-hidden scroll-smooth;
     }
@@ -2916,6 +2921,42 @@ body,
 
 .blog-page__pub-link-icon {
     font-size: 15px !important;
+}
+
+/* ── Draft Preview Banner ─────────────────────── */
+.draft-preview-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 20px;
+    margin-bottom: 24px;
+    border-radius: 14px;
+    background: rgb(var(--c-warning) / 0.08);
+    border: 1.5px solid rgb(var(--c-warning) / 0.2);
+    color: rgb(var(--c-warning));
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.draft-preview-banner__edit {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: auto;
+    padding: 7px 16px;
+    border-radius: 9999px;
+    background: rgb(var(--c-warning) / 0.12);
+    color: rgb(var(--c-warning));
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.draft-preview-banner__edit:hover {
+    background: rgb(var(--c-warning) / 0.2);
 }
 
 /* ── CTA Section Container ────────────────────── */

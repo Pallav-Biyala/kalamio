@@ -95,7 +95,7 @@ export const ManageDraftBlogPost = ({ blog }) => {
 
             <div>
 
-                <h1 className="blog-title mb-3">{title}</h1>
+                <Link to={`/blog/${blog_id}`} className="blog-title mb-3 hover:text-black transition-colors">{title}</Link>
 
                 <p className="line-clamp-2 text-dark-grey text-sm">{ des.length ? des : "No Description" }</p>
 

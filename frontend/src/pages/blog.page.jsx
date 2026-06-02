@@ -1,6 +1,6 @@
 import api from "../common/api";
 import usePageTitle from "../common/usePageTitle";
-import { createContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import AnimationWrapper from "../common/page-animation";
 import Loader from "../components/loader.component";
@@ -14,6 +14,7 @@ import Avatar from "../components/Avatar";
 import Icon from "../components/Icon";
 import FollowButton from "../components/follow-button.component";
 import SubscribeButton from "../components/subscribe-button.component";
+import { UserContext } from "../App";
 
 
 export const blogStructure = {
@@ -46,23 +47,38 @@ const BlogPage = () => {
         api.post("/get-blog", { blog_id })
         .then(async ({ data: { blog } }) => {
             
-            blog.comments = await fetchComments({ blog_id: blog._id, setParentCommentCountFun: setTotalParentCommentsLoaded })
+            if (!blog.draft) {
+                blog.comments = await fetchComments({ blog_id: blog._id, setParentCommentCountFun: setTotalParentCommentsLoaded })
+            }
 
             setBlog(blog);
 
-            // Save for Keep Reading widget
-            saveReadingProgress(blog);
+            // Save for Keep Reading widget (only for published)
+            if (!blog.draft) {
+                saveReadingProgress(blog);
 
-            api.post("/search-blogs", { tag: blog.tags[0], limit: 6, eliminate_blog: blog_id })
-            .then(({ data }) => {
-                setSimilarBlogs(data.blogs);
-
-            })
+                api.post("/search-blogs", { tag: blog.tags[0], limit: 6, eliminate_blog: blog_id })
+                .then(({ data }) => {
+                    setSimilarBlogs(data.blogs);
+                })
+            }
 
             setLoading(false);
         })
         .catch(err => {
-            setLoading(false);
+            // If 403 because it's a draft, retry with draft flag
+            if (err.response?.status === 403 && err.response?.data?.error?.includes("draft")) {
+                api.post("/get-blog", { blog_id, draft: true, mode: 'edit' })
+                .then(async ({ data: { blog } }) => {
+                    setBlog(blog);
+                    setLoading(false);
+                })
+                .catch(() => {
+                    setLoading(false);
+                })
+            } else {
+                setLoading(false);
+            }
         })
     }
 
@@ -83,6 +99,8 @@ const BlogPage = () => {
         setTotalParentCommentsLoaded(0);
     }
 
+    let isDraft = blog.draft;
+
     return (
         <AnimationWrapper>
             {
@@ -90,11 +108,22 @@ const BlogPage = () => {
                 :
                 <BlogContext.Provider value={{ blog, setBlog, isLikedByUser, setLikedByUser, commentsWrapper, setCommentsWrapper, totalParentCommentsLoaded, setTotalParentCommentsLoaded }}>
 
-                    <CommentsContainer />
+                    {!isDraft && <CommentsContainer />}
                     
                     <div className="max-w-[900px] center py-10 max-lg:px-[5vw]">
 
-                        <img src={banner} className="aspect-video rounded-radius-lg" alt={title} />
+                        {isDraft && (
+                            <div className="draft-preview-banner">
+                                <Icon name="visibility_off" className="text-lg" />
+                                <span>Draft Preview — This is only visible to you</span>
+                                <Link to={`/editor/${blog_id}`} className="draft-preview-banner__edit">
+                                    <Icon name="edit" className="text-base" />
+                                    Edit Draft
+                                </Link>
+                            </div>
+                        )}
+
+                        {banner && <img src={banner} className="aspect-video rounded-radius-lg" alt={title} />}
 
                         <div className="mt-12">
                             <h2 className="font-display text-4xl font-semibold leading-tight">{title}</h2>
@@ -119,26 +148,23 @@ const BlogPage = () => {
                                     </p>
 
                                 </div>
-                                <p className="text-dark-grey opacity-75 max-sm:mt-6 max-sm:ml-12 max-sm:pl-5 text-sm">Published on {getDay(publishedAt)}</p>
+                                <p className="text-dark-grey opacity-75 max-sm:mt-6 max-sm:ml-12 max-sm:pl-5 text-sm">
+                                    {isDraft ? "Draft" : `Published on ${getDay(publishedAt)}`}
+                                </p>
                             </div>
                         </div>
 
-                        <BlogInteraction />
+                        {!isDraft && <BlogInteraction />}
                         
                         <div className="my-12 font-merriweather blog-page-content" style={{ lineHeight: '1.9' }}>
-                            {
-                                (content?.[0]?.blocks || content?.blocks || []).map((block, i) => {
-                                    return <div key={i} className="my-4 md:my-8">
-                                        <BlogContent block={block} />
-                                    </div>
-                                })
-                            }
+                            <BlogContent content={content} />
                         </div>
 
-                        <BlogInteraction />
+                        {!isDraft && <BlogInteraction />}
                     </div>
 
                     {/* ── Footer Section (CTAs & Similar Blogs) ── */}
+                    {!isDraft && (
                     <div className="border-t border-border py-10 mt-10 sm:mt-16">
                         <div className="max-w-[900px] center max-lg:px-[5vw]">
                             {/* ── CTA Section ── */}
@@ -222,6 +248,7 @@ const BlogPage = () => {
                         }
                         </div>
                     </div>
+                    )}
                 </BlogContext.Provider>
             }
         </AnimationWrapper>
