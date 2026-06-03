@@ -3,25 +3,41 @@ import usePageTitle from "../common/usePageTitle";
 import Icon from "../components/Icon";
 import AnimationWrapper from "../common/page-animation";
 import { useContext, useEffect, useState, useRef, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Loader from "../components/loader.component";
 import BlogPostCard from "../components/blog-post.component";
+import TextPostCard from "../components/text-post-card.component";
+import TextPostComposer from "../components/text-post-composer.component";
 import MinimalBlogPost from "../components/nobanner-blog-post.component";
 import NoDataMessage from "../components/nodata.component";
 import { filterPaginationData } from "../common/filter-pagination-data";
 import LoadMoreDataBtn from "../components/load-more.component";
 import WhoToFollow from "../components/who-to-follow.component";
+import Avatar from "../components/Avatar";
 import { UserContext } from "../App";
 
+// ── Module-level cache — survives navigation ──────────────────
+const feedCache = {
+  blogs: null,
+  trendingBlogs: null,
+  followingBlogs: null,
+  pageState: "home",
+  scrollY: 0,
+};
+
 const HomePage = () => {
-  let [blogs, setBlogs] = useState(null);
-  let [trendingBlogs, setTrendingBlogs] = useState(null);
-  let [pageState, setPageState] = useState("home");
+  let [blogs, setBlogs] = useState(feedCache.blogs);
+  let [trendingBlogs, setTrendingBlogs] = useState(feedCache.trendingBlogs);
+  let [pageState, setPageState] = useState(feedCache.pageState);
   let [likedBlogs, setLikedBlogs] = useState([]);
   let [trendingFilter, setTrendingFilter] = useState("all");
-  let [followingBlogs, setFollowingBlogs] = useState(null);
+  let [followingBlogs, setFollowingBlogs] = useState(feedCache.followingBlogs);
+  let [showComposer, setShowComposer] = useState(false);
+  let [editingTextPostId, setEditingTextPostId] = useState(null);
+  let [searchQuery, setSearchQuery] = useState("");
+  const navigate = useNavigate();
 
-  let { userAuth: { access_token } } = useContext(UserContext);
+  let { userAuth: { access_token, profile_img } } = useContext(UserContext);
 
   usePageTitle(pageState === "home" ? "Kalamio" : `#${pageState}`);
 
@@ -41,16 +57,30 @@ const HomePage = () => {
   const tabsRef = useRef(null);
   const tabsSpacerRef = useRef(null);
 
-  // Keep spacer in sync when tabs switch to fixed
+  // Keep spacer height in sync — on mobile, tabs are always fixed so spacer is always needed
   useEffect(() => {
-    const observer = new MutationObserver(() => {
-      const isFixed = document.body.classList.contains('scroll-down') || document.body.classList.contains('scroll-up');
-      if (tabsSpacerRef.current && tabsRef.current) {
-        tabsSpacerRef.current.style.height = isFixed ? tabsRef.current.offsetHeight + 'px' : '0px';
-      }
-    });
-    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
-    return () => observer.disconnect();
+    const mql = window.matchMedia('(max-width: 1023px)');
+
+    const updateSpacer = () => {
+      if (!tabsSpacerRef.current || !tabsRef.current) return;
+      tabsSpacerRef.current.style.height = mql.matches
+        ? tabsRef.current.offsetHeight + 'px'
+        : '0px';
+    };
+
+    updateSpacer();
+    mql.addEventListener('change', updateSpacer);
+    window.addEventListener('resize', updateSpacer);
+    
+    // Also use ResizeObserver to catch any height changes of the tabs themselves
+    const resizeObserver = new ResizeObserver(updateSpacer);
+    if (tabsRef.current) resizeObserver.observe(tabsRef.current);
+
+    return () => {
+      mql.removeEventListener('change', updateSpacer);
+      window.removeEventListener('resize', updateSpacer);
+      resizeObserver.disconnect();
+    };
   }, []);
 
   const fetchLatestBlogs = ({page = 1}) => {
@@ -149,16 +179,31 @@ const HomePage = () => {
     setPageState(tag);
   };
 
+  // Sync state → cache whenever it changes
+  useEffect(() => { feedCache.blogs = blogs; }, [blogs]);
+  useEffect(() => { feedCache.trendingBlogs = trendingBlogs; }, [trendingBlogs]);
+  useEffect(() => { feedCache.followingBlogs = followingBlogs; }, [followingBlogs]);
+  useEffect(() => { feedCache.pageState = pageState; }, [pageState]);
+
+  // Restore scroll position on mount, save on unmount
+  useEffect(() => {
+    if (feedCache.scrollY > 0) {
+      window.scrollTo(0, feedCache.scrollY);
+    }
+    return () => { feedCache.scrollY = window.scrollY; };
+  }, []);
+
   useEffect(() => {
     if (pageState === "home") {
-      fetchLatestBlogs({ page: 1 });
+      if (!blogs) fetchLatestBlogs({ page: 1 });
     } else if (pageState === "following") {
-      setFollowingBlogs(null);
-      fetchFollowingBlogs({ page: 1 });
+      if (!followingBlogs) {
+        fetchFollowingBlogs({ page: 1 });
+      }
     } else if (pageState === "trending") {
       // handled separately
     } else {
-      fetchBlogsByCategory({ page: 1 });
+      if (!blogs) fetchBlogsByCategory({ page: 1 });
     }
 
     if (!trendingBlogs) {
@@ -187,37 +232,50 @@ const HomePage = () => {
         {/* ── Main Feed Column ──────────────────── */}
         <div className="home-feed">
 
-          {/* Category tabs */}
-          <div className="category-tabs" ref={tabsRef}>
-            {/* Explore Icon Button (Mobile Only, similar to YouTube) */}
-            <div className="flex items-center lg:hidden flex-shrink-0 py-2 pr-2">
-                <Link 
-                    to="/search/" 
-                    className="flex items-center justify-center bg-grey hover:bg-border transition-colors rounded-radius-sm text-black"
-                    style={{ width: "36px", height: "36px" }}
-                >
-                    <Icon name="explore" className="text-xl" />
-                </Link>
-                <div className="h-6 w-[1.5px] bg-border ml-3"></div>
+          {/* Sticky Feed Header */}
+          <div className="feed-sticky-header">
+            {/* Composer Prompt */}
+            {access_token && (
+              <div className="composer-prompt" onClick={() => setShowComposer(true)}>
+                  <div className="composer-prompt__avatar">
+                      <Avatar src={profile_img} size={36} />
+                  </div>
+                  <span className="composer-prompt__input">Write to the world...</span>
+              </div>
+            )}
+
+            {/* Category tabs */}
+            <div className="category-tabs" ref={tabsRef}>
+              {/* Explore Icon Button (Mobile Only, similar to YouTube) */}
+              <div className="flex items-center lg:hidden flex-shrink-0 py-2 pr-2">
+                  <Link 
+                      to="/search/" 
+                      className="flex items-center justify-center bg-grey hover:bg-border transition-colors rounded-radius-sm text-black"
+                      style={{ width: "36px", height: "36px" }}
+                  >
+                      <Icon name="explore" className="text-xl" />
+                  </Link>
+                  <div className="h-6 w-[1.5px] bg-border ml-3"></div>
+              </div>
+
+              {categories.map((category, i) => {
+                const isActive = 
+                  (category === "For You" && pageState === "home") ||
+                  (category === "Following" && pageState === "following") ||
+                  (category === "Trending" && pageState === "trending") ||
+                  (category !== "For You" && category !== "Following" && category !== "Trending" && pageState === category.toLowerCase());
+
+                return (
+                  <button
+                    key={i}
+                    onClick={() => loadBlogByCategory(category)}
+                    className={"category-tabs__item" + (isActive ? " active" : "")}
+                  >
+                    {category}
+                  </button>
+                );
+              })}
             </div>
-
-            {categories.map((category, i) => {
-              const isActive = 
-                (category === "For You" && pageState === "home") ||
-                (category === "Following" && pageState === "following") ||
-                (category === "Trending" && pageState === "trending") ||
-                (category !== "For You" && category !== "Following" && category !== "Trending" && pageState === category.toLowerCase());
-
-              return (
-                <button
-                  key={i}
-                  onClick={() => loadBlogByCategory(category)}
-                  className={"category-tabs__item" + (isActive ? " active" : "")}
-                >
-                  {category}
-                </button>
-              );
-            })}
           </div>
           {/* Spacer: fills the gap when category-tabs switches to position:fixed */}
           <div ref={tabsSpacerRef} className="category-tabs-spacer" style={{ height: 0 }} />
@@ -237,11 +295,19 @@ const HomePage = () => {
                       key={blog.blog_id}
                       transition={{ duration: 0.4, delay: i * 0.04 }}
                     >
-                      <BlogPostCard
-                        content={blog}
-                        author={blog.author.personal_info}
-                        isLiked={likedBlogs.includes(blog._id)}
-                      />
+                      {blog.type === 'text_post' ? (
+                        <TextPostCard
+                          content={blog}
+                          author={blog.author.personal_info}
+                          onEdit={(blogId) => { setEditingTextPostId(blogId); setShowComposer(true); }}
+                        />
+                      ) : (
+                        <BlogPostCard
+                          content={blog}
+                          author={blog.author.personal_info}
+                          isLiked={likedBlogs.includes(blog._id)}
+                        />
+                      )}
                     </AnimationWrapper>
                   ))}
                   <LoadMoreDataBtn state={followingBlogs} fetchDataFun={fetchFollowingBlogs} />
@@ -281,11 +347,19 @@ const HomePage = () => {
                     return filtered.length ?
                       filtered.map((blog, i) => (
                         <AnimationWrapper key={blog.blog_id} transition={{ duration: 0.4, delay: i * 0.04 }}>
-                          <BlogPostCard
-                            content={blog}
-                            author={blog.author.personal_info}
-                            isLiked={likedBlogs.includes(blog._id)}
-                          />
+                          {blog.type === 'text_post' ? (
+                            <TextPostCard
+                              content={blog}
+                              author={blog.author.personal_info}
+                              onEdit={(blogId) => { setEditingTextPostId(blogId); setShowComposer(true); }}
+                            />
+                          ) : (
+                            <BlogPostCard
+                              content={blog}
+                              author={blog.author.personal_info}
+                              isLiked={likedBlogs.includes(blog._id)}
+                            />
+                          )}
                         </AnimationWrapper>
                       ))
                     : <NoDataMessage message="No trending blogs for this period" />
@@ -301,11 +375,19 @@ const HomePage = () => {
                       key={blog.blog_id}
                       transition={{ duration: 0.4, delay: i * 0.04 }}
                       >
-                      <BlogPostCard
-                          content={blog}
-                          author={blog.author.personal_info}
-                          isLiked={likedBlogs.includes(blog._id)}
-                      />
+                      {blog.type === 'text_post' ? (
+                          <TextPostCard
+                              content={blog}
+                              author={blog.author.personal_info}
+                              onEdit={(blogId) => { setEditingTextPostId(blogId); setShowComposer(true); }}
+                          />
+                      ) : (
+                          <BlogPostCard
+                              content={blog}
+                              author={blog.author.personal_info}
+                              isLiked={likedBlogs.includes(blog._id)}
+                          />
+                      )}
                       </AnimationWrapper>
                   );
                   })
@@ -317,6 +399,26 @@ const HomePage = () => {
 
         {/* ── Right Sidebar Column (Desktop) ───── */}
         <aside className="home-sidebar">
+          {/* Search Bar */}
+          <div className="desktop-top-bar__search mb-4">
+            <Icon name="search" className="text-lg text-dark-grey" />
+            <input
+              type="text"
+              placeholder="Search"
+              className="desktop-top-bar__search-input"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && searchQuery.length) navigate(`/search/${searchQuery}`); }}
+            />
+            {searchQuery.length > 0 && (
+              <div className="flex items-center gap-1">
+                <button onClick={() => setSearchQuery("")} className="text-dark-grey hover:text-black flex items-center justify-center p-0.5 transition-colors">
+                  <Icon name="close" className="text-lg" />
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Trending Now */}
           <div className="home-sidebar__section">
             <div className="home-sidebar__header">
@@ -360,6 +462,20 @@ const HomePage = () => {
         </aside>
 
       </div>
+
+
+      {/* Text Post Composer Modal */}
+      <TextPostComposer
+        isOpen={showComposer}
+        onClose={() => { setShowComposer(false); setEditingTextPostId(null); }}
+        editBlogId={editingTextPostId}
+        onPosted={() => {
+            // Refresh feed after posting
+            setBlogs(null);
+            feedCache.blogs = null;
+            fetchLatestBlogs({ page: 1 });
+        }}
+      />
     </AnimationWrapper>
   );
 };

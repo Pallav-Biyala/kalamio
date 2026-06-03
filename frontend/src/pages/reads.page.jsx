@@ -179,13 +179,14 @@ const ReadsPage = () => {
     usePageTitle("Reads — Kalamio");
 
     const fetchBlogs = useCallback(({ page = 1 }) => {
-        api.post("/latest-blogs", { page })
+        api.post("/latest-blogs", { page, exclude_type: "text_post" })
             .then(async ({ data }) => {
                 let formatedData = await filterPaginationData({
                     state: blogs,
                     data: data.blogs,
                     page,
                     countRoute: "/all-latest-blogs-count",
+                    data_to_send: { exclude_type: "text_post" },
                 });
                 setBlogs(formatedData);
             })

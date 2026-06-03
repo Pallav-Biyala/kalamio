@@ -23,31 +23,43 @@ const BlogStats = ({ stats }) => {
 
 export const ManagePublishedBlogsCard = ({ blog }) => {
 
-    let { banner, blog_id, title, publishedAt, activity } = blog;
+    let { banner, blog_id, title, publishedAt, activity, type, text_content } = blog;
+    const isTextPost = type === 'text_post';
 
     let { userAuth: { access_token } } = useContext(UserContext);
 
     let [ showStat, setShowStat ] = useState(false);
 
+    const displayTitle = isTextPost
+        ? (text_content ? text_content.substring(0, 80) + (text_content.length > 80 ? '...' : '') : 'Text Post')
+        : title;
+
     return (
         <>
             <div className="flex gap-10 border-b mb-6 max-md:px-4 border-border pb-6 items-center">
 
-                <img src={banner} className="max-md:hidden lg:hidden xl:block w-28 h-28 flex-none bg-grey object-cover rounded-radius-md" alt={title} />
+                {!isTextPost && banner && (
+                    <img src={banner} className="max-md:hidden lg:hidden xl:block w-28 h-28 flex-none bg-grey object-cover rounded-radius-md" alt={title} />
+                )}
 
                 <div className="flex flex-col justify-between py-2 w-full min-w-[300px]">
 
                     <div>
-                        <Link to={`/blog/${blog_id}`} className="blog-title mb-4 hover:text-black transition-colors">{title}</Link>
+                        {isTextPost && (
+                            <span className="text-xs font-medium px-2 py-0.5 rounded-radius-sm bg-grey text-dark-grey mr-2">Text Post</span>
+                        )}
+                        <Link to={`/blog/${blog_id}`} className="blog-title mb-4 hover:text-black transition-colors">{displayTitle}</Link>
 
                         <p className="line-clamp-1 text-dark-grey text-sm mt-1">Published on {getDay(publishedAt)}</p>
                     </div>
 
                     <div className="flex gap-6 mt-3">
-                        <Link to={`/editor/${blog_id}`} className="text-dark-grey hover:text-black transition-colors flex items-center gap-1 text-sm font-medium">
-                            <Icon name="edit" className="text-xl" />
-                            Edit
-                        </Link>
+                        {!isTextPost && (
+                            <Link to={`/editor/${blog_id}`} className="text-dark-grey hover:text-black transition-colors flex items-center gap-1 text-sm font-medium">
+                                <Icon name="edit" className="text-xl" />
+                                Edit
+                            </Link>
+                        )}
 
                         <button className="lg:hidden text-dark-grey hover:text-black transition-colors flex items-center gap-1 text-sm font-medium" onClick={() => setShowStat(preVal => !preVal)}>
                             <Icon name="bar_chart" className="text-xl" />
@@ -82,9 +94,14 @@ export const ManagePublishedBlogsCard = ({ blog }) => {
 
 export const ManageDraftBlogPost = ({ blog }) => {
 
-    let { title, des, blog_id, index } = blog;
+    let { title, des, blog_id, index, type, text_content } = blog;
+    const isTextPost = type === 'text_post';
 
     let { userAuth: { access_token } } = useContext(UserContext);
+
+    const displayTitle = isTextPost
+        ? (text_content ? text_content.substring(0, 80) + (text_content.length > 80 ? '...' : '') : 'Text Post')
+        : title;
 
     index++;
 
@@ -94,16 +111,20 @@ export const ManageDraftBlogPost = ({ blog }) => {
             <h1 className="blog-index text-center pl-4 md:pl-6 flex-none">{ index < 10 ? "0" + index : index }</h1>
 
             <div>
+                {isTextPost && (
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-radius-sm bg-grey text-dark-grey mr-2">Text Post</span>
+                )}
+                <Link to={`/blog/${blog_id}`} className="blog-title mb-3 hover:text-black transition-colors">{displayTitle}</Link>
 
-                <Link to={`/blog/${blog_id}`} className="blog-title mb-3 hover:text-black transition-colors">{title}</Link>
-
-                <p className="line-clamp-2 text-dark-grey text-sm">{ des.length ? des : "No Description" }</p>
+                <p className="line-clamp-2 text-dark-grey text-sm">{ des?.length ? des : (isTextPost ? '' : "No Description") }</p>
 
                 <div className="flex gap-6 mt-3">
-                    <Link to={`/editor/${blog_id}`} className="text-dark-grey hover:text-black transition-colors flex items-center gap-1 text-sm font-medium">
-                        <Icon name="edit" className="text-xl" />
-                        Edit
-                    </Link>
+                    {!isTextPost && (
+                        <Link to={`/editor/${blog_id}`} className="text-dark-grey hover:text-black transition-colors flex items-center gap-1 text-sm font-medium">
+                            <Icon name="edit" className="text-xl" />
+                            Edit
+                        </Link>
+                    )}
 
                     <button 
                         className="text-red hover:text-red/80 transition-colors flex items-center gap-1 text-sm font-medium" 

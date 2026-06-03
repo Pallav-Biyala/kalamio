@@ -1,4 +1,5 @@
 import Blog from '../Schema/Blog.js';
+import PollVote from '../Schema/PollVote.js';
 import User from '../Schema/User.js';
 import Notification from '../Schema/Notification.js';
 import Comment from '../Schema/Comment.js';
@@ -12,15 +13,18 @@ import jwt from 'jsonwebtoken';
 // Latest Blogs
 export const latestBlogs = (req, res) => {
 
-    let { page } = req.body;
+    let { page, exclude_type } = req.body;
 
     let maxLimit = 5;
 
-    Blog.find({ draft: false })
+    let findQuery = { draft: false };
+    if (exclude_type) findQuery.type = { $ne: exclude_type };
+
+    Blog.find(findQuery)
     .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname -_id")
     .populate("publication", "title slug")
     .sort({ "publishedAt": -1 })
-    .select("blog_id title des banner activity tags readTime publishedAt publication")
+    .select("blog_id title des banner activity tags readTime publishedAt publication type text_content images poll edited")
     .limit(maxLimit)
     .skip((page - 1) * maxLimit)
     .then(blogs => {
@@ -34,8 +38,11 @@ export const latestBlogs = (req, res) => {
 
 // All latest blogs count
 export const allLatestBlogsCount = (req, res) => {
+    let { exclude_type } = req.body;
+    let findQuery = { draft: false };
+    if (exclude_type) findQuery.type = { $ne: exclude_type };
 
-    Blog.countDocuments({ draft: false })
+    Blog.countDocuments(findQuery)
     .then(count => {
         return res.status(200).json({ totalDocs: count })
     })
@@ -53,7 +60,7 @@ export const trendingBlogs = (req, res) => {
     .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname -_id")
     .populate("publication", "title slug")
     .sort({ "activity.total_reads": -1, "activity.total_likes": -1, "publishedAt": -1 })
-    .select("blog_id title des banner activity tags readTime publishedAt publication -_id")
+    .select("blog_id title des banner activity tags readTime publishedAt publication type text_content images poll edited -_id")
     .limit(5)
     .then(blogs => {
         return res.status(200).json({ blogs })
@@ -87,7 +94,7 @@ export const searchBlogs = (req, res) => {
     .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname -_id")
     .populate("publication", "title slug")
     .sort({ "publishedAt": -1 })
-    .select("blog_id title des banner activity tags readTime publishedAt publication")
+    .select("blog_id title des banner activity tags readTime publishedAt publication type text_content images poll edited")
     .skip((page - 1) * maxLimit)
     .limit(maxLimit)
     .then(blogs => {
@@ -183,17 +190,21 @@ const calculateReadTime = (content, title = '', des = '') => {
     return Math.max(1, Math.ceil(totalWords / 200));
 };
 
-// Create blog
+// Create blog (handles both articles and text posts)
 export const createBlog = (req, res) => {
 
     let authorId = req.user;
 
-    let { title, banner, content, des, tags, draft, id, publication } = req.body;
+    let { title, banner, content, des, tags, draft, id, publication, type, text_content, images, poll } = req.body;
+
+    // Determine content type (default to article for backward compat)
+    type = type === 'text_post' ? 'text_post' : 'article';
 
     // Sanitize basic strings
     title = title ? sanitizeHtml(title, sanitizeOptions) : '';
     des = des ? sanitizeHtml(des, sanitizeOptions) : '';
     tags = tags ? tags.map(tag => sanitizeHtml(tag, sanitizeOptions)) : [];
+    text_content = text_content ? sanitizeHtml(text_content, { allowedTags: [], allowedAttributes: {} }) : '';
 
     // Sanitize content (supports both Tiptap and EditorJS formats)
     if (content) {
@@ -211,7 +222,6 @@ export const createBlog = (req, res) => {
                     if (node.marks) {
                         node.marks = node.marks.map(mark => {
                             if (mark.type === 'link' && mark.attrs && mark.attrs.href) {
-                                // Sanitize link URLs — remove javascript: and data: protocols
                                 const href = mark.attrs.href;
                                 if (/^(javascript|data):/i.test(href.trim())) {
                                     mark.attrs.href = '#';
@@ -220,7 +230,6 @@ export const createBlog = (req, res) => {
                             return mark;
                         });
                     }
-                    // Sanitize embed URLs
                     if (node.type === 'embed' && node.attrs && node.attrs.url) {
                         const embedUrl = node.attrs.url;
                         if (/^(javascript|data):/i.test(embedUrl.trim())) {
@@ -244,43 +253,78 @@ export const createBlog = (req, res) => {
             });
         }
     }
-    
-    if(!title.length){
-        return res.status(403).json({ error: "You must provide a title" });
-    }
 
-    if(!draft){
-        
-        if(!des.length || des.length > 200){
-            return res.status(403).json({ error: "You must provide blog description under 200 characters" });
+    // ── Validation — differs by type ────────────────────────────────
+    if (type === 'text_post') {
+        if (!text_content || !text_content.trim().length) {
+            return res.status(403).json({ error: "Text post cannot be empty" });
         }
-    
-        if(!banner.length){
-            return res.status(403).json({ error: "You must provide blog banner to publish it" });
+        if (text_content.length > 9999) {
+            return res.status(403).json({ error: "Text post cannot exceed 9,999 characters" });
         }
-    
-        // Validate content exists (supports both formats)
-        const hasContent = content?.type === 'doc'
-            ? (content.content && content.content.length > 0)
-            : (content?.blocks && content.blocks.length > 0);
-        
-        if(!hasContent){
-            return res.status(403).json({ error: "There must be some blog content to publish it" });
+        if (images && images.length > 4) {
+            return res.status(403).json({ error: "Maximum 4 images per text post" });
         }
-    
-        if(!tags.length || tags.length > 10){
-            return res.status(403).json({ error: "Provide tags to publish the blog, maximum 10" });
+        // Sanitize poll
+        if (poll && poll.options) {
+            if (poll.options.length < 2) {
+                return res.status(403).json({ error: "Poll must have at least 2 options" });
+            }
+            if (poll.options.length > 6) {
+                return res.status(403).json({ error: "Poll cannot have more than 6 options" });
+            }
+            poll.options = poll.options.map(opt => ({
+                text: sanitizeHtml(opt.text || '', { allowedTags: [], allowedAttributes: {} }),
+                votes: 0
+            }));
+            poll.total_votes = 0;
+            poll.question = poll.question ? sanitizeHtml(poll.question, { allowedTags: [], allowedAttributes: {} }) : '';
+        }
+    } else {
+        // Article validation
+        if(!title.length){
+            return res.status(403).json({ error: "You must provide a title" });
+        }
+
+        if(!draft){
+            if(!des.length || des.length > 200){
+                return res.status(403).json({ error: "You must provide blog description under 200 characters" });
+            }
+            if(!banner.length){
+                return res.status(403).json({ error: "You must provide blog banner to publish it" });
+            }
+            const hasContent = content?.type === 'doc'
+                ? (content.content && content.content.length > 0)
+                : (content?.blocks && content.blocks.length > 0);
+            if(!hasContent){
+                return res.status(403).json({ error: "There must be some blog content to publish it" });
+            }
+            if(!tags.length || tags.length > 10){
+                return res.status(403).json({ error: "Provide tags to publish the blog, maximum 10" });
+            }
         }
     }
-
 
     tags = tags.map(tag => tag.toLowerCase());
 
-    let blog_id = id || title.replace(/[^a-zA-Z0-9]/g, ' ').replace(/\s+/g, "-").trim() + nanoid();
+    // Generate blog_id — text posts use nanoid only since they have no title
+    let blog_id;
+    if (id) {
+        blog_id = id;
+    } else if (type === 'text_post') {
+        blog_id = 'tp-' + nanoid();
+    } else {
+        blog_id = title.replace(/[^a-zA-Z0-9]/g, ' ').replace(/\s+/g, "-").trim() + nanoid();
+    }
 
     if(id){
 
-        let updateData = { title, des, banner, content, tags, draft: draft ? draft : false, readTime: calculateReadTime(content, title, des) };
+        let updateData = {
+            title, des, banner, content, tags,
+            draft: draft ? draft : false,
+            readTime: type === 'article' ? calculateReadTime(content, title, des) : 0,
+            type, text_content, images: images || [], poll: poll || undefined
+        };
 
         // If publishing a draft, update publishedAt to now
         if (!draft) {
@@ -292,6 +336,8 @@ export const createBlog = (req, res) => {
             updateData.publication = publication || null;
         }
 
+        updateData.edited = true;
+
         Blog.findOneAndUpdate({ blog_id, author: authorId }, updateData)
         .then(async blog => {
             if (!blog) return res.status(403).json({ error: "You don't have permission to edit this blog" });
@@ -301,11 +347,9 @@ export const createBlog = (req, res) => {
             const newPubId = (publication || null)?.toString?.() || publication || null;
 
             if (oldPubId !== newPubId) {
-                // Decrement old publication
                 if (oldPubId) {
                     await Publication.findByIdAndUpdate(oldPubId, { $inc: { total_posts: -1 } });
                 }
-                // Increment new publication
                 if (newPubId) {
                     await Publication.findByIdAndUpdate(newPubId, { $inc: { total_posts: 1 } });
                 }
@@ -320,8 +364,12 @@ export const createBlog = (req, res) => {
     } else{
         
         let blog = new Blog({
-            title, des, banner, content, tags, author: authorId, blog_id: blog_id, draft: Boolean(draft), readTime: calculateReadTime(content, title, des),
-            publication: publication || undefined
+            title, des, banner, content, tags, author: authorId, blog_id,
+            draft: Boolean(draft),
+            readTime: type === 'article' ? calculateReadTime(content, title, des) : 0,
+            publication: publication || undefined,
+            type, text_content, images: images || [],
+            poll: poll || undefined
         })
 
         blog.save().then(async blog => {
@@ -360,7 +408,7 @@ export const getBlog = (req, res) => {
     Blog.findOne({ blog_id })
         .populate("author", "personal_info.fullname personal_info.username personal_info.profile_img personal_info.bio account_info.total_posts account_info.total_reads")
         .populate("publication", "title slug description total_subscribers total_posts")
-        .select("title des content banner activity publishedAt blog_id tags draft author publication")
+        .select("title des content banner activity publishedAt blog_id tags draft author publication type text_content images poll")
         .then(blog => {
             if (!blog) {
                 return res.status(404).json({ error: "Blog not found" });
@@ -492,11 +540,21 @@ export const userWrittenBlogs = (req, res) => {
         skipDocs -= deletedDocCount;
     }
 
-    Blog.find({ author: user_id, draft, title: new RegExp(escapeRegex(query), 'i') })
+    // For text posts, also match against text_content
+    let findQuery = { author: user_id, draft };
+    if (req.body.content_type) {
+        findQuery.type = req.body.content_type;
+    }
+    if (query) {
+        const regex = new RegExp(escapeRegex(query), 'i');
+        findQuery.$or = [{ title: regex }, { text_content: regex }];
+    }
+
+    Blog.find(findQuery)
     .skip(skipDocs)
     .limit(maxLimit)
     .sort({publishedAt: -1})
-    .select(" title banner publishedAt blog_id activity des draft -_id ")
+    .select(" title banner publishedAt blog_id activity des draft type text_content images poll -_id ")
     .then(blogs => {
         return res.status(200).json({ blogs });
     })
@@ -511,8 +569,17 @@ export const userWrittenBlogsCount = (req, res) => {
 
     let user_id = req.user;
     let { draft, query } = req.body;
+    // For text posts, also match against text_content
+    let findQuery = { author: user_id, draft };
+    if (req.body.content_type) {
+        findQuery.type = req.body.content_type;
+    }
+    if (query) {
+        const regex = new RegExp(escapeRegex(query), 'i');
+        findQuery.$or = [{ title: regex }, { text_content: regex }];
+    }
 
-    Blog.countDocuments({ author: user_id, draft, title: new RegExp(escapeRegex(query), 'i') })
+    Blog.countDocuments(findQuery)
     .then(count => {
         return res.status(200).json({ totalDocs: count });
     })
@@ -583,8 +650,16 @@ export const deleteBlog = (req, res) => {
                 });
             }
         }
+        // 3. Text post images
+        if (blog.images && blog.images.length > 0) {
+            blog.images.forEach(url => {
+                if (url && url.includes('amazonaws.com')) {
+                    imageUrls.push(url);
+                }
+            });
+        }
 
-        // 3. Fire-and-forget S3 cleanup (non-blocking)
+        // 4. Fire-and-forget S3 cleanup (non-blocking)
         if (imageUrls.length > 0) {
             deleteMultipleFromS3(imageUrls)
                 .catch(err => req.log?.error({ err }, 'S3 cleanup failed'));
@@ -626,4 +701,68 @@ export const batchIsLiked = (req, res) => {
     .catch(err => {
         return res.status(500).json({ error: err.message });
     })
+};
+
+// Vote on a poll option in a text post
+export const votePoll = (req, res) => {
+    const user_id = req.user;
+    const { blog_id, option_index } = req.body;
+
+    if (blog_id === undefined || option_index === undefined) {
+        return res.status(400).json({ error: "blog_id and option_index are required" });
+    }
+
+    // Check if user already voted
+    PollVote.findOne({ blog_id, user: user_id })
+    .then(existingVote => {
+        if (existingVote) {
+            return res.status(400).json({ error: "You have already voted on this poll" });
+        }
+
+        Blog.findOne({ blog_id, type: 'text_post' })
+        .then(blog => {
+            if (!blog) return res.status(404).json({ error: "Text post not found" });
+            if (!blog.poll || !blog.poll.options || !blog.poll.options.length) {
+                return res.status(400).json({ error: "This post has no poll" });
+            }
+            if (option_index < 0 || option_index >= blog.poll.options.length) {
+                return res.status(400).json({ error: "Invalid option index" });
+            }
+
+            blog.poll.options[option_index].votes += 1;
+            blog.poll.total_votes += 1;
+            blog.markModified('poll');
+
+            // Save vote record and blog in parallel
+            Promise.all([
+                blog.save(),
+                new PollVote({ blog_id, user: user_id, option_index }).save()
+            ])
+            .then(([updated]) => {
+                return res.status(200).json({ poll: updated.poll, voted_option: option_index });
+            })
+            .catch(err => res.status(500).json({ error: err.message }));
+        })
+        .catch(err => res.status(500).json({ error: err.message }));
+    })
+    .catch(err => res.status(500).json({ error: err.message }));
+};
+
+// Check if user has voted on a poll
+export const checkPollVote = (req, res) => {
+    const user_id = req.user;
+    const { blog_id } = req.body;
+
+    if (!blog_id) {
+        return res.status(400).json({ error: "blog_id is required" });
+    }
+
+    PollVote.findOne({ blog_id, user: user_id })
+    .then(vote => {
+        if (vote) {
+            return res.status(200).json({ hasVoted: true, option_index: vote.option_index });
+        }
+        return res.status(200).json({ hasVoted: false });
+    })
+    .catch(err => res.status(500).json({ error: err.message }));
 };

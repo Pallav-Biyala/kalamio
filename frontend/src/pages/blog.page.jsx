@@ -15,6 +15,68 @@ import Icon from "../components/Icon";
 import FollowButton from "../components/follow-button.component";
 import SubscribeButton from "../components/subscribe-button.component";
 import { UserContext } from "../App";
+import toast from "react-hot-toast";
+
+// Inline poll component for the blog page detail view
+const TextPostPollView = ({ poll: initialPoll, blogId }) => {
+    const { userAuth: { access_token } } = useContext(UserContext);
+    const [poll, setPoll] = useState(initialPoll);
+    const [hasVoted, setHasVoted] = useState(false);
+    const [selectedOption, setSelectedOption] = useState(null);
+
+    const handleVote = (optionIndex) => {
+        if (hasVoted || !access_token) {
+            if (!access_token) toast.error("Please login to vote");
+            return;
+        }
+        setSelectedOption(optionIndex);
+        setHasVoted(true);
+
+        setPoll(prev => {
+            const updated = { ...prev };
+            updated.options = prev.options.map((opt, i) => ({
+                ...opt,
+                votes: i === optionIndex ? opt.votes + 1 : opt.votes
+            }));
+            updated.total_votes = (prev.total_votes || 0) + 1;
+            return updated;
+        });
+
+        api.post("/vote-poll", { blog_id: blogId, option_index: optionIndex })
+        .then(({ data }) => setPoll(data.poll))
+        .catch(() => {
+            toast.error("Vote failed");
+            setPoll(initialPoll);
+            setHasVoted(false);
+            setSelectedOption(null);
+        });
+    };
+
+    return (
+        <div className="tp-card__poll mb-6">
+            {poll.question && <div className="tp-card__poll-question">{poll.question}</div>}
+            {poll.options.map((opt, i) => {
+                const totalVotes = poll.total_votes || 0;
+                const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
+                return (
+                    <div key={i}
+                        className={`tp-card__poll-option ${hasVoted ? 'tp-card__poll-option--voted' : ''} ${selectedOption === i ? 'tp-card__poll-option--selected' : ''}`}
+                        onClick={() => !hasVoted && handleVote(i)}
+                    >
+                        {hasVoted && <div className="tp-card__poll-bar" style={{ width: `${percent}%` }} />}
+                        <div className="tp-card__poll-label">
+                            <span>{opt.text}</span>
+                            {hasVoted && <span className="tp-card__poll-percent">{percent}%</span>}
+                        </div>
+                    </div>
+                );
+            })}
+            <div className="tp-card__poll-footer">
+                <span>{poll.total_votes || 0} vote{(poll.total_votes || 0) !== 1 ? 's' : ''}</span>
+            </div>
+        </div>
+    );
+};
 
 
 export const blogStructure = {
@@ -39,9 +101,10 @@ const BlogPage = () => {
     const [ commentsWrapper, setCommentsWrapper ] = useState(false);
     const [ totalParentCommentsLoaded, setTotalParentCommentsLoaded ] = useState(0);
 
-    let { title, content, banner, author: { personal_info: { fullname, username: author_username, profile_img, bio }, account_info: { total_posts: author_total_posts, total_reads: author_total_reads } = {} }, publishedAt, publication } = blog;
+    let { title, content, banner, author: { personal_info: { fullname, username: author_username, profile_img, bio }, account_info: { total_posts: author_total_posts, total_reads: author_total_reads } = {} }, publishedAt, publication, type, text_content, images, poll: blogPoll } = blog;
 
-    usePageTitle(title || 'Blog');
+    const isTextPost = type === 'text_post';
+    usePageTitle(isTextPost ? (text_content ? text_content.substring(0, 60) : 'Text Post') : (title || 'Blog'));
 
     const fetchBlog = () => {
         api.post("/get-blog", { blog_id })
@@ -116,51 +179,91 @@ const BlogPage = () => {
                             <div className="draft-preview-banner">
                                 <Icon name="visibility_off" className="text-lg" />
                                 <span>Draft Preview — This is only visible to you</span>
-                                <Link to={`/editor/${blog_id}`} className="draft-preview-banner__edit">
-                                    <Icon name="edit" className="text-base" />
-                                    Edit Draft
-                                </Link>
+                                {!isTextPost && (
+                                    <Link to={`/editor/${blog_id}`} className="draft-preview-banner__edit">
+                                        <Icon name="edit" className="text-base" />
+                                        Edit Draft
+                                    </Link>
+                                )}
                             </div>
                         )}
 
-                        {banner && <img src={banner} className="aspect-video rounded-radius-lg" alt={title} />}
-
-                        <div className="mt-12">
-                            <h2 className="font-display text-4xl font-semibold leading-tight">{title}</h2>
-
-                            <div className="flex max-sm:flex-col justify-between my-8">
-                                <div className="flex gap-5 items-start">
+                        {isTextPost ? (
+                            /* ── Text Post View ── */
+                            <div>
+                                <div className="flex gap-5 items-start mb-6">
                                     <Avatar src={profile_img} alt={fullname} size={48} />
-
-                                    <p className="capitalize">
-                                        {fullname}
-                                        <br />
-                                        <Link to={`/user/${author_username}`} className="text-dark-grey text-sm hover:text-black transition-colors">@{author_username}</Link>
-                                        {publication && (
-                                            <>
-                                                <span className="text-dark-grey text-sm"> in </span>
-                                                <Link to={`/publication/${publication.slug}`} className="blog-page__pub-link">
-                                                    <Icon name="import_contacts" className="blog-page__pub-link-icon" />
-                                                    {publication.title}
-                                                </Link>
-                                            </>
-                                        )}
-                                    </p>
-
+                                    <div>
+                                        <p className="capitalize font-semibold">{fullname}</p>
+                                        <div className="flex items-center gap-2 text-dark-grey text-sm">
+                                            <Link to={`/user/${author_username}`} className="hover:text-black transition-colors">@{author_username}</Link>
+                                            <span>·</span>
+                                            <span>{isDraft ? "Draft" : getDay(publishedAt)}</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <p className="text-dark-grey opacity-75 max-sm:mt-6 max-sm:ml-12 max-sm:pl-5 text-sm">
-                                    {isDraft ? "Draft" : `Published on ${getDay(publishedAt)}`}
-                                </p>
+
+                                <div className="text-lg leading-relaxed whitespace-pre-wrap mb-6" style={{ lineHeight: '1.8' }}>
+                                    {text_content}
+                                </div>
+
+                                {images && images.length > 0 && (
+                                    <div className={`tp-card__images tp-card__images--${Math.min(images.length, 4)} mb-6`}>
+                                        {images.map((url, i) => (
+                                            <img key={i} src={url} alt={`Image ${i + 1}`} className="tp-card__image" />
+                                        ))}
+                                    </div>
+                                )}
+
+                                {blogPoll && blogPoll.options && blogPoll.options.length > 0 && (
+                                    <TextPostPollView poll={blogPoll} blogId={blog_id} />
+                                )}
+
+                                {!isDraft && <BlogInteraction />}
                             </div>
-                        </div>
+                        ) : (
+                            /* ── Article View (existing) ── */
+                            <>
+                                {banner && <img src={banner} className="aspect-video rounded-radius-lg" alt={title} />}
 
-                        {!isDraft && <BlogInteraction />}
-                        
-                        <div className="my-12 font-merriweather blog-page-content" style={{ lineHeight: '1.9' }}>
-                            <BlogContent content={content} />
-                        </div>
+                                <div className="mt-12">
+                                    <h2 className="font-display text-4xl font-semibold leading-tight">{title}</h2>
 
-                        {!isDraft && <BlogInteraction />}
+                                    <div className="flex max-sm:flex-col justify-between my-8">
+                                        <div className="flex gap-5 items-start">
+                                            <Avatar src={profile_img} alt={fullname} size={48} />
+
+                                            <p className="capitalize">
+                                                {fullname}
+                                                <br />
+                                                <Link to={`/user/${author_username}`} className="text-dark-grey text-sm hover:text-black transition-colors">@{author_username}</Link>
+                                                {publication && (
+                                                    <>
+                                                        <span className="text-dark-grey text-sm"> in </span>
+                                                        <Link to={`/publication/${publication.slug}`} className="blog-page__pub-link">
+                                                            <Icon name="import_contacts" className="blog-page__pub-link-icon" />
+                                                            {publication.title}
+                                                        </Link>
+                                                    </>
+                                                )}
+                                            </p>
+
+                                        </div>
+                                        <p className="text-dark-grey opacity-75 max-sm:mt-6 max-sm:ml-12 max-sm:pl-5 text-sm">
+                                            {isDraft ? "Draft" : `Published on ${getDay(publishedAt)}`}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {!isDraft && <BlogInteraction />}
+                                
+                                <div className="my-12 font-merriweather blog-page-content" style={{ lineHeight: '1.9' }}>
+                                    <BlogContent content={content} />
+                                </div>
+
+                                {!isDraft && <BlogInteraction />}
+                            </>
+                        )}
                     </div>
 
                     {/* ── Footer Section (CTAs & Similar Blogs) ── */}

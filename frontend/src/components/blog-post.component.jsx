@@ -2,6 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { getRelativeTime } from "../common/date";
 import Icon from "./Icon";
 import Avatar from "./Avatar";
+import PostMenu from "./post-menu.component";
 import { useContext, useState, useEffect } from "react";
 import { UserContext } from "../App";
 import toast from "react-hot-toast";
@@ -10,7 +11,7 @@ import api from "../common/api";
 const BlogPostCard = ({ content, author }) => {
 
    const navigate = useNavigate();
-   let { _id, publishedAt, tags, title, des, banner, activity: { total_likes, total_comments }, blog_id: id, readTime, publication } = content;
+   let { _id, publishedAt, tags, title, des, banner, activity: { total_likes, total_comments }, blog_id: id, readTime, publication, edited, type } = content;
 
    let { fullname, profile_img, username } = author;
 
@@ -75,12 +76,11 @@ const BlogPostCard = ({ content, author }) => {
                             )}
                             {publication && <span className="feed-card__meta-dot">·</span>}
                             {displayReadTime} min read · {getRelativeTime(publishedAt)}
+                            {edited && <span className="feed-card__edited">· edited</span>}
                         </span>
                     </div>
                 </Link>
-                <button className="feed-card__menu" aria-label="More options">
-                    <Icon name="more_horiz" />
-                </button>
+                <PostMenu blogId={id} authorUsername={username} postType={type || 'article'} />
             </div>
 
             {/* ── Content: Title + Description + Tags (left) | Thumbnail (right) ── */}

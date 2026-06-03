@@ -1,14 +1,38 @@
-import { useContext } from "react";
-import { NavLink, Link } from "react-router-dom";
+import { useContext, useState } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
 import { UserContext } from "../App";
 import Icon from "./Icon";
 import Avatar from "./Avatar";
+import TextPostComposer from "./text-post-composer.component";
 
 const BottomTabBar = () => {
 
     const { userAuth: { access_token, profile_img } } = useContext(UserContext);
+    const navigate = useNavigate();
+
+    const [showFabMenu, setShowFabMenu] = useState(false);
+    const [showComposer, setShowComposer] = useState(false);
+
+    const handleCreateTextPost = () => {
+        setShowFabMenu(false);
+        setShowComposer(true);
+    };
+
+    const handleCreateArticle = () => {
+        setShowFabMenu(false);
+        navigate(access_token ? "/editor" : "/signin");
+    };
+
+    const handleFabClick = () => {
+        if (!access_token) {
+            navigate("/signin");
+            return;
+        }
+        setShowFabMenu(prev => !prev);
+    };
 
     return (
+        <>
         <nav className="bottom-tab-bar">
             <NavLink to="/" end className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>
                 {({ isActive }) => (
@@ -27,10 +51,6 @@ const BottomTabBar = () => {
                     </>
                 )}
             </NavLink>
-
-            <Link to={access_token ? "/editor" : "/signin"} className="bottom-tab-bar__create">
-                <Icon name="add" className="text-2xl" />
-            </Link>
 
             {access_token ? (
                 <NavLink to="/messages" className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>
@@ -51,6 +71,11 @@ const BottomTabBar = () => {
                     )}
                 </NavLink>
             )}
+
+            <button className="bottom-tab-bar__item" onClick={() => window.dispatchEvent(new Event('open-mobile-search'))}>
+                <Icon name="search" className="text-2xl" />
+                <span>Search</span>
+            </button>
 
             {access_token ? (
                 <NavLink to="/settings/edit-profile" className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>
@@ -76,6 +101,49 @@ const BottomTabBar = () => {
                 </NavLink>
             )}
         </nav>
+
+
+        {/* Floating Action Button (FAB) — bottom right, like Twitter/X */}
+        {access_token && (
+            <div className="fab-container">
+                {showFabMenu && (
+                    <>
+                        <div className="fab-backdrop" onClick={() => setShowFabMenu(false)} />
+                        <div className="fab-menu">
+                            <button className="fab-menu__item" onClick={handleCreateTextPost}>
+                                <span className="fab-menu__label">Post</span>
+                                <span className="fab-menu__icon">
+                                    <Icon name="edit_note" className="text-xl" />
+                                </span>
+                            </button>
+                            <button className="fab-menu__item" onClick={handleCreateArticle}>
+                                <span className="fab-menu__label">Article</span>
+                                <span className="fab-menu__icon">
+                                    <Icon name="article" className="text-xl" />
+                                </span>
+                            </button>
+                        </div>
+                    </>
+                )}
+                <button
+                    className={`fab-button ${showFabMenu ? "fab-button--active" : ""}`}
+                    onClick={handleFabClick}
+                    aria-label="Create"
+                >
+                    <Icon name={showFabMenu ? "close" : "add"} className="text-3xl" />
+                </button>
+            </div>
+        )}
+
+        {/* Text Post Composer Modal */}
+        <TextPostComposer
+            isOpen={showComposer}
+            onClose={() => setShowComposer(false)}
+            onPosted={() => {
+                window.location.reload();
+            }}
+        />
+        </>
     );
 };
 

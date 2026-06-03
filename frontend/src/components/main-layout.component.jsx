@@ -30,29 +30,103 @@ const MainLayout = () => {
         }
     }, [access_token]);
 
-    // Track scroll direction for mobile header and sticky tabs
+    // YouTube-style mobile header & Desktop sticky composer scroll behavior
     useEffect(() => {
         let lastScrollY = window.scrollY;
-        const handleScroll = () => {
-            const currentScrollY = window.scrollY;
-            
-            if (currentScrollY <= 0) {
-                // At top: restore absolute flow
-                document.body.classList.remove('scroll-down', 'scroll-up');
-            } else if (currentScrollY > 57 && currentScrollY > lastScrollY) {
-                // Scrolling down past header height
-                document.body.classList.add('scroll-down');
-                document.body.classList.remove('scroll-up');
-            } else if (currentScrollY < lastScrollY) {
-                // Scrolling up
-                document.body.classList.add('scroll-up');
-                document.body.classList.remove('scroll-down');
+        let headerOffset = 0;
+        let ticking = false;
+
+        const applyTransform = (offset) => {
+            const isDesktop = window.innerWidth >= 1024;
+            const transform = offset === 0 ? '' : `translateY(${-offset}px)`;
+
+            if (isDesktop) {
+                // Clear mobile transforms just in case
+                const topBar = document.querySelector('.mobile-top-bar');
+                if (topBar) topBar.style.transform = '';
+                
+                // Clear desktop transform so it stays perfectly sticky at top: 0
+                const feedHeader = document.querySelector('.feed-sticky-header');
+                if (feedHeader) feedHeader.style.transform = '';
+            } else {
+                // On mobile, hide the top bar and category tabs together
+                const topBar = document.querySelector('.mobile-top-bar');
+                const tabs = document.querySelector('.category-tabs');
+                
+                if (topBar) topBar.style.transform = transform;
+                if (tabs) tabs.style.transform = transform;
+                
+                // Clear desktop transform just in case
+                const feedHeader = document.querySelector('.feed-sticky-header');
+                if (feedHeader) feedHeader.style.transform = '';
             }
+        };
+
+        const update = () => {
+            const currentScrollY = window.scrollY;
+            const delta = currentScrollY - lastScrollY;
             lastScrollY = currentScrollY;
+            const isDesktop = window.innerWidth >= 1024;
+
+            // Determine max offset dynamically
+            let maxOffset = 112; // default mobile maxOffset (57px header + ~55px tabs)
+            if (isDesktop) {
+                const composer = document.querySelector('.composer-prompt');
+                if (composer) {
+                    const style = window.getComputedStyle(composer);
+                    maxOffset = composer.offsetHeight + parseFloat(style.marginTop) + parseFloat(style.marginBottom);
+                } else {
+                    maxOffset = 0; // If no composer, nothing needs to scroll away
+                }
+            }
+
+            if (currentScrollY <= 5) {
+                headerOffset = 0;
+                applyTransform(0);
+                document.body.classList.remove('scroll-down', 'scroll-up');
+            } else if (delta > 0) {
+                // Scrolling DOWN
+                if (maxOffset > 0) {
+                    headerOffset = Math.min(headerOffset + delta, maxOffset);
+                    applyTransform(headerOffset);
+                    if (headerOffset >= maxOffset) {
+                        document.body.classList.add('scroll-down');
+                        document.body.classList.remove('scroll-up');
+                    }
+                }
+            } else if (delta < 0) {
+                // Scrolling UP
+                if (maxOffset > 0) {
+                    headerOffset = Math.max(headerOffset + delta, 0);
+                    applyTransform(headerOffset);
+                    if (headerOffset <= 0) {
+                        document.body.classList.remove('scroll-down');
+                        document.body.classList.add('scroll-up');
+                    }
+                }
+            }
+
+            ticking = false;
+        };
+
+        const handleScroll = () => {
+            if (!ticking) {
+                requestAnimationFrame(update);
+                ticking = true;
+            }
         };
 
         window.addEventListener('scroll', handleScroll, { passive: true });
-        return () => window.removeEventListener('scroll', handleScroll);
+        // Handle window resize to reset transforms when crossing breakpoint
+        window.addEventListener('resize', () => {
+            headerOffset = 0;
+            applyTransform(0);
+        });
+
+        return () => {
+            window.removeEventListener('scroll', handleScroll);
+            applyTransform(0);
+        };
     }, []);
 
     const handleSearchKeyDown = (e) => {
@@ -83,47 +157,6 @@ const MainLayout = () => {
 
             {/* Main content area */}
             <main className="app-layout__main">
-                {/* Desktop top bar (search + user avatar) */}
-                <div className="desktop-top-bar">
-                    <div className="desktop-top-bar__search">
-                        <Icon name="search" className="text-xl text-dark-grey" />
-                        <input
-                            type="text"
-                            placeholder="Search"
-                            className="desktop-top-bar__search-input"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            onKeyDown={handleSearchKeyDown}
-                        />
-                        {searchQuery.length > 0 && (
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => setSearchQuery("")} className="text-dark-grey hover:text-black flex items-center justify-center p-1 transition-colors">
-                                    <Icon name="close" className="text-xl" />
-                                </button>
-                                <div className="w-[1px] h-5 bg-border mx-1"></div>
-                                <button onClick={handleSearchClick} className="text-black hover:opacity-80 flex items-center justify-center p-1 transition-colors">
-                                    <Icon name="search" className="text-xl" />
-                                </button>
-                            </div>
-                        )}
-
-                    </div>
-
-                    <div className="flex items-center gap-4 ml-auto flex-none">
-                        {access_token ? (
-                            <div className="relative" onClick={() => setUserNavPanel(v => !v)} onBlur={handleBlur}>
-                                <button className="w-9 h-9">
-                                    <Avatar src={profile_img} alt="Profile" size={36} />
-                                </button>
-                                {userNavPanel && <UserNavigationPanel />}
-                            </div>
-                        ) : (
-                            <div className="flex items-center gap-3">
-                                <a href="/signin" className="btn-dark py-2 text-sm">Sign In</a>
-                            </div>
-                        )}
-                    </div>
-                </div>
 
                 {/* Page content */}
                 <div className="app-layout__content">

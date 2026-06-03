@@ -17,7 +17,9 @@ import {
     userWrittenBlogs,
     userWrittenBlogsCount,
     deleteBlog,
-    batchIsLiked
+    batchIsLiked,
+    votePoll,
+    checkPollVote
 } from '../controllers/blog.controller.js';
 
 const router = Router();
@@ -41,5 +43,7 @@ router.post("/user-written-blogs", verifyJWT, asyncHandler(userWrittenBlogs));
 router.post("/user-written-blogs-count", verifyJWT, asyncHandler(userWrittenBlogsCount));
 router.post("/delete-blog", verifyJWT, validate(deleteBlogSchema), asyncHandler(deleteBlog));
 router.post("/batch-isliked", verifyJWT, asyncHandler(batchIsLiked));
+router.post("/vote-poll", verifyJWT, asyncHandler(votePoll));
+router.post("/check-poll-vote", verifyJWT, asyncHandler(checkPollVote));
 
 export default router;

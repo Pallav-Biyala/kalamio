@@ -7,9 +7,15 @@ const blogSchema = mongoose.Schema({
         required: true,
         unique: true,
     },
+    // 'article' = long-form (existing), 'text_post' = short-form (new)
+    type: {
+        type: String,
+        enum: ['article', 'text_post'],
+        default: 'article',
+    },
     title: {
         type: String,
-        required: true,
+        required: function() { return this.type === 'article'; },
     },
     banner: {
         type: String,
@@ -25,6 +31,24 @@ const blogSchema = mongoose.Schema({
     content: {
         type: [Schema.Types.Mixed],
         // required: true
+    },
+    // ── Text post specific fields ──────────────────────────────────────
+    text_content: {
+        type: String,
+        maxlength: 9999,
+    },
+    images: {
+        type: [String],
+        default: [],
+    },
+    poll: {
+        question: { type: String },
+        options: [{
+            text: { type: String },
+            votes: { type: Number, default: 0 },
+        }],
+        total_votes: { type: Number, default: 0 },
+        ends_at: { type: Date },
     },
     tags: {
         type: [String],
@@ -67,6 +91,10 @@ const blogSchema = mongoose.Schema({
         default: 1
     },
     draft: {
+        type: Boolean,
+        default: false
+    },
+    edited: {
         type: Boolean,
         default: false
     },

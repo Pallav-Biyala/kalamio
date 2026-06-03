@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import { useContext, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ThemeContext, UserContext } from "../App";
 import lightLogo from "../imgs/logo-light.png";
@@ -12,6 +12,13 @@ const MobileTopBar = () => {
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const navigate = useNavigate();
+
+    // Listen for search-open event from bottom tab bar
+    useEffect(() => {
+        const handler = () => setSearchOpen(true);
+        window.addEventListener("open-mobile-search", handler);
+        return () => window.removeEventListener("open-mobile-search", handler);
+    }, []);
 
     const handleSearchKeyDown = (e) => {
         if (e.keyCode === 13 && searchQuery.length) {
@@ -72,15 +79,8 @@ const MobileTopBar = () => {
                         <span className="mobile-top-bar__brand-name">Kalamio</span>
                     </Link>
 
-                    {/* Right: Search + Notification */}
+                    {/* Right: Notification + Search */}
                     <div className="mobile-top-bar__actions">
-                        <button
-                            className="mobile-top-bar__icon-btn"
-                            onClick={() => setSearchOpen(true)}
-                        >
-                            <Icon name="search" className="text-2xl" />
-                        </button>
-
                         <Link
                             to={access_token ? "/dashboard/notifications" : "/signin"}
                             className="mobile-top-bar__icon-btn relative"
@@ -90,6 +90,12 @@ const MobileTopBar = () => {
                                 <span className="notification-badge !w-2 !h-2"></span>
                             )}
                         </Link>
+                        <button
+                            className="mobile-top-bar__icon-btn"
+                            onClick={() => setSearchOpen(true)}
+                        >
+                            <Icon name="search" className="text-2xl" />
+                        </button>
                     </div>
                 </>
             )}
