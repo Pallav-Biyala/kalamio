@@ -118,6 +118,7 @@ const HomePage = () => {
   };
 
   const loadBlogByCategory = (category) => {
+    window.scrollTo(0, 0);
     setBlogs(null);
 
     if (category === "For You") {

@@ -516,7 +516,7 @@ body,
 
     @media (min-width: 1024px) {
         .desktop-top-bar {
-            @apply flex items-center gap-4 sticky top-0 z-30 py-4 px-6;
+            @apply flex items-center gap-4 sticky top-0 z-30 h-[65px] px-6;
             background: rgb(var(--c-white));
             border-bottom: 1px solid rgb(var(--c-border));
         }
@@ -808,11 +808,9 @@ body,
     /* ── Trending Sub-tabs ──────────────────────── */
     .trending-subtabs {
         display: flex;
+        flex-wrap: wrap;
         gap: 8px;
         padding: 16px 0 8px;
-        overflow-x: auto;
-        -ms-overflow-style: none;
-        scrollbar-width: none;
     }
 
     .trending-subtabs::-webkit-scrollbar {

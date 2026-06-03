@@ -9,7 +9,7 @@ import KeepReading from "./keep-reading.component";
 
 const navItems = [
     { to: "/", icon: "home", label: "Home", end: true },
-    { to: "/reads", icon: "auto_stories", label: "Reads" },
+    { to: "/reads", icon: "auto_stories", label: "Articles" },
     { to: "/search/", icon: "explore", label: "Explore" },
     { to: "/dashboard/notifications", icon: "notifications", label: "Activity", authOnly: true },
     { to: "/messages", icon: "chat_bubble_outline", label: "Chat", authOnly: true },

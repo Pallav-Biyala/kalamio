@@ -23,7 +23,7 @@ const BottomTabBar = () => {
                 {({ isActive }) => (
                     <>
                         <Icon name="auto_stories" className="text-2xl" filled={isActive} />
-                        <span>Reads</span>
+                        <span>Articles</span>
                     </>
                 )}
             </NavLink>

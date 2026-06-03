@@ -5,7 +5,7 @@ import ToolbarDivider from './ToolbarDivider';
 import { uploadImage } from '../../common/aws';
 import LinkInsertModal from './LinkInsertModal';
 
-const EditorToolbar = memo(({ editor, onEmbedClick }) => {
+const EditorToolbar = ({ editor, onEmbedClick }) => {
   const imageInputRef = useRef(null);
   const fileInputRef = useRef(null);
   const [showLinkModal, setShowLinkModal] = useState(false);
@@ -286,7 +286,7 @@ const EditorToolbar = memo(({ editor, onEmbedClick }) => {
       )}
     </div>
   );
-});
+  };
 
 EditorToolbar.displayName = 'EditorToolbar';
 

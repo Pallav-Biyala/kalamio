@@ -126,7 +126,15 @@
   align-items: center;
   gap: 2px;
   padding: 6px 12px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.editor-toolbar::-webkit-scrollbar {
+  display: none;
 }
 
 .toolbar-btn {

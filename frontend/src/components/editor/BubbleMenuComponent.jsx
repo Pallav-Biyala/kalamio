@@ -2,7 +2,7 @@ import { memo, useCallback } from 'react';
 import { BubbleMenu } from '@tiptap/react';
 import ToolbarButton from './ToolbarButton';
 
-const BubbleMenuComponent = memo(({ editor }) => {
+const BubbleMenuComponent = ({ editor }) => {
   if (!editor) return null;
 
   const handleLinkToggle = useCallback(() => {
@@ -86,7 +86,7 @@ const BubbleMenuComponent = memo(({ editor }) => {
       </div>
     </BubbleMenu>
   );
-});
+};
 
 BubbleMenuComponent.displayName = 'BubbleMenuComponent';
 

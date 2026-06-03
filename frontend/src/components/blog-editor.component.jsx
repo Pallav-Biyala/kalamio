@@ -201,7 +201,7 @@ const BlogEditor = () => {
             <AnimationWrapper>
                 <section>
                     <div className="mx-auto max-w-[900px] w-full">
-                        <div className="relative aspect-video hover:opacity-80 bg-surface border-2 border-dashed border-border rounded-radius-lg overflow-hidden cursor-pointer group transition-all hover:border-brand/40">
+                        <div className="relative aspect-[2/1] md:aspect-video hover:opacity-80 bg-surface border-2 border-dashed border-border rounded-radius-lg overflow-hidden cursor-pointer group transition-all hover:border-brand/40">
                             <label htmlFor="uploadbanner" className="cursor-pointer">
                                 <img
                                     src={banner}
@@ -228,7 +228,7 @@ const BlogEditor = () => {
                         <textarea
                             defaultValue={title}
                             placeholder="Blog Title"
-                            className="text-4xl font-bold w-full outline-none resize-none mt-10 leading-tight placeholder:opacity-30 bg-transparent border-none focus:ring-0 focus:outline-none overflow-hidden p-0"
+                            className="text-3xl md:text-4xl font-bold w-full outline-none resize-none mt-6 md:mt-10 leading-tight placeholder:opacity-30 bg-transparent border-none focus:ring-0 focus:outline-none overflow-hidden p-0"
                             style={{ minHeight: '52px' }}
                             onKeyDown={handleTitleKeyDown}
                             onChange={handleTitleChange}
