@@ -20,7 +20,6 @@ const FollowButton = ({ targetUserId, initiallyFollowing = null, onFollowChange,
 
     const [isFollowing, setIsFollowing] = useState(initiallyFollowing);
     const [loading, setLoading] = useState(false);
-    const [hovered, setHovered] = useState(false);
     const [followsYou, setFollowsYou] = useState(false);
 
     // Don't render if viewing own profile
@@ -80,19 +79,17 @@ const FollowButton = ({ targetUserId, initiallyFollowing = null, onFollowChange,
         : "follow-btn--md";
 
     const stateClass = isFollowing 
-        ? (hovered ? "follow-btn--unfollow" : "follow-btn--following")
+        ? "follow-btn--following"
         : "follow-btn--follow";
 
     const label = isFollowing 
-        ? (hovered ? "Unfollow" : "Following") 
+        ? "Following" 
         : (followsYou ? "Follow Back" : "Follow");
 
     return (
         <button
             className={`follow-btn ${sizeClasses} ${stateClass} ${className}`}
             onClick={handleClick}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
             disabled={loading}
             aria-label={label}
         >

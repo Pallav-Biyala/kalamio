@@ -100,7 +100,20 @@ const TextPostCard = ({ content, author, onEdit }) => {
     // Render text with line breaks preserved
     const renderText = (text) => {
         if (!text) return null;
-        return text;
+        
+        const parts = text.split(/(@[\w](?:[\w.]*[\w])?)/g);
+        
+        return parts.map((part, i) => {
+            if (part.startsWith('@') && part.length > 1) {
+                const username = part.slice(1);
+                return (
+                    <Link key={i} to={`/user/${username}`} className="mention-link">
+                        {part}
+                    </Link>
+                );
+            }
+            return <span key={i}>{part}</span>;
+        });
     };
 
     return (

@@ -15,7 +15,6 @@ const navItems = [
     { to: "/search/", icon: "explore", label: "Explore" },
     { to: "/dashboard/notifications", icon: "notifications", label: "Activity", authOnly: true },
     { to: "/messages", icon: "chat_bubble_outline", label: "Chat", authOnly: true },
-    { to: "/dashboard/blogs?tab=draft", icon: "draft", label: "Drafts", authOnly: true },
 ];
 
 const LeftSidebar = () => {

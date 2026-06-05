@@ -3,12 +3,13 @@ import { UserContext } from "../App";
 import api from "../common/api";
 import { useNavigate } from "react-router-dom";
 import Icon from "./Icon";
+import ConfirmModal from "./confirm-modal.component";
 
 /**
  * ConnectButton — handles the full connect lifecycle:
  *   none → Connect → pending_sent → Pending (withdraw on click)
  *   pending_received → Accept/Decline
- *   accepted → Connected (disconnect on hover)
+ *   accepted → Connected (disconnect on click)
  * 
  * Props:
  *   targetUserId      — the _id of the user to connect with
@@ -24,7 +25,8 @@ const ConnectButton = ({ targetUserId, initialStatus = null, onStatusChange, siz
 
     const [status, setStatus] = useState(initialStatus);
     const [loading, setLoading] = useState(false);
-    const [hovered, setHovered] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [pendingAction, setPendingAction] = useState(null);
 
     // Don't render if viewing own profile
     if (currentUserId === targetUserId) return null;
@@ -38,18 +40,7 @@ const ConnectButton = ({ targetUserId, initialStatus = null, onStatusChange, siz
             .catch(() => setStatus('none'));
     }, [targetUserId, access_token]);
 
-    const handleAction = async (action, e) => {
-        if (e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        if (!access_token) {
-            navigate("/signin");
-            return;
-        }
-
-        if (loading) return;
+    const executeAction = async (action) => {
         setLoading(true);
 
         try {
@@ -102,6 +93,42 @@ const ConnectButton = ({ targetUserId, initialStatus = null, onStatusChange, siz
         }
     };
 
+    const handleAction = (action, e) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        if (!access_token) {
+            navigate("/signin");
+            return;
+        }
+
+        if (loading) return;
+
+        // Show confirmation for destructive actions
+        if (action === 'withdraw') {
+            setPendingAction(action);
+            setShowConfirm(true);
+            return;
+        }
+
+        executeAction(action);
+    };
+
+    const handleConfirm = () => {
+        setShowConfirm(false);
+        if (pendingAction) {
+            executeAction(pendingAction);
+            setPendingAction(null);
+        }
+    };
+
+    const handleCancel = () => {
+        setShowConfirm(false);
+        setPendingAction(null);
+    };
+
     // Don't render until we know the state
     if (status === null) return null;
 
@@ -141,13 +168,13 @@ const ConnectButton = ({ targetUserId, initialStatus = null, onStatusChange, siz
             action = "send";
             break;
         case 'pending_sent':
-            label = hovered ? "Withdraw" : "Pending";
-            stateClass = hovered ? "connect-btn--withdraw" : "connect-btn--pending";
+            label = "Pending";
+            stateClass = "connect-btn--pending";
             action = "withdraw";
             break;
         case 'accepted':
-            label = hovered ? "Disconnect" : "Connected";
-            stateClass = hovered ? "connect-btn--disconnect" : "connect-btn--connected";
+            label = "Connected";
+            stateClass = "connect-btn--connected";
             action = "remove";
             break;
         default:
@@ -157,17 +184,28 @@ const ConnectButton = ({ targetUserId, initialStatus = null, onStatusChange, siz
     }
 
     return (
-        <button
-            className={`connect-btn ${sizeClass} ${stateClass} ${className}`}
-            onClick={(e) => handleAction(action, e)}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-            disabled={loading}
-            aria-label={label}
-        >
-            {status === 'none' && <Icon name="handshake" className="connect-btn__icon" />}
-            {label}
-        </button>
+        <>
+            <button
+                className={`connect-btn ${sizeClass} ${stateClass} ${className}`}
+                onClick={(e) => handleAction(action, e)}
+                disabled={loading}
+                aria-label={label}
+            >
+                {status === 'none' && <Icon name="handshake" className="connect-btn__icon" />}
+                {label}
+            </button>
+
+            <ConfirmModal
+                isOpen={showConfirm}
+                title="Withdraw Request?"
+                message="Are you sure you want to withdraw your connection request? You can always send a new one later."
+                confirmLabel="Withdraw"
+                cancelLabel="Keep it"
+                variant="warning"
+                onConfirm={handleConfirm}
+                onCancel={handleCancel}
+            />
+        </>
     );
 };
 

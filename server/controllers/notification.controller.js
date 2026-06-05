@@ -44,7 +44,7 @@ export const getNotifications = (req, res) => {
     Notification.find(findQuery)
     .skip(skipDocs)
     .limit(maxLimit)
-    .populate("blog", "title blog_id")
+    .populate("blog", "title blog_id text_content type")
     .populate("user", "personal_info.fullname personal_info.username personal_info.profile_img")
     .populate("comment", "comment")
     .populate("replied_on_comment", "comment")

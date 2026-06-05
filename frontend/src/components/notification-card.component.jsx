@@ -61,7 +61,7 @@ const NotificationCard = ({ data, index, notificationState }) => {
             case 'subscribe': return 'subscribed to your publication';
             case 'connect_request': return 'sent you a connect request';
             case 'connect_accepted': return 'accepted your connect request';
-            case 'mention': return 'mentioned you';
+            case 'mention': return 'mentioned you in a post';
             case 'share': return 'shared your post';
             default: return 'interacted with you';
         }
@@ -89,6 +89,10 @@ const NotificationCard = ({ data, index, notificationState }) => {
                         <div className="p-4 mt-4 rounded-md bg-grey">
                             <p>{ replied_on_comment?.comment }</p>
                         </div>
+                        : type == 'mention' && blog.type === 'text_post' ?
+                        <Link to={`/blog/${blog_id}`} className="font-medium text-dark-grey hover:underline line-clamp-1">
+                            {`"${blog.text_content?.slice(0, 80)}${blog.text_content?.length > 80 ? '...' : ''}"`}
+                        </Link>
                         : <Link to={`/blog/${blog_id}`} className="font-medium text-dark-grey hover:underline line-clamp-1">{`"${blog_title}"`}</Link>
                     )}
 

@@ -455,3 +455,75 @@ export const getMySubscriptions = async (req, res) => {
         return res.status(500).json({ error: err.message });
     }
 };
+/**
+ * POST /api/subscription-feed
+ * Get the latest blogs that are linked to subscribed publications.
+ * Body: { publication_id? (optional filter), page? }
+ */
+export const getSubscriptionFeed = async (req, res) => {
+    try {
+        const subscriber_id = req.user;
+        const { publication_id, page = 1 } = req.body;
+        const maxLimit = 10;
+
+        let pubIds;
+
+        if (publication_id) {
+            pubIds = [publication_id];
+        } else {
+            const subs = await Subscription.find({ subscriber: subscriber_id }).select("publication");
+            pubIds = subs.map(s => s.publication);
+        }
+
+        if (pubIds.length === 0) {
+            return res.status(200).json({ blogs: [] });
+        }
+
+        const blogs = await Blog.find({ publication: { $in: pubIds }, draft: false })
+            .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname -_id")
+            .populate("publication", "title slug banner")
+            .sort({ publishedAt: -1 })
+            .select("blog_id title des banner activity tags readTime publishedAt publication type text_content images poll edited")
+            .skip((page - 1) * maxLimit)
+            .limit(maxLimit);
+
+        return res.status(200).json({ blogs });
+
+    } catch (err) {
+        console.error('[Publication] getSubscriptionFeed failed:', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+};
+
+/**
+ * POST /api/subscription-feed-count
+ * Count blogs linked to subscribed publications.
+ */
+export const getSubscriptionFeedCount = async (req, res) => {
+    try {
+        const subscriber_id = req.user;
+        const { publication_id } = req.body;
+
+        let pubIds;
+
+        if (publication_id) {
+            pubIds = [publication_id];
+        } else {
+            const subs = await Subscription.find({ subscriber: subscriber_id }).select("publication");
+            pubIds = subs.map(s => s.publication);
+        }
+
+        if (pubIds.length === 0) {
+            return res.status(200).json({ totalDocs: 0 });
+        }
+
+        const count = await Blog.countDocuments({ publication: { $in: pubIds }, draft: false });
+        return res.status(200).json({ totalDocs: count });
+
+    } catch (err) {
+        console.error('[Publication] getSubscriptionFeedCount failed:', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+};
+
+

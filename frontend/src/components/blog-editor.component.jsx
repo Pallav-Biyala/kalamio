@@ -5,20 +5,32 @@ import AnimationWrapper from "../common/page-animation";
 import lightBanner from "../imgs/blog banner light.png";
 import darkBanner from "../imgs/blog banner dark.png";
 import { uploadImage } from "../common/aws";
-import { useContext, useEffect, useRef, useCallback } from "react";
+import { useContext, useEffect, useRef, useCallback, useState } from "react";
 import toast from "react-hot-toast";
 import { EditorContext } from "../pages/editor.pages";
 import TiptapEditor from "./editor/TiptapEditor";
 import api from "../common/api";
 import { ThemeContext, UserContext } from "../App";
 import Icon from "./Icon";
+import Avatar from "./Avatar";
+import Loader from "./loader.component";
+import { getDay } from "../common/date";
+
+const blogStructure = {
+    title: "",
+    banner: "",
+    content: [],
+    tags: [],
+    des: "",
+    author: { personal_info: { } }
+};
 
 const BlogEditor = () => {
 
     let { blog, setBlog, setTextEditor, setEditorState } = useContext(EditorContext);
     let { title, banner, content, tags, des } = blog;
 
-    let { userAuth: { access_token } } = useContext(UserContext);
+    let { userAuth: { access_token, profile_img, fullname } } = useContext(UserContext);
     let { theme } = useContext(ThemeContext);
     let { blog_id } = useParams();
 
@@ -26,6 +38,22 @@ const BlogEditor = () => {
 
     // Ref to hold the Tiptap editor instance
     const editorRef = useRef(null);
+
+    // ── Draft state ──
+    const [view, setView] = useState("editor"); // 'editor' | 'drafts'
+    const [editingDraftId, setEditingDraftId] = useState(blog_id || null);
+    const [drafts, setDrafts] = useState(null);
+    const [draftSearch, setDraftSearch] = useState("");
+    const [loadingDrafts, setLoadingDrafts] = useState(false);
+    const [draftMenuOpen, setDraftMenuOpen] = useState(null);
+    const [showDraftPopup, setShowDraftPopup] = useState(null); // 'save' | 'update' | null
+    const searchTimeoutRef = useRef(null);
+    const titleRef = useRef(null);
+
+    // Sync editingDraftId with route param
+    useEffect(() => {
+        if (blog_id) setEditingDraftId(blog_id);
+    }, [blog_id]);
 
     const handleEditorReady = useCallback((editor) => {
         editorRef.current = editor;
@@ -36,6 +64,178 @@ const BlogEditor = () => {
         setBlog(prev => ({ ...prev, content: json }));
     }, [setBlog]);
 
+    // ── Helpers ──
+    const hasContent = title.length > 0 || banner.length > 0;
+
+    const resetEditor = () => {
+        setBlog({ ...blogStructure });
+        setEditingDraftId(null);
+        if (editorRef.current) {
+            editorRef.current.commands.setContent({ type: 'doc', content: [{ type: 'paragraph' }] });
+        }
+        if (titleRef.current) {
+            titleRef.current.value = "";
+            titleRef.current.style.height = 'auto';
+        }
+        // Navigate to clean /editor URL without a blog_id
+        navigate("/editor", { replace: true });
+    };
+
+    // ── Fetch drafts ──
+    const fetchDrafts = useCallback((query = "") => {
+        setLoadingDrafts(true);
+        api.post("/user-written-blogs", {
+            page: 1,
+            draft: true,
+            content_type: "article",
+            query: query || undefined
+        }).then(({ data }) => {
+            setDrafts(data.blogs || []);
+        }).catch(() => {
+            toast.error("Failed to load drafts");
+            setDrafts([]);
+        }).finally(() => {
+            setLoadingDrafts(false);
+        });
+    }, []);
+
+    // Fetch drafts when entering draft view
+    useEffect(() => {
+        if (view === "drafts") {
+            fetchDrafts(draftSearch);
+        }
+    }, [view]);
+
+    // Search drafts with debounce
+    const handleDraftSearch = (val) => {
+        setDraftSearch(val);
+        clearTimeout(searchTimeoutRef.current);
+        searchTimeoutRef.current = setTimeout(() => {
+            fetchDrafts(val);
+        }, 400);
+    };
+
+    // ── Load a draft into editor ──
+    const loadDraft = (draft) => {
+        // Set blog state
+        setBlog({
+            title: draft.title || "",
+            banner: draft.banner || "",
+            content: draft.content || [],
+            tags: draft.tags || [],
+            des: draft.des || "",
+            author: draft.author || { personal_info: {} }
+        });
+        setEditingDraftId(draft.blog_id);
+        setDraftMenuOpen(null);
+        setView("editor");
+
+        // Update the title textarea
+        if (titleRef.current) {
+            titleRef.current.value = draft.title || "";
+            titleRef.current.style.height = 'auto';
+            titleRef.current.style.height = titleRef.current.scrollHeight + 'px';
+        }
+
+        // Update the Tiptap editor content
+        if (editorRef.current) {
+            const normalized = Array.isArray(draft.content) ? draft.content[0] : draft.content;
+            if (normalized?.type === 'doc') {
+                editorRef.current.commands.setContent(normalized);
+            } else {
+                editorRef.current.commands.setContent({ type: 'doc', content: [{ type: 'paragraph' }] });
+            }
+        }
+
+        // Update URL without full page reload
+        navigate(`/editor/${draft.blog_id}`, { replace: true });
+    };
+
+    // ── Delete a draft ──
+    const deleteDraft = async (blogId) => {
+        setDraftMenuOpen(null);
+        const loadingToast = toast.loading("Deleting...");
+        try {
+            await api.post("/delete-blog", { blog_id: blogId });
+            toast.dismiss(loadingToast);
+            toast.success("Draft deleted");
+            setDrafts(prev => prev.filter(d => d.blog_id !== blogId));
+            // If we were editing this draft, reset
+            if (editingDraftId === blogId) {
+                resetEditor();
+            }
+        } catch {
+            toast.dismiss(loadingToast);
+            toast.error("Failed to delete draft");
+        }
+    };
+
+    // ── Build draft payload ──
+    const buildDraftPayload = () => {
+        const editor = editorRef.current;
+        const editorContent = editor ? editor.getJSON() : { type: 'doc', content: [] };
+        return {
+            title, banner, des, content: editorContent, tags, draft: true,
+            ...(editingDraftId ? { id: editingDraftId } : {})
+        };
+    };
+
+    // ── Save draft and go to drafts list ──
+    const saveDraftAndGoToList = async () => {
+        setShowDraftPopup(null);
+        if (!title.length) {
+            toast.error("Write a title before saving as draft");
+            return;
+        }
+        const loadingToast = toast.loading(editingDraftId ? "Updating draft..." : "Saving draft...");
+        try {
+            const { data } = await api.post("/create-blog", buildDraftPayload());
+            toast.dismiss(loadingToast);
+            toast.success(editingDraftId ? "Draft updated" : "Saved to drafts");
+            // If new draft, set the editing ID
+            if (!editingDraftId && data.id) {
+                setEditingDraftId(data.id);
+                navigate(`/editor/${data.id}`, { replace: true });
+            }
+            setView("drafts");
+            fetchDrafts("");
+            setDraftSearch("");
+        } catch (err) {
+            toast.dismiss(loadingToast);
+            toast.error(err?.response?.data?.error || "Failed to save draft");
+        }
+    };
+
+    // ── Don't save, just go to list ──
+    const skipAndGoToList = () => {
+        setShowDraftPopup(null);
+        setView("drafts");
+        fetchDrafts("");
+        setDraftSearch("");
+    };
+
+    // ── Drafts button click logic (same as text-post) ──
+    const handleDraftsClick = () => {
+        if (editingDraftId) {
+            // Editing existing draft
+            if (hasContent) {
+                setShowDraftPopup("update");
+            } else {
+                resetEditor();
+                setView("drafts");
+                fetchDrafts("");
+            }
+        } else if (hasContent) {
+            // New post with content
+            setShowDraftPopup("save");
+        } else {
+            // Empty editor
+            setView("drafts");
+            fetchDrafts("");
+        }
+    };
+
+    // ── Existing handlers ──
     const handleBanner = (e) => {
         let img = e.target.files[0];
 
@@ -101,59 +301,16 @@ const BlogEditor = () => {
         if (editor) {
             const data = editor.getJSON();
             // Check if there's actual content (more than just an empty paragraph)
-            const hasContent = data.content && data.content.length > 0 && 
+            const hasEditorContent = data.content && data.content.length > 0 && 
                 !(data.content.length === 1 && data.content[0].type === 'paragraph' && !data.content[0].content);
             
-            if (hasContent) {
+            if (hasEditorContent) {
                 setBlog({ ...blog, content: data });
                 setEditorState("publish");
             } else {
                 return toast.error("Write something in your blog to publish it");
             }
         }
-    }
-
-    const handleSaveDraft = (e) => {
-
-        if(e.target.className.includes("disable")){
-            return;
-        }
-        
-        if(!title.length){
-            return toast.error("Write blog title before saving it as a draft");
-        }
-        
-        let loadingToast = toast.loading("Saving Draft....");
-        
-        e.target.classList.add('disable');
-        
-        const editor = editorRef.current;
-        const editorContent = editor ? editor.getJSON() : { type: 'doc', content: [] };
-
-        let blogObj = {
-            title, banner, des, content: editorContent, tags, draft: true
-        }
-        
-        api.post("/create-blog", { ...blogObj, id: blog_id })
-        .then(() => {
-    
-            e.target.classList.remove('disable');
-                    
-            toast.dismiss(loadingToast);
-            toast.success("Saved 👍");
-        
-            setTimeout(() => {
-                navigate("/dashboard/blogs?tab=draft");
-            }, 500);
-        })
-        .catch(( { response } ) => {
-            e.target.classList.remove('disable');
-            toast.dismiss(loadingToast);
-        
-            return toast.error(response.data.error);
-        
-        })
-
     }
 
     // Prepare initial content for the editor
@@ -174,6 +331,114 @@ const BlogEditor = () => {
         return null;
     };
 
+    // ═══════════════════════════════════════════════════
+    // DRAFTS OVERLAY VIEW
+    // ═══════════════════════════════════════════════════
+    if (view === "drafts") {
+        return (
+            <div className="editor-drafts-overlay">
+                <div className="editor-drafts">
+
+                    {/* Header */}
+                    <div className="editor-drafts__header">
+                        <button className="editor-drafts__back" onClick={() => setView("editor")}>
+                            <Icon name="arrow_back" className="text-xl" />
+                        </button>
+                        <span className="editor-drafts__title">Drafts</span>
+                        <div style={{ width: 36 }} />
+                    </div>
+
+                    {/* Search */}
+                    <div className="editor-drafts__search">
+                        <Icon name="search" className="editor-drafts__search-icon" />
+                        <input
+                            type="text"
+                            className="editor-drafts__search-input"
+                            placeholder="Search drafts..."
+                            value={draftSearch}
+                            onChange={(e) => handleDraftSearch(e.target.value)}
+                        />
+                        {draftSearch && (
+                            <button className="editor-drafts__search-clear" onClick={() => { setDraftSearch(""); fetchDrafts(""); }}>
+                                <Icon name="close" className="text-lg" />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Draft List */}
+                    <div className="editor-drafts__list" onClick={() => setDraftMenuOpen(null)}>
+                        {/* Create New button */}
+                        <button className="editor-drafts__new-btn" onClick={() => {
+                            resetEditor();
+                            setView("editor");
+                        }}>
+                            <div className="editor-drafts__new-icon">
+                                <Icon name="add" className="text-xl" />
+                            </div>
+                            <span>Create new</span>
+                        </button>
+
+                        {loadingDrafts ? (
+                            <div className="editor-drafts__empty">
+                                <Loader />
+                            </div>
+                        ) : drafts && drafts.length === 0 ? (
+                            <div className="editor-drafts__empty">
+                                <Icon name="draft" className="text-3xl" style={{ opacity: 0.3 }} />
+                                <span>{draftSearch ? "No matching drafts" : "No drafts yet"}</span>
+                            </div>
+                        ) : (
+                            drafts && drafts.map(draft => (
+                                <div key={draft.blog_id} className="editor-drafts__item" onClick={() => loadDraft(draft)}>
+                                    {/* Thumbnail */}
+                                    {draft.banner ? (
+                                        <div className="editor-drafts__item-thumb">
+                                            <img src={draft.banner} alt="" />
+                                        </div>
+                                    ) : (
+                                        <div className="editor-drafts__item-thumb editor-drafts__item-thumb--empty">
+                                            <Icon name="article" className="text-xl" />
+                                        </div>
+                                    )}
+                                    <div className="editor-drafts__item-content">
+                                        <p className="editor-drafts__item-title">
+                                            {draft.title || 'Untitled draft'}
+                                        </p>
+                                        <span className="editor-drafts__item-meta">
+                                            {draft.publishedAt ? getDay(draft.publishedAt) : 'No date'}
+                                            {draft.des && (
+                                                <><span className="editor-drafts__dot">·</span>{draft.des.substring(0, 40)}{draft.des.length > 40 ? '...' : ''}</>
+                                            )}
+                                        </span>
+                                    </div>
+                                    <button className="editor-drafts__item-menu" onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDraftMenuOpen(draftMenuOpen === draft.blog_id ? null : draft.blog_id);
+                                    }}>
+                                        <Icon name="more_horiz" />
+                                    </button>
+
+                                    {draftMenuOpen === draft.blog_id && (
+                                        <div className="editor-drafts__item-dropdown">
+                                            <button className="editor-drafts__item-dropdown-btn editor-drafts__item-dropdown-btn--delete"
+                                                onClick={(e) => { e.stopPropagation(); deleteDraft(draft.blog_id); }}>
+                                                <Icon name="delete" className="text-lg" /> Delete
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                </div>
+            </div>
+        );
+    }
+
+    // ═══════════════════════════════════════════════════
+    // EDITOR VIEW
+    // ═══════════════════════════════════════════════════
     return(
         <>
             <nav className="navbar">
@@ -182,6 +447,7 @@ const BlogEditor = () => {
                 </Link>
                 <p className="max-md:hidden text-black line-clamp-1 w-full font-medium">
                     { title.length ? title : "New Blog" }
+                    {editingDraftId && <span className="editor-draft-badge">Draft</span>}
                 </p>
 
                 <div className="flex gap-4 ml-auto">
@@ -190,13 +456,36 @@ const BlogEditor = () => {
                     >
                         Publish
                     </button>
-                    <button className="btn-light py-2"
-                        onClick={handleSaveDraft}
+                    <button className="btn-light py-2 flex items-center gap-2"
+                        onClick={handleDraftsClick}
                     >
-                        Save Draft
+                        <Icon name="draft" className="text-lg" />
+                        Drafts
                     </button>
                 </div>
             </nav>
+
+            {/* Save/Update popup */}
+            {showDraftPopup && (
+                <div className="editor-draft-popup-overlay" onClick={() => setShowDraftPopup(null)}>
+                    <div className="editor-draft-popup" onClick={(e) => e.stopPropagation()}>
+                        <p className="editor-draft-popup__text">
+                            {showDraftPopup === "update"
+                                ? "Save changes to this draft before viewing drafts?"
+                                : "Save your current work as a draft?"
+                            }
+                        </p>
+                        <div className="editor-draft-popup__actions">
+                            <button className="editor-draft-popup__btn editor-draft-popup__btn--primary" onClick={saveDraftAndGoToList}>
+                                {showDraftPopup === "update" ? "Save & view drafts" : "Save as draft"}
+                            </button>
+                            <button className="editor-draft-popup__btn editor-draft-popup__btn--secondary" onClick={skipAndGoToList}>
+                                Don't save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <AnimationWrapper>
                 <section>
@@ -233,6 +522,7 @@ const BlogEditor = () => {
                             onKeyDown={handleTitleKeyDown}
                             onChange={handleTitleChange}
                             ref={(el) => {
+                                titleRef.current = el;
                                 if (el) {
                                     el.style.height = 'auto';
                                     el.style.height = el.scrollHeight + 'px';

@@ -4,6 +4,7 @@ import { createContext, useEffect, useState, lazy, Suspense } from "react";
 import { lookInSession } from "./common/session";
 import { Toaster } from 'react-hot-toast';
 import Loader from "./components/loader.component";
+import CustomTooltip from "./components/CustomTooltip";
 
 // Lazy load all pages — only downloaded when the user navigates to them
 const UserAuthForm = lazy(() => import("./pages/userAuthForm.page"));
@@ -28,6 +29,7 @@ const AuthCallback = lazy(() => import("./pages/auth-callback.page"));
 const VerifyOtp = lazy(() => import("./pages/verify-otp.page"));
 const ForgotPassword = lazy(() => import("./pages/forgot-password.page"));
 const ResetPassword = lazy(() => import("./pages/reset-password.page"));
+const SubscriptionsPage = lazy(() => import("./pages/subscriptions.page"));
 
 export const UserContext = createContext({});
 export const ThemeContext = createContext({});
@@ -91,6 +93,7 @@ const App = () => {
                         },
                     }}
                 />
+                <CustomTooltip />
                 <Suspense fallback={<Loader />}>
                     <Routes>
                         <Route path="/editor" element={<Editor/>} />
@@ -117,6 +120,7 @@ const App = () => {
                             <Route path="search/:query" element={<SearchPage />} />
                             <Route path="user/:id" element={<ProfilePage />} />
                             <Route path="publication/:slug" element={<PublicationPage />} />
+                            <Route path="subscriptions" element={<SubscriptionsPage />} />
                             <Route path="messages" element={<MessagesPage />} />
                             <Route path="blog/:blog_id" element={<BlogPage />} />
                             <Route path="auth/callback" element={<AuthCallback />} />

@@ -15,7 +15,9 @@ import {
     subscribe,
     unsubscribe,
     isSubscribed,
-    getMySubscriptions
+    getMySubscriptions,
+    getSubscriptionFeed,
+    getSubscriptionFeedCount
 } from '../controllers/publication.controller.js';
 
 const router = Router();
@@ -37,5 +39,7 @@ router.post("/subscribe", verifyJWT, asyncHandler(subscribe));
 router.post("/unsubscribe", verifyJWT, asyncHandler(unsubscribe));
 router.post("/is-subscribed", verifyJWT, asyncHandler(isSubscribed));
 router.post("/my-subscriptions", verifyJWT, asyncHandler(getMySubscriptions));
+router.post("/subscription-feed", verifyJWT, asyncHandler(getSubscriptionFeed));
+router.post("/subscription-feed-count", verifyJWT, asyncHandler(getSubscriptionFeedCount));
 
 export default router;

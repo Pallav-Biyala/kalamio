@@ -4,7 +4,7 @@ export const filterPaginationData = async ({ create_new_arr = false, state, data
 
     let obj;
 
-    if(state != null && !create_new_arr){
+    if(state != null && !create_new_arr && page !== 1){
         obj = { ...state, results: [ ...state.results, ...data ], page: page }
     } else {
 

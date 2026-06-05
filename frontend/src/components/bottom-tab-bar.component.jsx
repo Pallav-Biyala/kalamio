@@ -72,10 +72,14 @@ const BottomTabBar = () => {
                 </NavLink>
             )}
 
-            <button className="bottom-tab-bar__item" onClick={() => window.dispatchEvent(new Event('open-mobile-search'))}>
-                <Icon name="search" className="text-2xl" />
-                <span>Search</span>
-            </button>
+            <NavLink to={access_token ? "/subscriptions" : "/signin"} className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>
+                {({ isActive }) => (
+                    <>
+                        <Icon name="subscriptions" className="text-2xl" filled={isActive} />
+                        <span>Subs</span>
+                    </>
+                )}
+            </NavLink>
 
             {access_token ? (
                 <NavLink to="/settings/edit-profile" className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>
@@ -101,7 +105,6 @@ const BottomTabBar = () => {
                 </NavLink>
             )}
         </nav>
-
 
         {/* Floating Action Button (FAB) — bottom right, like Twitter/X */}
         {access_token && (

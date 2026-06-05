@@ -8,6 +8,7 @@ import { UserContext } from "../App";
 import AboutUser from "../components/about.component";
 import { filterPaginationData } from "../common/filter-pagination-data";
 import BlogPostCard from "../components/blog-post.component";
+import TextPostCard from "../components/text-post-card.component";
 import NoDataMessage from "../components/nodata.component";
 import LoadMoreDataBtn from "../components/load-more.component";
 import InPageNavigation from "../components/inpage-navigation.component";
@@ -231,7 +232,7 @@ const ProfilePage = () => {
 
                     <div className="max-lg:mt-12 w-full">
                     <InPageNavigation
-                        routes={["Blogs Published", "Publications", "About"]}
+                        routes={["All Published", "Publications", "About"]}
                         defaultHidden={["About"]}
                     >
 
@@ -245,15 +246,22 @@ const ProfilePage = () => {
                                 key={i}
                                 transition={{ duration: 0.4, delay: i * 0.05 }}
                                 >
-                                <BlogPostCard
-                                    content={blog}
-                                    author={blog.author.personal_info}
-                                />
+                                {blog.type === 'text_post' ? (
+                                    <TextPostCard
+                                        content={blog}
+                                        author={blog.author.personal_info}
+                                    />
+                                ) : (
+                                    <BlogPostCard
+                                        content={blog}
+                                        author={blog.author.personal_info}
+                                    />
+                                )}
                                 </AnimationWrapper>
                             );
                             })
                         ) : (
-                            <NoDataMessage message="No blogs published" />
+                            <NoDataMessage message="No posts published" />
                         )}
                         <LoadMoreDataBtn
                             state={blogs}

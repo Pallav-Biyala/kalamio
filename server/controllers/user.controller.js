@@ -1,4 +1,6 @@
 import User from '../Schema/User.js';
+import Follow from '../Schema/Follow.js';
+import Connection from '../Schema/Connection.js';
 import { escapeRegex } from '../utils/helpers.js';
 
 // Search Users
@@ -101,4 +103,41 @@ export const updateProfile = (req, res) => {
         return res.status(500).json({ error: err.message })
     })
 
+};
+
+// Search users that the current user follows or is connected to
+export const searchConnectionsFollows = async (req, res) => {
+    let { query } = req.body;
+    let userId = req.user;
+
+    try {
+        const follows = await Follow.find({ follower: userId }).select('following');
+        const followedIds = follows.map(f => f.following);
+
+        const connections = await Connection.find({
+            $or: [{ requester: userId }, { recipient: userId }],
+            status: 'accepted'
+        }).select('requester recipient');
+        
+        const connectedIds = connections.map(c => 
+            c.requester.toString() === userId.toString() ? c.recipient : c.requester
+        );
+
+        const uniqueIds = [...new Set([...followedIds.map(String), ...connectedIds.map(String)])].filter(id => id !== 'undefined' && id);
+
+        const users = await User.find({
+            _id: { $in: uniqueIds },
+            $or: [
+                { "personal_info.username": new RegExp(escapeRegex(query), 'i') },
+                { "personal_info.fullname": new RegExp(escapeRegex(query), 'i') }
+            ]
+        })
+        .limit(10)
+        .select("personal_info.fullname personal_info.username personal_info.profile_img");
+
+        return res.status(200).json({ users });
+
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
 };

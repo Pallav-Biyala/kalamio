@@ -383,6 +383,47 @@ export const createBlog = (req, res) => {
 
         User.findOneAndUpdate({ _id: authorId }, { $inc : { "account_info.total_posts" : incrementVal }, $push : { "blogs": blog._id } })
         .then(user => {
+            // Process mentions for text posts if not draft
+            if (type === 'text_post' && text_content && !draft) {
+                const mentionRegex = /@([\w](?:[\w.]*[\w])?)/g;
+                const mentions = [...text_content.matchAll(mentionRegex)].map(m => m[1]);
+                const uniqueUsernames = [...new Set(mentions)];
+                
+                console.log('[Mention] Detected usernames:', uniqueUsernames);
+                
+                if (uniqueUsernames.length > 0) {
+                    User.find({ "personal_info.username": { $in: uniqueUsernames } })
+                        .select("_id personal_info.username")
+                        .then(async users => {
+                            console.log('[Mention] Found users:', users.map(u => ({ id: u._id, username: u.personal_info.username })));
+                            console.log('[Mention] Author ID:', authorId);
+                            for (let u of users) {
+                                if (u._id.toString() === authorId.toString()) {
+                                    console.log('[Mention] Skipping self-mention for:', u.personal_info.username);
+                                    continue;
+                                }
+                                try {
+                                    const exists = await Notification.exists({ type: "mention", blog: blog._id, notification_for: u._id });
+                                    if (!exists) {
+                                        await new Notification({
+                                            type: "mention",
+                                            blog: blog._id,
+                                            notification_for: u._id,
+                                            user: authorId
+                                        }).save();
+                                        console.log('[Mention] ✅ Notification created for:', u.personal_info.username);
+                                    } else {
+                                        console.log('[Mention] Notification already exists for:', u.personal_info.username);
+                                    }
+                                } catch (err) {
+                                    console.error('[Mention] ❌ Failed to create notification for:', u.personal_info.username, err.message);
+                                }
+                            }
+                        })
+                        .catch(err => console.error("[Mention] ❌ User lookup error:", err.message));
+                }
+            }
+
             return res.status(200).json({ id: blog.blog_id })
         })
         .catch(err => {
@@ -554,7 +595,7 @@ export const userWrittenBlogs = (req, res) => {
     .skip(skipDocs)
     .limit(maxLimit)
     .sort({publishedAt: -1})
-    .select(" title banner publishedAt blog_id activity des draft type text_content images poll -_id ")
+    .select(" title banner publishedAt blog_id activity des draft type text_content images poll content tags -_id ")
     .then(blogs => {
         return res.status(200).json({ blogs });
     })

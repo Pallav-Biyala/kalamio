@@ -24,6 +24,13 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId }) => {
     const [pollOptions, setPollOptions] = useState(["", ""]);
     const [posting, setPosting] = useState(false);
 
+    // ── Mentions state ──
+    const [mentionQuery, setMentionQuery] = useState("");
+    const [showMentions, setShowMentions] = useState(false);
+    const [mentionResults, setMentionResults] = useState([]);
+    const [mentionIndex, setMentionIndex] = useState(-1);
+    const mentionTimeoutRef = useRef(null);
+
     // ── View state: 'compose' or 'drafts' ──
     const [view, setView] = useState("compose");
 
@@ -136,6 +143,27 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId }) => {
     };
 
     // ── Textarea ──
+    const detectMention = (textarea) => {
+        const val = textarea.value;
+        const cursorPosition = textarea.selectionStart;
+        const textBeforeCursor = val.slice(0, cursorPosition);
+        const match = textBeforeCursor.match(/(?:^|[\s\n])@([\w.]*)$/);
+        
+        if (match) {
+            const query = match[1];
+            setMentionQuery(query);
+            setShowMentions(true);
+            setMentionIndex(textBeforeCursor.lastIndexOf("@"));
+            
+            clearTimeout(mentionTimeoutRef.current);
+            mentionTimeoutRef.current = setTimeout(() => {
+                fetchMentions(query);
+            }, 300);
+        } else {
+            setShowMentions(false);
+        }
+    };
+
     const handleTextChange = (e) => {
         const val = e.target.value;
         if (val.length <= MAX_CHARS) {
@@ -143,6 +171,60 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId }) => {
         }
         e.target.style.height = "auto";
         e.target.style.height = e.target.scrollHeight + "px";
+        detectMention(e.target);
+    };
+
+    const handleCursorMove = (e) => {
+        detectMention(e.target);
+    };
+
+    const fetchMentions = async (query) => {
+        try {
+            const { data } = await api.post("/search-connections-follows", { query });
+            setMentionResults(data.users || []);
+        } catch (err) {
+            setMentionResults([]);
+        }
+    };
+
+    const handleMentionIconClick = () => {
+        if (!textareaRef.current) return;
+        const cursorPosition = textareaRef.current.selectionStart;
+        const textBefore = textContent.slice(0, cursorPosition);
+        const textAfter = textContent.slice(cursorPosition);
+        
+        setTextContent(`${textBefore}@${textAfter}`);
+        
+        setTimeout(() => {
+            if (textareaRef.current) {
+                textareaRef.current.focus();
+                textareaRef.current.setSelectionRange(cursorPosition + 1, cursorPosition + 1);
+                detectMention(textareaRef.current);
+            }
+        }, 0);
+    };
+
+    const insertMention = (username) => {
+        const textBefore = textContent.slice(0, mentionIndex);
+        // mentionIndex points to '@', skip '@' + whatever query was typed
+        const afterMentionPos = mentionIndex + 1 + mentionQuery.length;
+        const textAfter = textContent.slice(afterMentionPos);
+        const newText = `${textBefore}@${username} ${textAfter}`;
+        
+        setTextContent(newText);
+        setShowMentions(false);
+        setMentionResults([]);
+        setMentionQuery("");
+        
+        setTimeout(() => {
+            if (textareaRef.current) {
+                textareaRef.current.focus();
+                const newCursorPos = mentionIndex + username.length + 2; // @username + space
+                textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+                textareaRef.current.style.height = "auto";
+                textareaRef.current.style.height = textareaRef.current.scrollHeight + "px";
+            }
+        }, 0);
     };
 
     // ── Image upload ──
@@ -517,8 +599,54 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId }) => {
                         placeholder="Write to the world..."
                         value={textContent}
                         onChange={handleTextChange}
+                        onClick={handleCursorMove}
+                        onKeyUp={handleCursorMove}
                         maxLength={MAX_CHARS}
                     />
+
+                    {/* Mentions Dropdown */}
+                    {showMentions && (
+                        <div className="mention-dropdown">
+                            <div className="mention-dropdown__header">
+                                <Icon name="search" className="mention-dropdown__search-icon" />
+                                <input 
+                                    type="text" 
+                                    className="mention-dropdown__search-input" 
+                                    placeholder="Search people..."
+                                    value={mentionQuery}
+                                    onChange={(e) => {
+                                        setMentionQuery(e.target.value);
+                                        clearTimeout(mentionTimeoutRef.current);
+                                        mentionTimeoutRef.current = setTimeout(() => {
+                                            fetchMentions(e.target.value);
+                                        }, 300);
+                                    }}
+                                />
+                                <button className="mention-dropdown__close" onClick={() => setShowMentions(false)}>
+                                    <Icon name="close" className="text-base" />
+                                </button>
+                            </div>
+                            <div className="mention-dropdown__list">
+                                {mentionResults.length > 0 ? (
+                                    mentionResults.map((user, i) => (
+                                        <div 
+                                            key={i} 
+                                            className="mention-dropdown__item"
+                                            onClick={() => insertMention(user.personal_info.username)}
+                                        >
+                                            <Avatar src={user.personal_info.profile_img} alt={user.personal_info.fullname} size={28} />
+                                            <div className="mention-dropdown__info">
+                                                <span className="mention-dropdown__fullname">{user.personal_info.fullname}</span>
+                                                <span className="mention-dropdown__username">@{user.personal_info.username}</span>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="p-3 text-center text-sm text-dark-grey">No users found</div>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     <div className={`tp-composer__char-count ${charClass}`}>
                         {textContent.length > 0 && `${textContent.length.toLocaleString()} / ${MAX_CHARS.toLocaleString()}`}
@@ -618,6 +746,14 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId }) => {
                             title={showPoll ? "Remove poll" : "Add poll"}
                         >
                             <Icon name="poll" />
+                        </button>
+
+                        <button
+                            className={`tp-composer__tool-btn`}
+                            onClick={handleMentionIconClick}
+                            title="Mention someone"
+                        >
+                            <Icon name="alternate_email" />
                         </button>
                     </div>
 

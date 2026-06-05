@@ -21,7 +21,6 @@ const SubscribeButton = ({ publicationId, initialSubscribed = null, onSubscribeC
 
     const [isSubscribed, setIsSubscribed] = useState(initialSubscribed);
     const [loading, setLoading] = useState(false);
-    const [hovered, setHovered] = useState(false);
 
     // Fetch initial subscribe state if not provided
     useEffect(() => {
@@ -63,23 +62,21 @@ const SubscribeButton = ({ publicationId, initialSubscribed = null, onSubscribeC
     const sizeClasses = size === "sm" ? "subscribe-btn--sm" : "subscribe-btn--md";
 
     const stateClass = isSubscribed
-        ? (hovered ? "subscribe-btn--unsubscribe" : "subscribe-btn--subscribed")
+        ? "subscribe-btn--subscribed"
         : "subscribe-btn--subscribe";
 
     const label = isSubscribed
-        ? (hovered ? "Unsubscribe" : "Subscribed")
+        ? "Subscribed"
         : "Subscribe";
 
     const icon = isSubscribed
-        ? (hovered ? "notifications_off" : "notifications_active")
+        ? "notifications_active"
         : "notifications";
 
     return (
         <button
             className={`subscribe-btn ${sizeClasses} ${stateClass} ${className}`}
             onClick={handleClick}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
             disabled={loading}
             aria-label={label}
         >
