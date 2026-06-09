@@ -82,7 +82,13 @@ const BlogInteraction = () => {
 
 
                     <button 
-                        onClick={() => setCommentsWrapper(preVal => !preVal)}
+                        onClick={() => {
+                            const commentBox = document.getElementById("comment-textarea");
+                            if (commentBox) {
+                                commentBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                commentBox.focus();
+                            }
+                        }}
                         className="w-10 h-10 rounded-full flex items-center justify-center bg-grey hover:bg-grey/80 transition-colors"
                     >
                         <Icon name="chat_bubble" />

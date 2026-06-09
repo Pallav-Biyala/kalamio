@@ -21,7 +21,7 @@ export const latestBlogs = (req, res) => {
     if (exclude_type) findQuery.type = { $ne: exclude_type };
 
     Blog.find(findQuery)
-    .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname -_id")
+    .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname")
     .populate("publication", "title slug")
     .sort({ "publishedAt": -1 })
     .select("blog_id title des banner activity tags readTime publishedAt publication type text_content images poll edited")
@@ -57,7 +57,7 @@ export const allLatestBlogsCount = (req, res) => {
 export const trendingBlogs = (req, res) => {
 
     Blog.find({ draft: false })
-    .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname -_id")
+    .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname")
     .populate("publication", "title slug")
     .sort({ "activity.total_reads": -1, "activity.total_likes": -1, "publishedAt": -1 })
     .select("blog_id title des banner activity tags readTime publishedAt publication type text_content images poll edited -_id")
@@ -91,7 +91,7 @@ export const searchBlogs = (req, res) => {
     let maxLimit = Math.min(Math.max(parseInt(limit) || 2, 1), 20); // Cap at 20, default 2
 
     Blog.find(findQuery)
-    .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname -_id")
+    .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname")
     .populate("publication", "title slug")
     .sort({ "publishedAt": -1 })
     .select("blog_id title des banner activity tags readTime publishedAt publication type text_content images poll edited")
@@ -319,31 +319,40 @@ export const createBlog = (req, res) => {
 
     if(id){
 
-        let updateData = {
-            title, des, banner, content, tags,
-            draft: draft ? draft : false,
-            readTime: type === 'article' ? calculateReadTime(content, title, des) : 0,
-            type, text_content, images: images || [], poll: poll || undefined
-        };
+        Blog.findOne({ blog_id, author: authorId })
+        .then(async existingBlog => {
+            if (!existingBlog) return res.status(403).json({ error: "You don't have permission to edit this blog" });
 
-        // If publishing a draft, update publishedAt to now
-        if (!draft) {
-            updateData.publishedAt = new Date();
-        }
+            if (!existingBlog.draft && draft) {
+                return res.status(403).json({ error: "Published posts can't be moved back to drafts" });
+            }
 
-        // Handle publication change on update
-        if (publication !== undefined) {
-            updateData.publication = publication || null;
-        }
+            const shouldBeDraft = existingBlog.draft ? Boolean(draft) : false;
 
-        updateData.edited = true;
+            let updateData = {
+                title, des, banner, content, tags,
+                draft: shouldBeDraft,
+                readTime: type === 'article' ? calculateReadTime(content, title, des) : 0,
+                type, text_content, images: images || [], poll: poll || undefined
+            };
 
-        Blog.findOneAndUpdate({ blog_id, author: authorId }, updateData)
-        .then(async blog => {
+            // If publishing a draft, update publishedAt to now
+            if (existingBlog.draft && !shouldBeDraft) {
+                updateData.publishedAt = new Date();
+            }
+
+            // Handle publication change on update
+            if (publication !== undefined) {
+                updateData.publication = publication || null;
+            }
+
+            updateData.edited = true;
+
+            const blog = await Blog.findOneAndUpdate({ blog_id, author: authorId }, updateData);
             if (!blog) return res.status(403).json({ error: "You don't have permission to edit this blog" });
 
             // If publication changed, update counters
-            const oldPubId = blog.publication?.toString() || null;
+            const oldPubId = existingBlog.publication?.toString() || null;
             const newPubId = (publication || null)?.toString?.() || publication || null;
 
             if (oldPubId !== newPubId) {

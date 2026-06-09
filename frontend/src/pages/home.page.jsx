@@ -149,13 +149,11 @@ const HomePage = () => {
 
   const loadBlogByCategory = (category) => {
     window.scrollTo(0, 0);
-    setBlogs(null);
 
     if (category === "For You") {
       if (pageState !== "home") {
+        setBlogs(null);
         setPageState("home");
-      } else {
-        fetchLatestBlogs({ page: 1 });
       }
       return;
     }
@@ -172,10 +170,12 @@ const HomePage = () => {
 
     let tag = category.toLowerCase();
     if (pageState === tag) {
+      setBlogs(null);
       setPageState("home");
       return;
     }
 
+    setBlogs(null);
     setPageState(tag);
   };
 
@@ -235,14 +235,26 @@ const HomePage = () => {
           {/* Sticky Feed Header */}
           <div className="feed-sticky-header">
             {/* Composer Prompt */}
-            {access_token && (
-              <div className="composer-prompt" onClick={() => setShowComposer(true)}>
-                  <div className="composer-prompt__avatar">
-                      <Avatar src={profile_img} size={36} />
-                  </div>
-                  <span className="composer-prompt__input">Write to the world...</span>
-              </div>
-            )}
+            <div className="composer-prompt" onClick={() => access_token ? setShowComposer(true) : navigate("/signin")}>
+                <div className="composer-prompt__avatar">
+                    {profile_img ? (
+                        <Avatar src={profile_img} size={36} />
+                    ) : (
+                        <div className="w-[36px] h-[36px] rounded-full bg-grey flex items-center justify-center text-dark-grey">
+                            <Icon name="person" className="text-[20px]" />
+                        </div>
+                    )}
+                </div>
+                <span className="composer-prompt__input">Write to the world...</span>
+                <div className="flex items-center gap-1 text-dark-grey ml-auto">
+                    <div className="w-[36px] h-[36px] rounded-full hover:bg-grey flex items-center justify-center transition-colors" title="Add images">
+                        <Icon name="image" className="text-[20px] text-brand" />
+                    </div>
+                    <div className="w-[36px] h-[36px] rounded-full hover:bg-grey flex items-center justify-center transition-colors" title="Add poll">
+                        <Icon name="poll" className="text-[20px] text-brand" />
+                    </div>
+                </div>
+            </div>
 
             {/* Category tabs */}
             <div className="category-tabs" ref={tabsRef}>
@@ -425,7 +437,7 @@ const HomePage = () => {
               <div className="home-sidebar__title">
                 <Icon name="trending_up" /> Trending Now
               </div>
-              <span className="home-sidebar__view-all">View all</span>
+              <span className="home-sidebar__view-all" onClick={() => loadBlogByCategory("Trending")}>View all</span>
             </div>
 
             <div className="home-sidebar__list">

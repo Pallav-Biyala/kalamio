@@ -3,7 +3,8 @@ import { getRelativeTime } from "../common/date";
 import Icon from "./Icon";
 import Avatar from "./Avatar";
 import PostMenu from "./post-menu.component";
-import { useContext, useState, useEffect } from "react";
+import TextPostComposer from "./text-post-composer.component";
+import { useContext, useState, useEffect, useRef } from "react";
 import { UserContext } from "../App";
 import toast from "react-hot-toast";
 import api from "../common/api";
@@ -20,6 +21,20 @@ const TextPostCard = ({ content, author, onEdit }) => {
     const [poll, setPoll] = useState(initialPoll);
     const [hasVoted, setHasVoted] = useState(false);
     const [selectedOption, setSelectedOption] = useState(null);
+
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [needsTruncation, setNeedsTruncation] = useState(false);
+    const [isReplying, setIsReplying] = useState(false);
+    const textRef = useRef(null);
+
+    useEffect(() => {
+        if (textRef.current) {
+            // If the element's scroll height is greater than its visible height, it means the content is clamped
+            if (textRef.current.scrollHeight > textRef.current.clientHeight) {
+                setNeedsTruncation(true);
+            }
+        }
+    }, [text_content, isExpanded]);
 
     useEffect(() => {
         setLikesCount(total_likes);
@@ -134,8 +149,28 @@ const TextPostCard = ({ content, author, onEdit }) => {
             </div>
 
             {/* Text Content */}
-            <div className="feed-card__text-post-content">
-                {renderText(text_content)}
+            <div className="feed-card__text-post-wrapper">
+                <div 
+                    ref={textRef}
+                    className={`feed-card__text-post-content cursor-pointer ${!isExpanded ? 'feed-card__text-post-content--clamped' : ''}`}
+                    onClick={(e) => {
+                        if (e.target.closest('a')) return;
+                        navigate(`/blog/${id}`);
+                    }}
+                >
+                    {renderText(text_content)}
+                </div>
+                {needsTruncation && !isExpanded && (
+                    <button 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setIsExpanded(true);
+                        }} 
+                        className="text-dark-grey font-medium text-[15px] hover:text-black mt-1"
+                    >
+                        See more
+                    </button>
+                )}
             </div>
 
             {/* Images */}
@@ -207,10 +242,18 @@ const TextPostCard = ({ content, author, onEdit }) => {
                     <Icon name={isLiked ? "favorite" : "favorite_border"} />
                     <span>{likesCount > 0 ? formatCount(likesCount) : "0"}</span>
                 </button>
-                <Link to={`/blog/${id}`} className="feed-card__action">
+                <button 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        if (!access_token) return toast.error("Please login to comment");
+                        setIsReplying(true);
+                    }} 
+                    className="feed-card__action"
+                >
                     <Icon name="chat_bubble_outline" />
                     <span>{total_comments > 0 ? total_comments : "0"}</span>
-                </Link>
+                </button>
                 <span className="feed-card__action">
                     <Icon name="bookmark_border" />
                     <span className="hidden sm:inline">Save</span>
@@ -220,6 +263,15 @@ const TextPostCard = ({ content, author, onEdit }) => {
                     <span className="hidden sm:inline">Share</span>
                 </span>
             </div>
+
+            {isReplying && (
+                <TextPostComposer 
+                    isOpen={isReplying}
+                    onClose={() => setIsReplying(false)}
+                    replyTo={content} 
+                    onPosted={() => setIsReplying(false)}
+                />
+            )}
         </div>
     );
 };

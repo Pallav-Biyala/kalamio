@@ -46,30 +46,12 @@ const CommentsContainer = () => {
     }
 
     return(
-        <>
-            {/* Backdrop overlay */}
-            <div 
-                className={"fixed inset-0 bg-black/40 z-40 transition-opacity duration-300 " + (commentsWrapper ? "opacity-100" : "opacity-0 pointer-events-none")}
-                onClick={() => setCommentsWrapper(false)}
-            />
+        <div id="comments-section" className="w-full mt-8">
+            <hr className="border-border my-8 w-full" />
 
-            <div className={"max-sm:w-full fixed " + ( commentsWrapper ? "top-0 sm:right-0" : "top-[100%] sm:right-[-100%]" ) + " duration-500 ease-out max-sm:right-0 sm:top-0 w-[30%] min-w-[350px] h-full z-50 bg-surface shadow-xl p-8 px-4 sm:px-10 overflow-y-auto overflow-x-hidden"}>
-                
-                <div className="relative">
-                    <h1 className="text-xl font-semibold">Comments</h1>
-                    <p className="text-sm mt-1 w-[70%] text-dark-grey line-clamp-1">{title}</p>
+            <h1 className="text-xl font-semibold mb-6">Comments</h1>
 
-                    <button 
-                        onClick={() => setCommentsWrapper(preVal => !preVal)}
-                        className="absolute top-0 right-0 flex justify-center items-center w-10 h-10 rounded-full bg-grey hover:bg-grey/80 transition-colors"
-                    >
-                        <Icon name="close" className="text-xl" />
-                    </button>
-                </div>
-
-                <hr className="border-border my-8 w-[120%] -ml-10" />
-
-                <CommentField action="Comment" />
+            <CommentField action="Comment" />
 
                 {
                     commentsArr && commentsArr.length ? 
@@ -91,8 +73,7 @@ const CommentsContainer = () => {
                     : ""
                 }
 
-            </div>
-        </>
+        </div>
     )
 }
 

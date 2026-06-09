@@ -41,7 +41,7 @@ const BlogEditor = () => {
 
     // ── Draft state ──
     const [view, setView] = useState("editor"); // 'editor' | 'drafts'
-    const [editingDraftId, setEditingDraftId] = useState(blog_id || null);
+    const [editingDraftId, setEditingDraftId] = useState(null);
     const [drafts, setDrafts] = useState(null);
     const [draftSearch, setDraftSearch] = useState("");
     const [loadingDrafts, setLoadingDrafts] = useState(false);
@@ -50,10 +50,19 @@ const BlogEditor = () => {
     const searchTimeoutRef = useRef(null);
     const titleRef = useRef(null);
 
-    // Sync editingDraftId with route param
+    const isEditingPublishedPost = Boolean(blog_id && blog?.draft === false);
+    const isEditingDraft = Boolean(editingDraftId && !isEditingPublishedPost);
+
+    // Sync editingDraftId with the loaded post status
     useEffect(() => {
-        if (blog_id) setEditingDraftId(blog_id);
-    }, [blog_id]);
+        if (!blog_id) return;
+
+        if (blog?.draft) {
+            setEditingDraftId(blog_id);
+        } else if (blog?.draft === false) {
+            setEditingDraftId(null);
+        }
+    }, [blog_id, blog?.draft]);
 
     const handleEditorReady = useCallback((editor) => {
         editorRef.current = editor;
@@ -124,6 +133,7 @@ const BlogEditor = () => {
             content: draft.content || [],
             tags: draft.tags || [],
             des: draft.des || "",
+            draft: true,
             author: draft.author || { personal_info: {} }
         });
         setEditingDraftId(draft.blog_id);
@@ -176,24 +186,28 @@ const BlogEditor = () => {
         const editorContent = editor ? editor.getJSON() : { type: 'doc', content: [] };
         return {
             title, banner, des, content: editorContent, tags, draft: true,
-            ...(editingDraftId ? { id: editingDraftId } : {})
+            ...(isEditingDraft ? { id: editingDraftId } : {})
         };
     };
 
     // ── Save draft and go to drafts list ──
     const saveDraftAndGoToList = async () => {
         setShowDraftPopup(null);
+        if (isEditingPublishedPost) {
+            toast.error("Published blogs can't be moved back to drafts");
+            return;
+        }
         if (!title.length) {
             toast.error("Write a title before saving as draft");
             return;
         }
-        const loadingToast = toast.loading(editingDraftId ? "Updating draft..." : "Saving draft...");
+        const loadingToast = toast.loading(isEditingDraft ? "Updating draft..." : "Saving draft...");
         try {
             const { data } = await api.post("/create-blog", buildDraftPayload());
             toast.dismiss(loadingToast);
-            toast.success(editingDraftId ? "Draft updated" : "Saved to drafts");
+            toast.success(isEditingDraft ? "Draft updated" : "Saved to drafts");
             // If new draft, set the editing ID
-            if (!editingDraftId && data.id) {
+            if (!isEditingDraft && data.id) {
                 setEditingDraftId(data.id);
                 navigate(`/editor/${data.id}`, { replace: true });
             }
@@ -216,7 +230,9 @@ const BlogEditor = () => {
 
     // ── Drafts button click logic (same as text-post) ──
     const handleDraftsClick = () => {
-        if (editingDraftId) {
+        if (isEditingPublishedPost) return;
+
+        if (isEditingDraft) {
             // Editing existing draft
             if (hasContent) {
                 setShowDraftPopup("update");
@@ -447,7 +463,7 @@ const BlogEditor = () => {
                 </Link>
                 <p className="max-md:hidden text-black line-clamp-1 w-full font-medium">
                     { title.length ? title : "New Blog" }
-                    {editingDraftId && <span className="editor-draft-badge">Draft</span>}
+                    {isEditingDraft && <span className="editor-draft-badge">Draft</span>}
                 </p>
 
                 <div className="flex gap-4 ml-auto">
@@ -456,12 +472,14 @@ const BlogEditor = () => {
                     >
                         Publish
                     </button>
-                    <button className="btn-light py-2 flex items-center gap-2"
-                        onClick={handleDraftsClick}
-                    >
-                        <Icon name="draft" className="text-lg" />
-                        Drafts
-                    </button>
+                    {!isEditingPublishedPost && (
+                        <button className="btn-light py-2 flex items-center gap-2"
+                            onClick={handleDraftsClick}
+                        >
+                            <Icon name="draft" className="text-lg" />
+                            Drafts
+                        </button>
+                    )}
                 </div>
             </nav>
 

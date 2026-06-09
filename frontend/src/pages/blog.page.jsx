@@ -53,25 +53,27 @@ const TextPostPollView = ({ poll: initialPoll, blogId }) => {
     };
 
     return (
-        <div className="tp-card__poll mb-6">
-            {poll.question && <div className="tp-card__poll-question">{poll.question}</div>}
-            {poll.options.map((opt, i) => {
-                const totalVotes = poll.total_votes || 0;
-                const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
-                return (
-                    <div key={i}
-                        className={`tp-card__poll-option ${hasVoted ? 'tp-card__poll-option--voted' : ''} ${selectedOption === i ? 'tp-card__poll-option--selected' : ''}`}
-                        onClick={() => !hasVoted && handleVote(i)}
-                    >
-                        {hasVoted && <div className="tp-card__poll-bar" style={{ width: `${percent}%` }} />}
-                        <div className="tp-card__poll-label">
-                            <span>{opt.text}</span>
-                            {hasVoted && <span className="tp-card__poll-percent">{percent}%</span>}
+        <div className="feed-card__text-post-poll mb-6">
+            {poll.question && <div className="feed-card__text-post-poll-question">{poll.question}</div>}
+            <div className="feed-card__text-post-poll-options">
+                {poll.options.map((opt, i) => {
+                    const totalVotes = poll.total_votes || 0;
+                    const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
+                    return (
+                        <div key={i}
+                            className={`feed-card__text-post-poll-option ${hasVoted ? 'feed-card__text-post-poll-option--voted' : ''} ${selectedOption === i ? 'feed-card__text-post-poll-option--selected' : ''}`}
+                            onClick={() => !hasVoted && handleVote(i)}
+                        >
+                            {hasVoted && <div className="feed-card__text-post-poll-bar" style={{ width: `${percent}%` }} />}
+                            <div className="feed-card__text-post-poll-label">
+                                <span className="feed-card__text-post-poll-text">{opt.text}</span>
+                                {hasVoted && <span className="feed-card__text-post-poll-percent">{percent}%</span>}
+                            </div>
                         </div>
-                    </div>
-                );
-            })}
-            <div className="tp-card__poll-footer">
+                    );
+                })}
+            </div>
+            <div className="feed-card__text-post-poll-footer">
                 <span>{poll.total_votes || 0} vote{(poll.total_votes || 0) !== 1 ? 's' : ''}</span>
             </div>
         </div>
@@ -171,9 +173,7 @@ const BlogPage = () => {
                 :
                 <BlogContext.Provider value={{ blog, setBlog, isLikedByUser, setLikedByUser, commentsWrapper, setCommentsWrapper, totalParentCommentsLoaded, setTotalParentCommentsLoaded }}>
 
-                    {!isDraft && <CommentsContainer />}
-                    
-                    <div className="max-w-[900px] center py-10 max-lg:px-[5vw]">
+                    <div className="max-w-[900px] w-full center py-10 max-lg:px-[5vw]">
 
                         {isDraft && (
                             <div className="draft-preview-banner">
@@ -208,9 +208,9 @@ const BlogPage = () => {
                                 </div>
 
                                 {images && images.length > 0 && (
-                                    <div className={`tp-card__images tp-card__images--${Math.min(images.length, 4)} mb-6`}>
+                                    <div className={`feed-card__text-post-images feed-card__text-post-images--${Math.min(images.length, 4)} mb-6`}>
                                         {images.map((url, i) => (
-                                            <img key={i} src={url} alt={`Image ${i + 1}`} className="tp-card__image" />
+                                            <img key={i} src={url} alt={`Image ${i + 1}`} className="feed-card__text-post-image" />
                                         ))}
                                     </div>
                                 )}
@@ -264,6 +264,8 @@ const BlogPage = () => {
                                 {!isDraft && <BlogInteraction />}
                             </>
                         )}
+
+                        {!isDraft && <CommentsContainer />}
                     </div>
 
                     {/* ── Footer Section (CTAs & Similar Blogs) ── */}

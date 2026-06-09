@@ -40,7 +40,7 @@ export const addComment = (req, res) => {
 
     let user_id = req.user;
 
-    let { _id, comment, blog_author, replying_to, notification_id } = req.body;
+    let { _id, comment, blog_author, replying_to, notification_id, images, poll } = req.body;
 
     // Sanitize comment — strip all HTML to prevent XSS
     const sanitizedComment = sanitizeHtml(comment, { allowedTags: [], allowedAttributes: {} });
@@ -53,6 +53,8 @@ export const addComment = (req, res) => {
         blog_id: _id,
         blog_author,
         comment: sanitizedComment,
+        images: images || [],
+        poll: poll || undefined,
         commented_by: user_id,
     }
 

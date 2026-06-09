@@ -3,6 +3,7 @@ import { UserContext } from "../App";
 import toast from "react-hot-toast";
 import api from "../common/api";
 import { BlogContext } from "../pages/blog.page";
+import Avatar from "./Avatar";
 
 const CommentField = ({ action, index = undefined, replyingTo = undefined, setReplying }) => {
 
@@ -73,20 +74,34 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
     }
 
     return(
-        <>
+        <div className="flex gap-4 items-start mb-8">
+            <Avatar src={profile_img} alt={username} size={36} />
+            <div className="flex-1 border border-border rounded-xl p-3 px-4 focus-within:border-dark-grey transition-colors">
+                <textarea 
+                    id={action === 'reply' ? undefined : "comment-textarea"}
+                    value={comment} 
+                    onChange={(e) => {
+                        setComment(e.target.value);
+                        e.target.style.height = 'auto';
+                        e.target.style.height = e.target.scrollHeight + 'px';
+                    }}
+                    placeholder={action === 'reply' ? "Leave a reply..." : "Leave a comment..."}
+                    className="w-full bg-transparent outline-none text-[15px] resize-none min-h-[24px]"
+                    style={{ overflow: 'hidden' }}
+                />
 
-            <textarea 
-                value={comment} 
-                onChange={(e) => setComment(e.target.value)}
-                placeholder="Leave a comment..." 
-                className="input-box pl-5 placeholder:text-dark-grey resize-none h-[150px] overflow-auto"
-            > </textarea>
-
-            <button 
-                onClick={handleComment}
-                className="btn-dark mt-5 px-10"
-            >{action}</button>
-        </>
+                {comment.length > 0 && (
+                    <div className="flex justify-end mt-2">
+                        <button 
+                            onClick={handleComment}
+                            className="bg-black text-white rounded-full px-5 py-1.5 text-sm font-medium hover:bg-black/80 transition-colors"
+                        >
+                            {action === 'reply' ? 'Reply' : 'Post'}
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
     )
 }
 

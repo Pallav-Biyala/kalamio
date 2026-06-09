@@ -11,7 +11,7 @@ const MAX_CHARS = 9999;
 const MAX_IMAGES = 4;
 const MAX_POLL_OPTIONS = 6;
 
-const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId }) => {
+const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId, replyTo }) => {
 
     const { userAuth: { access_token, profile_img, fullname, username } } = useContext(UserContext);
 
@@ -36,6 +36,7 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId }) => {
 
     // ── Draft editing state ──
     const [editingDraftId, setEditingDraftId] = useState(null); // blog_id of draft being edited
+    const [editingPublishedId, setEditingPublishedId] = useState(null); // blog_id of live post being edited
     const [showDraftPopup, setShowDraftPopup] = useState(null); // 'save' | 'update' | null
     const [showDiscard, setShowDiscard] = useState(false);
 
@@ -64,6 +65,7 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId }) => {
             setDrafts(null);
             setDraftSearch("");
             setEditingDraftId(null);
+            setEditingPublishedId(null);
             setShowDraftPopup(null);
             setShowDiscard(false);
             setDraftMenuOpen(null);
@@ -82,7 +84,13 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId }) => {
                     setPollQuestion(blog.poll.question || "");
                     setPollOptions(blog.poll.options.map(opt => opt.text || ""));
                 }
-                setEditingDraftId(blog.blog_id);
+                if (blog.draft) {
+                    setEditingDraftId(blog.blog_id);
+                    setEditingPublishedId(null);
+                } else {
+                    setEditingDraftId(null);
+                    setEditingPublishedId(blog.blog_id);
+                }
                 setView("compose");
             })
             .catch(() => {
@@ -93,6 +101,9 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId }) => {
 
     // ── Helpers ──
     const hasContent = textContent.trim().length > 0 || images.length > 0;
+    const activeEditId = editingDraftId || editingPublishedId;
+    const isExternalEditPending = Boolean(editBlogId && !editingDraftId && !editingPublishedId);
+    const isEditingPublishedPost = Boolean(editingPublishedId || isExternalEditPending);
 
     const resetComposer = () => {
         setTextContent("");
@@ -101,6 +112,7 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId }) => {
         setPollQuestion("");
         setPollOptions(["", ""]);
         setEditingDraftId(null);
+        setEditingPublishedId(null);
     };
 
     const resetAndClose = () => {
@@ -307,7 +319,7 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId }) => {
             des: "",
             tags: [],
             draft,
-            ...(editingDraftId ? { id: editingDraftId } : {})
+            ...(activeEditId ? { id: activeEditId } : {})
         };
     };
 
@@ -319,9 +331,21 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId }) => {
             if (validOptions.length < 2) return toast.error("Poll needs at least 2 options");
         }
         setPosting(true);
-        const loadingToast = toast.loading(editingDraftId ? "Publishing..." : "Posting...");
+        const loadingToast = toast.loading(activeEditId ? "Updating..." : "Posting...");
         try {
-            await api.post("/create-blog", buildPayload(false));
+            if (replyTo) {
+                // Submit as a comment
+                const payload = {
+                    _id: replyTo._id || replyTo.blog_id,
+                    blog_author: replyTo.author._id,
+                    comment: textContent,
+                    images: images,
+                    poll: showPoll ? buildPayload(false).poll : undefined
+                };
+                await api.post("/add-comment", payload);
+            } else {
+                await api.post("/create-blog", buildPayload(false));
+            }
             toast.dismiss(loadingToast);
             toast.success("Posted! 🎉");
             resetAndClose();
@@ -337,6 +361,10 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId }) => {
     // ── Save / Update draft ──
     const saveDraftAndGoToList = async () => {
         setShowDraftPopup(null);
+        if (isEditingPublishedPost) {
+            toast.error("Published posts can't be moved back to drafts");
+            return;
+        }
         if (!textContent.trim()) {
             toast.error("Can't save an empty draft");
             return;
@@ -366,6 +394,9 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId }) => {
 
     // ── Drafts button click logic ──
     const handleDraftsClick = () => {
+        if (replyTo) return; // No drafts for replies yet
+        if (isEditingPublishedPost) return;
+
         if (editingDraftId) {
             // Case 3: Editing existing draft
             if (hasContent) {
@@ -400,6 +431,7 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId }) => {
             setPollOptions(["", ""]);
         }
         setEditingDraftId(draft.blog_id);
+        setEditingPublishedId(null);
         setDraftMenuOpen(null);
         setView("compose");
     };
@@ -436,6 +468,10 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId }) => {
 
     const saveDraftFromDiscard = async () => {
         setShowDiscard(false);
+        if (isEditingPublishedPost) {
+            toast.error("Published posts can't be moved back to drafts");
+            return;
+        }
         if (!textContent.trim()) {
             toast.error("Can't save an empty draft");
             return;
@@ -572,11 +608,216 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId }) => {
     // ═══════════════════════════════════════════════════
     // COMPOSE VIEW
     // ═══════════════════════════════════════════════════
+    if (replyTo) {
+        return (
+            <div className="tp-composer-overlay" onClick={handleOverlayClick}>
+                <div className="reply-modal" onClick={e => e.stopPropagation()}>
+                    {/* Parent Row */}
+                    <div className="reply-modal__row">
+                        <div className="reply-modal__left">
+                            <Avatar src={replyTo.author.profile_img || replyTo.author.personal_info?.profile_img} alt="author" size={36} />
+                            <div className="reply-modal__line"></div>
+                        </div>
+                        <div className="reply-modal__right">
+                            <div className="reply-modal__header">
+                                <span className="reply-modal__name">{replyTo.author.fullname || replyTo.author.personal_info?.fullname}</span>
+                                <span className="reply-modal__time">{getDay(replyTo.publishedAt || replyTo.commentedAt)}</span>
+                            </div>
+                            <div className="reply-modal__text">
+                                {replyTo.text_content || replyTo.comment}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Current User Row */}
+                    <div className="reply-modal__row" style={{ marginTop: '-4px' }}>
+                        <div className="reply-modal__left">
+                            <Avatar src={profile_img} alt={fullname} size={36} />
+                        </div>
+                        <div className="reply-modal__right">
+                            <div className="reply-modal__name mb-1">{fullname}</div>
+                            <textarea
+                                ref={textareaRef}
+                                className="reply-modal__textarea"
+                                placeholder="Leave a reply..."
+                                value={textContent}
+                                onChange={handleTextChange}
+                                onClick={handleCursorMove}
+                                onKeyUp={handleCursorMove}
+                                maxLength={MAX_CHARS}
+                            />
+
+                            {/* Mentions Dropdown */}
+                            {showMentions && (
+                                <div className="mention-dropdown">
+                                    <div className="mention-dropdown__header">
+                                        <Icon name="search" className="mention-dropdown__search-icon" />
+                                        <input 
+                                            type="text" 
+                                            className="mention-dropdown__search-input" 
+                                            placeholder="Search people..."
+                                            value={mentionQuery}
+                                            onChange={(e) => {
+                                                setMentionQuery(e.target.value);
+                                                clearTimeout(mentionTimeoutRef.current);
+                                                mentionTimeoutRef.current = setTimeout(() => {
+                                                    fetchMentions(e.target.value);
+                                                }, 300);
+                                            }}
+                                        />
+                                        <button className="mention-dropdown__close" onClick={() => setShowMentions(false)}>
+                                            <Icon name="close" className="text-base" />
+                                        </button>
+                                    </div>
+                                    <div className="mention-dropdown__list">
+                                        {mentionResults.length > 0 ? (
+                                            mentionResults.map((user, i) => (
+                                                <div 
+                                                    key={i} 
+                                                    className="mention-dropdown__item"
+                                                    onClick={() => insertMention(user.personal_info.username)}
+                                                >
+                                                    <Avatar src={user.personal_info.profile_img} alt={user.personal_info.fullname} size={28} />
+                                                    <div className="mention-dropdown__info">
+                                                        <span className="mention-dropdown__fullname">{user.personal_info.fullname}</span>
+                                                        <span className="mention-dropdown__username">@{user.personal_info.username}</span>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="p-3 text-center text-sm text-dark-grey">No users found</div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Images */}
+                            {images.length > 0 && (
+                                <div className={`tp-composer__images tp-composer__images--${Math.min(images.length, 4)}`}>
+                                    {images.map((url, i) => (
+                                        <div key={i} className="tp-composer__image-wrapper">
+                                            <img src={url} alt={`Upload ${i + 1}`} />
+                                            <button
+                                                className="tp-composer__image-remove"
+                                                onClick={() => removeImage(i)}
+                                                aria-label="Remove image"
+                                            >
+                                                <Icon name="close" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Poll Creator */}
+                            {showPoll && (
+                                <div className="tp-composer__poll">
+                                    <div className="tp-composer__poll-header">
+                                        <span className="tp-composer__poll-title flex-1 flex items-center">
+                                            <Icon name="poll" className="text-base align-middle mr-2" />
+                                            <input 
+                                                type="text" 
+                                                placeholder="Ask a question..."
+                                                value={pollQuestion}
+                                                onChange={(e) => setPollQuestion(e.target.value)}
+                                                className="bg-transparent border-none outline-none text-[15px] w-full font-medium placeholder:font-normal placeholder:opacity-70"
+                                            />
+                                        </span>
+                                        <button className="tp-composer__poll-remove" onClick={togglePoll} aria-label="Remove poll">
+                                            <Icon name="close" />
+                                        </button>
+                                    </div>
+
+                                    {pollOptions.map((opt, i) => (
+                                        <div key={i} className="tp-composer__poll-option">
+                                            <input
+                                                type="text"
+                                                placeholder={`Option ${i + 1}`}
+                                                value={opt}
+                                                onChange={(e) => updatePollOption(i, e.target.value)}
+                                                maxLength={100}
+                                            />
+                                            {pollOptions.length > 2 && (
+                                                <button
+                                                    className="tp-composer__poll-remove"
+                                                    onClick={() => removePollOption(i)}
+                                                    aria-label="Remove option"
+                                                >
+                                                    <Icon name="close" className="text-base" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+
+                                    {pollOptions.length < MAX_POLL_OPTIONS && (
+                                        <button className="tp-composer__poll-add" onClick={addPollOption}>
+                                            <Icon name="add" className="text-lg" />
+                                            Add another option
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Footer aligned with textarea */}
+                            <div className="reply-modal__footer">
+                                <div className="tp-composer__toolbar">
+                            <button
+                                className={`tp-composer__tool-btn ${images.length > 0 ? 'tp-composer__tool-btn--active' : ''}`}
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={images.length >= MAX_IMAGES || uploading}
+                                title="Add images"
+                            >
+                                <Icon name="image" />
+                            </button>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                hidden
+                                onChange={handleImageUpload}
+                            />
+                            <button
+                                className={`tp-composer__tool-btn ${showPoll ? 'tp-composer__tool-btn--active' : ''}`}
+                                onClick={togglePoll}
+                                title={showPoll ? "Remove poll" : "Add poll"}
+                            >
+                                <Icon name="poll" />
+                            </button>
+                            <button
+                                className={`tp-composer__tool-btn`}
+                                onClick={handleMentionIconClick}
+                                title="Mention someone"
+                            >
+                                <Icon name="alternate_email" />
+                            </button>
+                        </div>
+
+                        <div className="reply-modal__actions">
+                            <button className="reply-modal__cancel-btn" onClick={resetAndClose}>
+                                Cancel
+                            </button>
+                            <button
+                                className="reply-modal__post-btn"
+                                onClick={handlePost}
+                                disabled={(!textContent.trim() && !showPoll && images.length === 0) || posting || uploading}
+                            >
+                                {posting ? "Posting..." : "Post"}
+                            </button>
+                        </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="tp-composer-overlay" onClick={handleOverlayClick}>
             <div className="tp-composer">
 
-                {/* Header */}
+                {/* Header (Current User) */}
                 <div className="tp-composer__header">
                     <div className="tp-composer__author">
                         <Avatar src={profile_img} alt={fullname} size={40} />
@@ -585,10 +826,12 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId }) => {
                             {editingDraftId && <span className="tp-composer__draft-badge">Editing draft</span>}
                         </div>
                     </div>
-                    <button className="tp-composer__drafts-btn" onClick={handleDraftsClick}>
-                        <Icon name="draft" className="text-lg" />
-                        Drafts
-                    </button>
+                    {!isEditingPublishedPost && (
+                        <button className="tp-composer__drafts-btn" onClick={handleDraftsClick}>
+                            <Icon name="draft" className="text-lg" />
+                            Drafts
+                        </button>
+                    )}
                 </div>
 
                 {/* Body */}
@@ -780,16 +1023,20 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId }) => {
                         <div className="tp-discard__icon">
                             <Icon name="delete_sweep" />
                         </div>
-                        <h3 className="tp-discard__title">Discard post?</h3>
-                        <p className="tp-discard__desc">You can save it as a draft to finish later.</p>
+                        <h3 className="tp-discard__title">{isEditingPublishedPost ? "Discard changes?" : "Discard post?"}</h3>
+                        <p className="tp-discard__desc">
+                            {isEditingPublishedPost ? "Your published post will stay live." : "You can save it as a draft to finish later."}
+                        </p>
                         <div className="tp-discard__actions-col">
-                            <button className="tp-discard__btn tp-discard__btn--draft" onClick={saveDraftFromDiscard}>
-                                <Icon name="draft" className="text-lg" />
-                                Save as Draft
-                            </button>
+                            {!isEditingPublishedPost && (
+                                <button className="tp-discard__btn tp-discard__btn--draft" onClick={saveDraftFromDiscard}>
+                                    <Icon name="draft" className="text-lg" />
+                                    Save as Draft
+                                </button>
+                            )}
                             <button className="tp-discard__btn tp-discard__btn--discard" onClick={confirmDiscard}>
                                 <Icon name="delete" className="text-lg" />
-                                Discard
+                                {isEditingPublishedPost ? "Discard changes" : "Discard"}
                             </button>
                             <button className="tp-discard__btn tp-discard__btn--cancel" onClick={cancelDiscard}>
                                 Keep editing

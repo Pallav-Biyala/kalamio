@@ -7,10 +7,11 @@ import { BlogContext } from "../pages/blog.page";
 import api from "../common/api";
 import Icon from "./Icon";
 import Avatar from "./Avatar";
+import { Link } from "react-router-dom";
 
 const CommentCard = ({ index, leftVal, commentData }) => {
 
-    let { commented_by: { personal_info: { profile_img, fullname, username: commented_by_username } }, commentedAt, comment, _id, children } = commentData
+    let { commented_by: { personal_info: { profile_img, fullname, username: commented_by_username } }, commentedAt, comment, images, poll, _id, children } = commentData
 
     let { blog, blog: { comments, activity, activity: { total_parent_comments }, comments: { results: commentsArr }, author: { personal_info: { username: blog_author } } }, setBlog, setTotalParentCommentsLoaded } = useContext(BlogContext)
 
@@ -158,60 +159,122 @@ const CommentCard = ({ index, leftVal, commentData }) => {
 
     }
 
+    const renderText = (text) => {
+        if (!text) return null;
+        const parts = text.split(/(@[\w](?:[\w.]*[\w])?)/g);
+        return parts.map((part, i) => {
+            if (part.startsWith('@') && part.length > 1) {
+                const username = part.slice(1);
+                return (
+                    <Link key={i} to={`/user/${username}`} className="mention-link">
+                        {part}
+                    </Link>
+                );
+            }
+            return <span key={i}>{part}</span>;
+        });
+    };
+
     return (
         <div className="w-full" style={{ paddingLeft: `min(${leftVal * 10}px, 15vw)` }}>
-            <div className="my-5 p-4 sm:p-6 rounded-md border border-border">
-                <div className="flex flex-wrap gap-2 sm:gap-3 items-center mb-4 sm:mb-8">
-                    <Avatar src={profile_img} alt={commented_by_username} size={24} />
+            <div className="my-5 flex gap-4">
+                <Avatar src={profile_img} alt={commented_by_username} size={36} />
+                <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                        <p className="font-semibold text-[15px]">{fullname}</p>
+                        <p className="text-dark-grey text-sm">{getDay(commentedAt)}</p>
+                    </div>
 
-        
-                    {/* <p className="line-clamp-1">{fullname} @{commented_by_username}</p> */}
-                    <p className="line-clamp-1">{fullname}</p>
-                    <p className="text-dark-grey">@{commented_by_username}</p>
-                    <p className="text-dark-grey text-sm">{getDay(commentedAt)}</p>
-                </div>
+                    <p className="font-inter text-[15px] mb-3 whitespace-pre-wrap">{renderText(comment)}</p>
 
-                <p className="font-inter text-xl ml-3">{comment}</p>
+                    {/* Images */}
+                    {images && images.length > 0 && (
+                        <div className={`feed-card__text-post-images feed-card__text-post-images--${Math.min(images.length, 4)} mb-4`}>
+                            {images.map((url, i) => (
+                                <img key={i} src={url} alt={`Image ${i + 1}`} className="feed-card__text-post-image" />
+                            ))}
+                        </div>
+                    )}
 
-                <div className="flex gap-5 items-center mt-5">
-                    {
-                        commentData.isReplyLoaded ? 
-                        <button 
-                            onClick={hideReplies}
-                            className="text-dark-grey p-2 px-3 hover:bg-grey/30 rounded-md flex items-center gap-2"
-                        >
-                            <Icon name="chat_bubble" />
-                            Hide Reply
-                        </button> : 
-                        <button 
-                            onClick={loadReplies}
-                            className="text-dark-grey p-2 px-3 hover:bg-grey/30 rounded-md flex items-center gap-2"
-                        >
-                            <Icon name="chat_bubble" />
-                            {children.length} Reply
+                    {/* Poll */}
+                    {poll && poll.options && poll.options.length > 0 && (
+                        <div className="feed-card__text-post-poll mb-4">
+                            {poll.question && (
+                                <div className="feed-card__text-post-poll-header">
+                                    <Icon name="bar_chart" className="feed-card__text-post-poll-icon" />
+                                    <span className="feed-card__text-post-poll-question">{poll.question}</span>
+                                </div>
+                            )}
+                            <div className="feed-card__text-post-poll-options">
+                                {poll.options.map((opt, i) => {
+                                    const totalVotes = poll.total_votes || 0;
+                                    const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
+                                    return (
+                                        <div key={i} className="feed-card__text-post-poll-option">
+                                            <div className="feed-card__text-post-poll-label">
+                                                <span className="feed-card__text-post-poll-text">{opt.text}</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <div className="feed-card__text-post-poll-footer">
+                                <Icon name="people_outline" className="text-sm" />
+                                <span>{poll.total_votes || 0} vote{(poll.total_votes || 0) !== 1 ? 's' : ''}</span>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex gap-4 items-center mt-2">
+                        {/* Fake like button for visual similarity */}
+                        <button className="flex items-center gap-1.5 text-dark-grey hover:text-black transition-colors">
+                            <Icon name="favorite_border" className="text-lg" />
+                            <span className="text-sm">0</span>
                         </button>
-                    }
 
-                    <button className="underline" onClick={handleReplyClick}>Reply</button>
+                        <button 
+                            className="flex items-center gap-1.5 text-dark-grey hover:text-black transition-colors"
+                            onClick={handleReplyClick}
+                        >
+                            <Icon name="chat_bubble_outline" className="text-lg" />
+                            <span className="text-sm">Reply</span>
+                        </button>
+
+                        {/* Expand/Collapse Replies */}
+                        {children.length > 0 && (
+                            commentData.isReplyLoaded ? 
+                            <button 
+                                onClick={hideReplies}
+                                className="text-dark-grey hover:text-black flex items-center gap-1.5 text-sm ml-2 transition-colors"
+                            >
+                                Hide Replies
+                            </button> : 
+                            <button 
+                                onClick={loadReplies}
+                                className="text-dark-grey hover:text-black flex items-center gap-1.5 text-sm ml-2 transition-colors"
+                            >
+                                {children.length} Reply
+                            </button>
+                        )}
+
+                        {
+                            username == commented_by_username || username == blog_author ? 
+                            <button 
+                                onClick={deletComment}
+                                className="text-dark-grey hover:text-red transition-colors ml-auto flex items-center"
+                            >
+                                <Icon name="delete" className="text-lg pointer-events-none" />
+                            </button> : ""
+                        }
+                    </div>
 
                     {
-                        username == commented_by_username || username == blog_author ? 
-                        <button 
-                            onClick={deletComment}
-                            className="p-2 px-3 rounded-md border border-border ml-auto hover:bg-red/30 hover:text-red flex items-center"
-                        >
-                            <Icon name="delete" className="pointer-events-none" />
-                        </button> : ""
+                        isReplying ? 
+                        <div className="mt-5">
+                            <CommentField action="reply" index={index} replyingTo={_id} setReplying={setReplying} />
+                        </div> : ""
                     }
                 </div>
-
-                {
-                    isReplying ? 
-                    <div className="mt-8">
-                        <CommentField action="reply" index={index} replyingTo={_id} setReplying={setReplying} />
-                    </div> : ""
-                }
-
             </div>
 
             <LoadMoreRepliesBtn />

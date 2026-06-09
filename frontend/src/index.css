@@ -4662,7 +4662,7 @@ body,
 
 /* ── Composer Poll Creator ── */
 .tp-composer__poll {
-    margin-top: 16px;
+    margin-top: 8px;
     border: 1px solid rgb(var(--c-border));
     border-radius: 16px;
     padding: 16px;
@@ -4816,6 +4816,12 @@ body,
     white-space: pre-wrap;
     word-break: break-word;
     margin-bottom: 4px;
+}
+.feed-card__text-post-content--clamped {
+    display: -webkit-box;
+    -webkit-line-clamp: 5;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 /* ── Text Post Images (Feed) ── */
@@ -5090,6 +5096,148 @@ body,
 .tp-discard__btn--cancel:hover {
     background: rgb(var(--c-grey));
 }
+
+/* ── Substack style Reply Modal ── */
+.reply-modal {
+    width: 100%;
+    max-width: 650px;
+    background: rgb(var(--c-white));
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+}
+.reply-modal__row {
+    display: flex;
+    gap: 12px;
+}
+.reply-modal__left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.reply-modal__line {
+    width: 2px;
+    flex: 1;
+    background-color: rgb(var(--c-border));
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+.reply-modal__right {
+    flex: 1;
+}
+.reply-modal__header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+.reply-modal__name {
+    font-weight: 600;
+    font-size: 15px;
+    color: rgb(var(--c-black));
+}
+.reply-modal__time {
+    color: rgb(var(--c-dark-grey));
+    font-size: 14px;
+}
+.reply-modal__text {
+    font-size: 15px;
+    color: rgb(var(--c-black));
+    opacity: 0.9;
+    line-height: 1.5;
+}
+.reply-modal__textarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: rgb(var(--c-black));
+    font-size: 15px;
+    min-height: 100px;
+    resize: none;
+    margin-top: 4px;
+    overflow: hidden;
+}
+.reply-modal__textarea::placeholder {
+    color: rgb(var(--c-dark-grey));
+}
+.reply-modal__footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+}
+.reply-modal__actions {
+    display: flex;
+    gap: 8px;
+}
+.reply-modal__cancel-btn {
+    padding: 8px 16px;
+    border: none;
+    background: rgb(var(--c-grey));
+    color: rgb(var(--c-black));
+    border-radius: 12px;
+    font-weight: 500;
+    font-size: 14px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+.reply-modal__cancel-btn:hover {
+    opacity: 0.8;
+}
+.reply-modal__post-btn {
+    padding: 8px 16px;
+    border: none;
+    background: rgb(var(--c-brand));
+    color: rgb(var(--c-white));
+    border-radius: 12px;
+    font-weight: 500;
+    font-size: 14px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+.reply-modal__post-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.reply-modal__post-btn:hover {
+    opacity: 0.9;
+}
+
+/* ── Composer Reply Context ── */
+.tp-composer__reply-parent {
+    display: flex;
+    gap: 12px;
+    padding: 0 20px 0 20px;
+    margin-top: 16px;
+}
+.tp-composer__reply-parent-avatar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.tp-composer__reply-line {
+    flex: 1;
+    width: 2px;
+    background-color: rgb(var(--c-border));
+    margin-top: 4px;
+    margin-bottom: -16px; /* connect to the next avatar */
+}
+.tp-composer__reply-parent-content {
+    flex: 1;
+    padding-bottom: 16px;
+}
+.tp-composer__reply-parent-text {
+    font-size: 15px;
+    color: rgb(var(--c-dark-grey));
+    margin-top: 4px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
 .tp-discard__btn--discard {
     background: rgba(239, 68, 68, 0.1);
     color: #ef4444;
@@ -5147,7 +5295,7 @@ body,
     display: flex;
     align-items: center;
     gap: 8px;
-    margin: 0 16px 8px;
+    margin: 16px 16px 12px;
     padding: 10px 14px;
     background: rgb(var(--c-grey));
     border: 1px solid transparent;
