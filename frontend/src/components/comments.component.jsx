@@ -2,7 +2,6 @@ import { useContext } from "react";
 import { BlogContext } from "../pages/blog.page";
 import CommentField from "./comment-field.component";
 import api from "../common/api";
-import Icon from "./Icon";
 import NoDataMessage from "./nodata.component";
 import AnimationWrapper from "../common/page-animation";
 import CommentCard from "./comment-card.component";
@@ -35,7 +34,9 @@ export const fetchComments = async ({ skip=0, blog_id, setParentCommentCountFun,
 
 const CommentsContainer = () => {
 
-    let { blog, blog: { _id, title, comments: { results: commentsArr }, activity: { total_parent_comments } }, commentsWrapper, setCommentsWrapper, totalParentCommentsLoaded, setTotalParentCommentsLoaded, setBlog } = useContext(BlogContext);
+    let { blog, blog: { _id, title, type, comments: { results: commentsArr }, activity: { total_parent_comments } }, commentsWrapper, setCommentsWrapper, totalParentCommentsLoaded, setTotalParentCommentsLoaded, setBlog } = useContext(BlogContext);
+
+    const isTextPost = type === 'text_post';
 
     const loadMoreComments = async () => {
 
@@ -46,33 +47,41 @@ const CommentsContainer = () => {
     }
 
     return(
-        <div id="comments-section" className="w-full mt-8">
-            <hr className="border-border my-8 w-full" />
+        <div id="comments-section" className="comments-section">
+            <div className="comments-section__divider"></div>
 
-            <h1 className="text-xl font-semibold mb-6">Comments</h1>
+            <div className="comments-section__header">
+                <span className="comments-section__count">
+                    {total_parent_comments > 0 
+                        ? `${total_parent_comments} ${total_parent_comments === 1 ? 'Comment' : 'Comments'}` 
+                        : 'Comments'
+                    }
+                </span>
+            </div>
 
             <CommentField action="Comment" />
 
+            <div className="comments-section__list">
                 {
                     commentsArr && commentsArr.length ? 
                     commentsArr.map((comment, i) => {
-                        return <AnimationWrapper key={i}>
-                            <CommentCard index={i} leftVal={comment.childrenLevel*4} commentData={comment} />
+                        return <AnimationWrapper key={comment._id || i}>
+                            <CommentCard index={i} commentData={comment} isTextPost={isTextPost} />
                         </AnimationWrapper>
                     }) : <NoDataMessage message="No Comments" />
                 }
+            </div>
 
-                {
-                    total_parent_comments > totalParentCommentsLoaded ? 
-                    <button 
-                        onClick={loadMoreComments}
-                        className="text-dark-grey font-medium p-2 px-4 hover:text-black rounded-full flex items-center gap-2 mt-4 text-sm border border-border hover:border-dark-grey transition-all"
-                    >
-                        Load More
-                    </button>
-                    : ""
-                }
-
+            {
+                total_parent_comments > totalParentCommentsLoaded ? 
+                <button 
+                    onClick={loadMoreComments}
+                    className="comments-section__load-more"
+                >
+                    Load More Comments
+                </button>
+                : ""
+            }
         </div>
     )
 }

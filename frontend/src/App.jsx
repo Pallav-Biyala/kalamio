@@ -30,6 +30,7 @@ const VerifyOtp = lazy(() => import("./pages/verify-otp.page"));
 const ForgotPassword = lazy(() => import("./pages/forgot-password.page"));
 const ResetPassword = lazy(() => import("./pages/reset-password.page"));
 const SubscriptionsPage = lazy(() => import("./pages/subscriptions.page"));
+const CommentThreadPage = lazy(() => import("./pages/comment-thread.page"));
 
 export const UserContext = createContext({});
 export const ThemeContext = createContext({});
@@ -123,6 +124,7 @@ const App = () => {
                             <Route path="subscriptions" element={<SubscriptionsPage />} />
                             <Route path="messages" element={<MessagesPage />} />
                             <Route path="blog/:blog_id" element={<BlogPage />} />
+                            <Route path="comment/:comment_id" element={<CommentThreadPage />} />
                             <Route path="auth/callback" element={<AuthCallback />} />
                             <Route path="*" element={<PageNotFound />} />
                         </Route>

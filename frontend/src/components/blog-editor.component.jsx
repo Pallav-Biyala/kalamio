@@ -96,7 +96,7 @@ const BlogEditor = () => {
         api.post("/user-written-blogs", {
             page: 1,
             draft: true,
-            content_type: "article",
+            content_type: "blog",
             query: query || undefined
         }).then(({ data }) => {
             setDrafts(data.blogs || []);

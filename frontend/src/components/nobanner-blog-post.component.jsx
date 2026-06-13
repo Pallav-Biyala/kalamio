@@ -2,7 +2,8 @@ import { Link } from "react-router-dom";
 
 const MinimalBlogPost = ({ blog, index }) => {
     
-    let { title, blog_id: id, banner, author: { personal_info: { fullname } }, activity, readTime } = blog;
+    let { title, blog_id: id, banner, author, activity, readTime } = blog;
+    const fullname = author?.personal_info?.fullname || '';
     const readCount = activity?.total_reads || 0;
     const displayReadTime = readTime || 1;
 

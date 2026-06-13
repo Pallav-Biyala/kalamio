@@ -1,140 +1,8 @@
 import Blog from '../Schema/Blog.js';
-import PollVote from '../Schema/PollVote.js';
 import User from '../Schema/User.js';
-import Notification from '../Schema/Notification.js';
-import Comment from '../Schema/Comment.js';
 import Publication from '../Schema/Publication.js';
 import { nanoid } from 'nanoid';
-import { escapeRegex } from '../utils/helpers.js';
-import { deleteMultipleFromS3 } from '../config/s3.js';
 import sanitizeHtml from 'sanitize-html';
-import jwt from 'jsonwebtoken';
-
-// Latest Blogs
-export const latestBlogs = (req, res) => {
-
-    let { page, exclude_type } = req.body;
-
-    let maxLimit = 5;
-
-    let findQuery = { draft: false };
-    if (exclude_type) findQuery.type = { $ne: exclude_type };
-
-    Blog.find(findQuery)
-    .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname")
-    .populate("publication", "title slug")
-    .sort({ "publishedAt": -1 })
-    .select("blog_id title des banner activity tags readTime publishedAt publication type text_content images poll edited")
-    .limit(maxLimit)
-    .skip((page - 1) * maxLimit)
-    .then(blogs => {
-        return res.status(200).json({ blogs })
-    })
-    .catch(err => {
-        return res.status(500).json({ error: err.message })
-    })
-
-};
-
-// All latest blogs count
-export const allLatestBlogsCount = (req, res) => {
-    let { exclude_type } = req.body;
-    let findQuery = { draft: false };
-    if (exclude_type) findQuery.type = { $ne: exclude_type };
-
-    Blog.countDocuments(findQuery)
-    .then(count => {
-        return res.status(200).json({ totalDocs: count })
-    })
-    .catch(err => {
-        console.error('[Blog] allLatestBlogsCount failed:', err.message);
-        return res.status(500).json({ error: err.message })
-    })
-
-};
-
-// Trending blogs
-export const trendingBlogs = (req, res) => {
-
-    Blog.find({ draft: false })
-    .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname")
-    .populate("publication", "title slug")
-    .sort({ "activity.total_reads": -1, "activity.total_likes": -1, "publishedAt": -1 })
-    .select("blog_id title des banner activity tags readTime publishedAt publication type text_content images poll edited -_id")
-    .limit(5)
-    .then(blogs => {
-        return res.status(200).json({ blogs })
-    })
-    .catch(err => {
-        return res.status(500).json({ error: err.message })
-    })
-
-};
-
-// Search blogs
-export const searchBlogs = (req, res) => {
-
-    let { tag, query, author, page, limit, eliminate_blog } = req.body;
-
-    let findQuery;
-
-    if(tag){
-        findQuery = { tags: tag, draft: false, blog_id: { $ne: eliminate_blog } };
-    }else if(query){
-        findQuery = { draft: false, title: new RegExp(escapeRegex(query), 'i') }
-    }else if(author){
-        findQuery = { author, draft: false }
-    }else{
-        return res.status(400).json({ error: "Search query, tag, or author is required" });
-    }
-
-    let maxLimit = Math.min(Math.max(parseInt(limit) || 2, 1), 20); // Cap at 20, default 2
-
-    Blog.find(findQuery)
-    .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname")
-    .populate("publication", "title slug")
-    .sort({ "publishedAt": -1 })
-    .select("blog_id title des banner activity tags readTime publishedAt publication type text_content images poll edited")
-    .skip((page - 1) * maxLimit)
-    .limit(maxLimit)
-    .then(blogs => {
-        return res.status(200).json({ blogs })
-    })
-    .catch(err => {
-        return res.status(500).json({ error: err.message })
-    })
-
-};
-
-// Search blogs count
-export const searchBlogsCount = (req, res) => {
-
-    let { tag, author, query } = req.body;
-
-    let findQuery;
-
-    if(tag){
-        findQuery = { tags: tag, draft: false };
-    }else if(query){
-        findQuery = { draft: false, title: new RegExp(escapeRegex(query), 'i') }
-    }else if(author){
-        findQuery = { author, draft: false }
-    }else{
-        return res.status(400).json({ error: "Search query, tag, or author is required" });
-    }
-
-    Blog.countDocuments(findQuery)
-    .then(count => {
-        return res.status(200).json({ totalDocs: count })
-    })
-    .catch(err => {
-        console.error('[Blog] searchBlogsCount failed:', err.message);
-        return res.status(500).json({ error: err.message })
-    })
-
-};
-
-
 
 const sanitizeOptions = {
     allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'a', 'b', 'i', 'u', 'strong', 'em', 'ol', 'ul', 'li', 'code', 'pre', 'br', 'span', 'div', 'mark', 'table', 'tr', 'td', 'th', 'tbody', 'thead']),
@@ -190,55 +58,53 @@ const calculateReadTime = (content, title = '', des = '') => {
     return Math.max(1, Math.ceil(totalWords / 200));
 };
 
-// Create blog (handles both articles and text posts)
+// Sanitize Tiptap JSON nodes recursively
+const sanitizeTiptapNodes = (nodes) => {
+    if (!Array.isArray(nodes)) return nodes;
+    return nodes.map(node => {
+        if (node.type === 'text' && node.text) {
+            node.text = sanitizeHtml(node.text, sanitizeOptions);
+        }
+        if (node.content) {
+            node.content = sanitizeTiptapNodes(node.content);
+        }
+        if (node.marks) {
+            node.marks = node.marks.map(mark => {
+                if (mark.type === 'link' && mark.attrs && mark.attrs.href) {
+                    const href = mark.attrs.href;
+                    if (/^(javascript|data):/i.test(href.trim())) {
+                        mark.attrs.href = '#';
+                    }
+                }
+                return mark;
+            });
+        }
+        if (node.type === 'embed' && node.attrs && node.attrs.url) {
+            const embedUrl = node.attrs.url;
+            if (/^(javascript|data):/i.test(embedUrl.trim())) {
+                node.attrs.url = '';
+            }
+        }
+        return node;
+    });
+};
+
+// Create or update a blog post
 export const createBlog = (req, res) => {
 
     let authorId = req.user;
 
-    let { title, banner, content, des, tags, draft, id, publication, type, text_content, images, poll } = req.body;
-
-    // Determine content type (default to article for backward compat)
-    type = type === 'text_post' ? 'text_post' : 'article';
+    let { title, banner, content, des, tags, draft, id, publication } = req.body;
 
     // Sanitize basic strings
     title = title ? sanitizeHtml(title, sanitizeOptions) : '';
     des = des ? sanitizeHtml(des, sanitizeOptions) : '';
     tags = tags ? tags.map(tag => sanitizeHtml(tag, sanitizeOptions)) : [];
-    text_content = text_content ? sanitizeHtml(text_content, { allowedTags: [], allowedAttributes: {} }) : '';
 
     // Sanitize content (supports both Tiptap and EditorJS formats)
     if (content) {
         if (content.type === 'doc' && Array.isArray(content.content)) {
-            // Tiptap JSON format — recursively sanitize text nodes
-            const sanitizeTiptapNodes = (nodes) => {
-                if (!Array.isArray(nodes)) return nodes;
-                return nodes.map(node => {
-                    if (node.type === 'text' && node.text) {
-                        node.text = sanitizeHtml(node.text, sanitizeOptions);
-                    }
-                    if (node.content) {
-                        node.content = sanitizeTiptapNodes(node.content);
-                    }
-                    if (node.marks) {
-                        node.marks = node.marks.map(mark => {
-                            if (mark.type === 'link' && mark.attrs && mark.attrs.href) {
-                                const href = mark.attrs.href;
-                                if (/^(javascript|data):/i.test(href.trim())) {
-                                    mark.attrs.href = '#';
-                                }
-                            }
-                            return mark;
-                        });
-                    }
-                    if (node.type === 'embed' && node.attrs && node.attrs.url) {
-                        const embedUrl = node.attrs.url;
-                        if (/^(javascript|data):/i.test(embedUrl.trim())) {
-                            node.attrs.url = '';
-                        }
-                    }
-                    return node;
-                });
-            };
+            // Tiptap JSON format
             content.content = sanitizeTiptapNodes(content.content);
         } else if (content.blocks) {
             // Legacy EditorJS format
@@ -254,68 +120,33 @@ export const createBlog = (req, res) => {
         }
     }
 
-    // ── Validation — differs by type ────────────────────────────────
-    if (type === 'text_post') {
-        if (!text_content || !text_content.trim().length) {
-            return res.status(403).json({ error: "Text post cannot be empty" });
-        }
-        if (text_content.length > 9999) {
-            return res.status(403).json({ error: "Text post cannot exceed 9,999 characters" });
-        }
-        if (images && images.length > 4) {
-            return res.status(403).json({ error: "Maximum 4 images per text post" });
-        }
-        // Sanitize poll
-        if (poll && poll.options) {
-            if (poll.options.length < 2) {
-                return res.status(403).json({ error: "Poll must have at least 2 options" });
-            }
-            if (poll.options.length > 6) {
-                return res.status(403).json({ error: "Poll cannot have more than 6 options" });
-            }
-            poll.options = poll.options.map(opt => ({
-                text: sanitizeHtml(opt.text || '', { allowedTags: [], allowedAttributes: {} }),
-                votes: 0
-            }));
-            poll.total_votes = 0;
-            poll.question = poll.question ? sanitizeHtml(poll.question, { allowedTags: [], allowedAttributes: {} }) : '';
-        }
-    } else {
-        // Article validation
-        if(!title.length){
-            return res.status(403).json({ error: "You must provide a title" });
-        }
+    // ── Validation ────────────────────────────────
+    if(!title.length){
+        return res.status(403).json({ error: "You must provide a title" });
+    }
 
-        if(!draft){
-            if(!des.length || des.length > 200){
-                return res.status(403).json({ error: "You must provide blog description under 200 characters" });
-            }
-            if(!banner.length){
-                return res.status(403).json({ error: "You must provide blog banner to publish it" });
-            }
-            const hasContent = content?.type === 'doc'
-                ? (content.content && content.content.length > 0)
-                : (content?.blocks && content.blocks.length > 0);
-            if(!hasContent){
-                return res.status(403).json({ error: "There must be some blog content to publish it" });
-            }
-            if(!tags.length || tags.length > 10){
-                return res.status(403).json({ error: "Provide tags to publish the blog, maximum 10" });
-            }
+    if(!draft){
+        if(!des.length || des.length > 200){
+            return res.status(403).json({ error: "You must provide blog description under 200 characters" });
+        }
+        if(!banner.length){
+            return res.status(403).json({ error: "You must provide blog banner to publish it" });
+        }
+        const hasContent = content?.type === 'doc'
+            ? (content.content && content.content.length > 0)
+            : (content?.blocks && content.blocks.length > 0);
+        if(!hasContent){
+            return res.status(403).json({ error: "There must be some blog content to publish it" });
+        }
+        if(!tags.length || tags.length > 10){
+            return res.status(403).json({ error: "Provide tags to publish the blog, maximum 10" });
         }
     }
 
     tags = tags.map(tag => tag.toLowerCase());
 
-    // Generate blog_id — text posts use nanoid only since they have no title
-    let blog_id;
-    if (id) {
-        blog_id = id;
-    } else if (type === 'text_post') {
-        blog_id = 'tp-' + nanoid();
-    } else {
-        blog_id = title.replace(/[^a-zA-Z0-9]/g, ' ').replace(/\s+/g, "-").trim() + nanoid();
-    }
+    // Generate blog_id
+    let blog_id = id || (title.replace(/[^a-zA-Z0-9]/g, ' ').replace(/\s+/g, "-").trim() + nanoid());
 
     if(id){
 
@@ -332,8 +163,8 @@ export const createBlog = (req, res) => {
             let updateData = {
                 title, des, banner, content, tags,
                 draft: shouldBeDraft,
-                readTime: type === 'article' ? calculateReadTime(content, title, des) : 0,
-                type, text_content, images: images || [], poll: poll || undefined
+                readTime: calculateReadTime(content, title, des),
+                edited: true
             };
 
             // If publishing a draft, update publishedAt to now
@@ -345,8 +176,6 @@ export const createBlog = (req, res) => {
             if (publication !== undefined) {
                 updateData.publication = publication || null;
             }
-
-            updateData.edited = true;
 
             const blog = await Blog.findOneAndUpdate({ blog_id, author: authorId }, updateData);
             if (!blog) return res.status(403).json({ error: "You don't have permission to edit this blog" });
@@ -375,10 +204,8 @@ export const createBlog = (req, res) => {
         let blog = new Blog({
             title, des, banner, content, tags, author: authorId, blog_id,
             draft: Boolean(draft),
-            readTime: type === 'article' ? calculateReadTime(content, title, des) : 0,
+            readTime: calculateReadTime(content, title, des),
             publication: publication || undefined,
-            type, text_content, images: images || [],
-            poll: poll || undefined
         })
 
         blog.save().then(async blog => {
@@ -392,47 +219,6 @@ export const createBlog = (req, res) => {
 
         User.findOneAndUpdate({ _id: authorId }, { $inc : { "account_info.total_posts" : incrementVal }, $push : { "blogs": blog._id } })
         .then(user => {
-            // Process mentions for text posts if not draft
-            if (type === 'text_post' && text_content && !draft) {
-                const mentionRegex = /@([\w](?:[\w.]*[\w])?)/g;
-                const mentions = [...text_content.matchAll(mentionRegex)].map(m => m[1]);
-                const uniqueUsernames = [...new Set(mentions)];
-                
-                console.log('[Mention] Detected usernames:', uniqueUsernames);
-                
-                if (uniqueUsernames.length > 0) {
-                    User.find({ "personal_info.username": { $in: uniqueUsernames } })
-                        .select("_id personal_info.username")
-                        .then(async users => {
-                            console.log('[Mention] Found users:', users.map(u => ({ id: u._id, username: u.personal_info.username })));
-                            console.log('[Mention] Author ID:', authorId);
-                            for (let u of users) {
-                                if (u._id.toString() === authorId.toString()) {
-                                    console.log('[Mention] Skipping self-mention for:', u.personal_info.username);
-                                    continue;
-                                }
-                                try {
-                                    const exists = await Notification.exists({ type: "mention", blog: blog._id, notification_for: u._id });
-                                    if (!exists) {
-                                        await new Notification({
-                                            type: "mention",
-                                            blog: blog._id,
-                                            notification_for: u._id,
-                                            user: authorId
-                                        }).save();
-                                        console.log('[Mention] ✅ Notification created for:', u.personal_info.username);
-                                    } else {
-                                        console.log('[Mention] Notification already exists for:', u.personal_info.username);
-                                    }
-                                } catch (err) {
-                                    console.error('[Mention] ❌ Failed to create notification for:', u.personal_info.username, err.message);
-                                }
-                            }
-                        })
-                        .catch(err => console.error("[Mention] ❌ User lookup error:", err.message));
-                }
-            }
-
             return res.status(200).json({ id: blog.blog_id })
         })
         .catch(err => {
@@ -446,373 +232,4 @@ export const createBlog = (req, res) => {
 
     }
 
-};
-
-
-
-// Get blog
-export const getBlog = (req, res) => {
-    let { blog_id, draft, mode } = req.body;
-    let incrementVal = mode != 'edit' ? 1 : 0;
-
-    Blog.findOne({ blog_id })
-        .populate("author", "personal_info.fullname personal_info.username personal_info.profile_img personal_info.bio account_info.total_posts account_info.total_reads")
-        .populate("publication", "title slug description total_subscribers total_posts")
-        .select("title des content banner activity publishedAt blog_id tags draft author publication type text_content images poll")
-        .then(blog => {
-            if (!blog) {
-                return res.status(404).json({ error: "Blog not found" });
-            }
-
-            // Secure draft access
-            if (blog.draft) {
-                if (!draft) {
-                    return res.status(403).json({ error: "You cannot access draft blogs" });
-                }
-                // Verify ownership using JWT
-                const authHeader = req.headers['authorization'];
-                const token = authHeader && authHeader.split(" ")[1];
-                if (!token) return res.status(401).json({ error: "Access denied to draft" });
-                
-                try {
-                    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-                    if (decoded.id !== blog.author._id.toString()) {
-                        return res.status(403).json({ error: "You can only access your own drafts" });
-                    }
-                } catch (err) {
-                    return res.status(401).json({ error: "Invalid access token" });
-                }
-            } else if (incrementVal > 0) {
-                // Increment reads only for published blogs
-                Blog.findByIdAndUpdate(blog._id, { $inc: { "activity.total_reads": incrementVal } }).catch(err => console.error(err));
-                User.findOneAndUpdate(
-                    { "personal_info.username": blog.author.personal_info.username },
-                    { $inc: { "account_info.total_reads": incrementVal } }
-                ).catch(err => console.error(err));
-            }
-
-            return res.status(200).json({ blog });
-        })
-        .catch(err => {
-            return res.status(500).json({ error: err.message });
-        });
-};
-
-// Like blog
-export const likeBlog = (req, res) => {
-
-    let user_id = req.user;
-
-    let { _id, isLikedByUser } = req.body;
-
-    if (!_id) {
-        return res.status(400).json({ error: "Blog ID is required" });
-    }
-
-    let incrementVal = !isLikedByUser ? 1 : -1;
-
-    Blog.findOneAndUpdate({ _id }, { $inc: { "activity.total_likes": incrementVal } })
-    .then(blog => {
-
-        if (!blog) {
-            return res.status(404).json({ error: "Blog not found" });
-        }
-
-        if(!isLikedByUser){
-            // Idempotent: only create notification if one doesn't already exist
-            Notification.findOne({ user: user_id, blog: _id, type: "like" })
-            .then(existing => {
-                if (existing) {
-                    return res.status(200).json({ liked_by_user: true });
-                }
-                new Notification({
-                    type: "like",
-                    blog: _id,
-                    notification_for: blog.author,
-                    user: user_id
-                }).save().then(() => {
-                    return res.status(200).json({ liked_by_user: true });
-                }).catch(err => {
-                    return res.status(500).json({ error: err.message });
-                });
-            })
-            .catch(err => {
-                return res.status(500).json({ error: err.message });
-            });
-        }
-        else{
-
-            Notification.findOneAndDelete({ user: user_id, blog: _id, type: "like" })
-            .then(() => {
-                return res.status(200).json({ liked_by_user: false });
-            })
-            .catch(err => {
-                return res.status(500).json({ error: err.message });
-            })
-
-        }
-
-    })
-    .catch(err => {
-        return res.status(500).json({ error: err.message });
-    })
-
-};
-
-// Is liked by user
-export const isLikedByUser = (req, res) => {
-
-    let user_id = req.user;
-
-    let { _id } = req.body;
-
-    Notification.exists({ user: user_id, type: "like", blog: _id })
-    .then(result => {
-        return res.status(200).json({ result });
-    })
-    .catch(err => {
-        return res.status(500).json({ error: err.message });
-    })
-
-};
-
-// User written blogs
-export const userWrittenBlogs = (req, res) => {
-
-    let user_id = req.user;
-
-    let { page, draft, query, deletedDocCount } = req.body;
-
-    let maxLimit = 5;
-    let skipDocs = (page - 1) * maxLimit;
-
-    if(deletedDocCount){
-        skipDocs -= deletedDocCount;
-    }
-
-    // For text posts, also match against text_content
-    let findQuery = { author: user_id, draft };
-    if (req.body.content_type) {
-        findQuery.type = req.body.content_type;
-    }
-    if (query) {
-        const regex = new RegExp(escapeRegex(query), 'i');
-        findQuery.$or = [{ title: regex }, { text_content: regex }];
-    }
-
-    Blog.find(findQuery)
-    .skip(skipDocs)
-    .limit(maxLimit)
-    .sort({publishedAt: -1})
-    .select(" title banner publishedAt blog_id activity des draft type text_content images poll content tags -_id ")
-    .then(blogs => {
-        return res.status(200).json({ blogs });
-    })
-    .catch(err => {
-        return res.status(500).json({ error: err.message });
-    })
-    
-};
-
-// User written blogs count
-export const userWrittenBlogsCount = (req, res) => {
-
-    let user_id = req.user;
-    let { draft, query } = req.body;
-    // For text posts, also match against text_content
-    let findQuery = { author: user_id, draft };
-    if (req.body.content_type) {
-        findQuery.type = req.body.content_type;
-    }
-    if (query) {
-        const regex = new RegExp(escapeRegex(query), 'i');
-        findQuery.$or = [{ title: regex }, { text_content: regex }];
-    }
-
-    Blog.countDocuments(findQuery)
-    .then(count => {
-        return res.status(200).json({ totalDocs: count });
-    })
-    .catch(err => {
-        console.error('[Blog] userWrittenBlogsCount failed:', err.message);
-        return res.status(500).json({ error: err.message });
-    })
-
-};
-
-// Delete blog (soft delete — marks with deletedAt timestamp)
-export const deleteBlog = (req, res) => {
-
-    let user_id = req.user;
-    let { blog_id } = req.body;
-
-    Blog.findOneAndUpdate(
-        { blog_id, author: user_id },
-        { deletedAt: new Date() },
-        { new: true }
-    )
-    .then(blog => {
-
-        if(!blog) {
-            return res.status(403).json({ error: "You do not have permission to delete this blog" });
-        }
-
-        // Collect all S3 image URLs from the blog
-        const imageUrls = [];
-
-        // 1. Banner image
-        if (blog.banner && blog.banner.includes('amazonaws.com')) {
-            imageUrls.push(blog.banner);
-        }
-
-        // 2. Extract image URLs from content for S3 cleanup
-        if (blog.content) {
-            const rawContent = Array.isArray(blog.content) ? blog.content[0] : blog.content;
-            
-            if (rawContent?.type === 'doc' && rawContent.content) {
-                // Tiptap format — recursively find image nodes
-                const findTiptapImages = (nodes) => {
-                    if (!Array.isArray(nodes)) return;
-                    for (const node of nodes) {
-                        if (node.type === 'image' && node.attrs?.src) {
-                            if (node.attrs.src.includes('amazonaws.com')) {
-                                imageUrls.push(node.attrs.src);
-                            }
-                        }
-                        if (node.type === 'fileAttachment' && node.attrs?.url) {
-                            if (node.attrs.url.includes('amazonaws.com')) {
-                                imageUrls.push(node.attrs.url);
-                            }
-                        }
-                        if (node.content) findTiptapImages(node.content);
-                    }
-                };
-                findTiptapImages(rawContent.content);
-            } else {
-                // Legacy EditorJS format
-                const blocks = rawContent?.blocks || [];
-                blocks.forEach(block => {
-                    if (block.type === 'image' && block.data?.file?.url) {
-                        if (block.data.file.url.includes('amazonaws.com')) {
-                            imageUrls.push(block.data.file.url);
-                        }
-                    }
-                });
-            }
-        }
-        // 3. Text post images
-        if (blog.images && blog.images.length > 0) {
-            blog.images.forEach(url => {
-                if (url && url.includes('amazonaws.com')) {
-                    imageUrls.push(url);
-                }
-            });
-        }
-
-        // 4. Fire-and-forget S3 cleanup (non-blocking)
-        if (imageUrls.length > 0) {
-            deleteMultipleFromS3(imageUrls)
-                .catch(err => req.log?.error({ err }, 'S3 cleanup failed'));
-        }
-
-        Notification.deleteMany({ blog: blog._id })
-            .catch(err => req.log?.error({ err }, 'notification delete error'));
-
-        Comment.deleteMany({ blog_id: blog._id })
-            .catch(err => req.log?.error({ err }, 'comments delete error'));
-
-        User.findOneAndUpdate({ _id: user_id }, { $pull: { blogs: blog._id }, $inc: { "account_info.total_posts": -1 } })
-            .catch(err => req.log?.error({ err }, 'user update error'));
-
-        return res.status(200).json({ status: "done" });
-
-    })
-    .catch(err => {
-        return res.status(500).json({ error: err.message });
-    })
-
-};
-
-// Batch check liked status for multiple blogs
-export const batchIsLiked = (req, res) => {
-    let user_id = req.user;
-    let { blog_ids } = req.body;
-
-    if (!blog_ids || !Array.isArray(blog_ids) || blog_ids.length === 0) {
-        return res.status(200).json({ likedBlogs: [] });
-    }
-
-    Notification.find({ user: user_id, type: "like", blog: { $in: blog_ids } })
-    .select("blog")
-    .then(notifications => {
-        let likedBlogs = notifications.map(n => n.blog.toString());
-        return res.status(200).json({ likedBlogs });
-    })
-    .catch(err => {
-        return res.status(500).json({ error: err.message });
-    })
-};
-
-// Vote on a poll option in a text post
-export const votePoll = (req, res) => {
-    const user_id = req.user;
-    const { blog_id, option_index } = req.body;
-
-    if (blog_id === undefined || option_index === undefined) {
-        return res.status(400).json({ error: "blog_id and option_index are required" });
-    }
-
-    // Check if user already voted
-    PollVote.findOne({ blog_id, user: user_id })
-    .then(existingVote => {
-        if (existingVote) {
-            return res.status(400).json({ error: "You have already voted on this poll" });
-        }
-
-        Blog.findOne({ blog_id, type: 'text_post' })
-        .then(blog => {
-            if (!blog) return res.status(404).json({ error: "Text post not found" });
-            if (!blog.poll || !blog.poll.options || !blog.poll.options.length) {
-                return res.status(400).json({ error: "This post has no poll" });
-            }
-            if (option_index < 0 || option_index >= blog.poll.options.length) {
-                return res.status(400).json({ error: "Invalid option index" });
-            }
-
-            blog.poll.options[option_index].votes += 1;
-            blog.poll.total_votes += 1;
-            blog.markModified('poll');
-
-            // Save vote record and blog in parallel
-            Promise.all([
-                blog.save(),
-                new PollVote({ blog_id, user: user_id, option_index }).save()
-            ])
-            .then(([updated]) => {
-                return res.status(200).json({ poll: updated.poll, voted_option: option_index });
-            })
-            .catch(err => res.status(500).json({ error: err.message }));
-        })
-        .catch(err => res.status(500).json({ error: err.message }));
-    })
-    .catch(err => res.status(500).json({ error: err.message }));
-};
-
-// Check if user has voted on a poll
-export const checkPollVote = (req, res) => {
-    const user_id = req.user;
-    const { blog_id } = req.body;
-
-    if (!blog_id) {
-        return res.status(400).json({ error: "blog_id is required" });
-    }
-
-    PollVote.findOne({ blog_id, user: user_id })
-    .then(vote => {
-        if (vote) {
-            return res.status(200).json({ hasVoted: true, option_index: vote.option_index });
-        }
-        return res.status(200).json({ hasVoted: false });
-    })
-    .catch(err => res.status(500).json({ error: err.message }));
 };

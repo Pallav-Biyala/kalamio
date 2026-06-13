@@ -4,45 +4,57 @@ import { verifyJWT } from '../middleware/auth.js';
 import asyncHandler from '../middleware/asyncHandler.js';
 import validate from '../middleware/validate.js';
 import { getBlogSchema, likeBlogSchema, deleteBlogSchema } from '../validators/schemas.js';
+
+// Shared post handlers (unified feed, interactions, etc.)
 import {
-    latestBlogs,
-    allLatestBlogsCount,
-    trendingBlogs,
-    searchBlogs,
-    searchBlogsCount,
-    createBlog,
-    getBlog,
-    likeBlog,
+    latestPosts,
+    allLatestPostsCount,
+    trendingPosts,
+    searchPosts,
+    searchPostsCount,
+    getPost,
+    likePost,
     isLikedByUser,
-    userWrittenBlogs,
-    userWrittenBlogsCount,
-    deleteBlog,
-    batchIsLiked,
-    votePoll,
-    checkPollVote
-} from '../controllers/blog.controller.js';
+    userWrittenPosts,
+    userWrittenPostsCount,
+    deletePost,
+    batchIsLiked
+} from '../controllers/post.controller.js';
+
+// Blog-specific handlers
+import { createBlog } from '../controllers/blog.controller.js';
+
+// Text post-specific handlers
+import { createTextPost, votePoll, checkPollVote } from '../controllers/textpost.controller.js';
 
 const router = Router();
 
 // Larger body limit for blog content (editor data can be large)
 const largeBody = express.json({ limit: '10mb' });
 
-// Public
-router.post("/latest-blogs", asyncHandler(latestBlogs));
-router.post("/all-latest-blogs-count", asyncHandler(allLatestBlogsCount));
-router.get("/trending-blogs", asyncHandler(trendingBlogs));
-router.post("/search-blogs", asyncHandler(searchBlogs));
-router.post("/search-blogs-count", asyncHandler(searchBlogsCount));
-router.post("/get-blog", validate(getBlogSchema), asyncHandler(getBlog));
+// ── Public (feed & read) ────────────────────────────────────────────
+router.post("/latest-blogs", asyncHandler(latestPosts));
+router.post("/all-latest-blogs-count", asyncHandler(allLatestPostsCount));
+router.get("/trending-blogs", asyncHandler(trendingPosts));
+router.post("/search-blogs", asyncHandler(searchPosts));
+router.post("/search-blogs-count", asyncHandler(searchPostsCount));
+router.post("/get-blog", validate(getBlogSchema), asyncHandler(getPost));
 
-// Protected — create-blog gets a larger body limit for editor content
+// ── Protected — type-specific create ────────────────────────────────
 router.post("/create-blog", verifyJWT, largeBody, asyncHandler(createBlog));
-router.post("/like-blog", verifyJWT, validate(likeBlogSchema), asyncHandler(likeBlog));
+router.post("/create-text-post", verifyJWT, asyncHandler(createTextPost));
+
+// ── Protected — interactions (type-agnostic) ────────────────────────
+router.post("/like-blog", verifyJWT, validate(likeBlogSchema), asyncHandler(likePost));
 router.post("/isliked-by-user", verifyJWT, asyncHandler(isLikedByUser));
-router.post("/user-written-blogs", verifyJWT, asyncHandler(userWrittenBlogs));
-router.post("/user-written-blogs-count", verifyJWT, asyncHandler(userWrittenBlogsCount));
-router.post("/delete-blog", verifyJWT, validate(deleteBlogSchema), asyncHandler(deleteBlog));
 router.post("/batch-isliked", verifyJWT, asyncHandler(batchIsLiked));
+
+// ── Protected — user dashboard ──────────────────────────────────────
+router.post("/user-written-blogs", verifyJWT, asyncHandler(userWrittenPosts));
+router.post("/user-written-blogs-count", verifyJWT, asyncHandler(userWrittenPostsCount));
+router.post("/delete-blog", verifyJWT, validate(deleteBlogSchema), asyncHandler(deletePost));
+
+// ── Protected — text post polls ─────────────────────────────────────
 router.post("/vote-poll", verifyJWT, asyncHandler(votePoll));
 router.post("/check-poll-vote", verifyJWT, asyncHandler(checkPollVote));
 

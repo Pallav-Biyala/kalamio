@@ -309,15 +309,9 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId, replyTo }) =>
             }
         }
         return {
-            type: "text_post",
             text_content: textContent,
             images,
             poll: pollData,
-            title: "",
-            banner: "",
-            content: {},
-            des: "",
-            tags: [],
             draft,
             ...(activeEditId ? { id: activeEditId } : {})
         };
@@ -344,7 +338,7 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId, replyTo }) =>
                 };
                 await api.post("/add-comment", payload);
             } else {
-                await api.post("/create-blog", buildPayload(false));
+                await api.post("/create-text-post", buildPayload(false));
             }
             toast.dismiss(loadingToast);
             toast.success("Posted! 🎉");
@@ -371,7 +365,7 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId, replyTo }) =>
         }
         const loadingToast = toast.loading(editingDraftId ? "Updating draft..." : "Saving draft...");
         try {
-            await api.post("/create-blog", buildPayload(true));
+            await api.post("/create-text-post", buildPayload(true));
             toast.dismiss(loadingToast);
             toast.success(editingDraftId ? "Draft updated" : "Saved to drafts");
             resetComposer();
@@ -478,7 +472,7 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId, replyTo }) =>
         }
         const loadingToast = toast.loading(editingDraftId ? "Updating draft..." : "Saving draft...");
         try {
-            await api.post("/create-blog", buildPayload(true));
+            await api.post("/create-text-post", buildPayload(true));
             toast.dismiss(loadingToast);
             toast.success(editingDraftId ? "Draft updated" : "Saved to drafts");
             resetAndClose();

@@ -13,6 +13,7 @@ import NoDataMessage from "../components/nodata.component";
 import { filterPaginationData } from "../common/filter-pagination-data";
 import LoadMoreDataBtn from "../components/load-more.component";
 import WhoToFollow from "../components/who-to-follow.component";
+import RightSidebar from "../components/right-sidebar.component";
 import Avatar from "../components/Avatar";
 import { UserContext } from "../App";
 
@@ -410,68 +411,7 @@ const HomePage = () => {
         </div>
 
         {/* ── Right Sidebar Column (Desktop) ───── */}
-        <aside className="home-sidebar">
-          {/* Search Bar */}
-          <div className="desktop-top-bar__search mb-4">
-            <Icon name="search" className="text-lg text-dark-grey" />
-            <input
-              type="text"
-              placeholder="Search"
-              className="desktop-top-bar__search-input"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && searchQuery.length) navigate(`/search/${searchQuery}`); }}
-            />
-            {searchQuery.length > 0 && (
-              <div className="flex items-center gap-1">
-                <button onClick={() => setSearchQuery("")} className="text-dark-grey hover:text-black flex items-center justify-center p-0.5 transition-colors">
-                  <Icon name="close" className="text-lg" />
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Trending Now */}
-          <div className="home-sidebar__section">
-            <div className="home-sidebar__header">
-              <div className="home-sidebar__title">
-                <Icon name="trending_up" /> Trending Now
-              </div>
-              <span className="home-sidebar__view-all" onClick={() => loadBlogByCategory("Trending")}>View all</span>
-            </div>
-
-            <div className="home-sidebar__list">
-              {trendingBlogs == null ? (
-                <Loader />
-              ) : (
-                trendingBlogs.length ?
-                    trendingBlogs.slice(0, 5).map((blog, i) => {
-                    return (
-                        <AnimationWrapper
-                        key={blog.blog_id}
-                        transition={{ duration: 0.4, delay: i * 0.05 }}
-                        >
-                        <MinimalBlogPost blog={blog} index={i} />
-                        </AnimationWrapper>
-                    );
-                    })
-                : <NoDataMessage message="No trending blogs"/>
-              )}
-            </div>
-          </div>
-
-          {/* Who to Follow */}
-          <WhoToFollow />
-
-          {/* Footer links */}
-          <div className="home-sidebar__footer">
-            <a href="#" className="home-sidebar__footer-link">About</a>
-            <a href="#" className="home-sidebar__footer-link">Help</a>
-            <a href="#" className="home-sidebar__footer-link">Terms</a>
-            <a href="#" className="home-sidebar__footer-link">Privacy</a>
-            <p className="home-sidebar__copyright">© 2026 Kalamio</p>
-          </div>
-        </aside>
+        <RightSidebar onTrendingClick={() => loadBlogByCategory("Trending")} />
 
       </div>
 

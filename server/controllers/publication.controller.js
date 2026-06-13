@@ -2,7 +2,7 @@ import Publication from '../Schema/Publication.js';
 import Subscription from '../Schema/Subscription.js';
 import Notification from '../Schema/Notification.js';
 import User from '../Schema/User.js';
-import Blog from '../Schema/Blog.js';
+import Post from '../Schema/Post.js';
 
 // ────────────────────────────────────────────────────────
 // PUBLICATION CRUD
@@ -105,7 +105,7 @@ export const deletePublication = async (req, res) => {
         }
 
         // Unlink all blogs from this publication
-        await Blog.updateMany({ publication: publication_id }, { $unset: { publication: "" } });
+        await Post.updateMany({ publication: publication_id }, { $unset: { publication: "" } });
 
         // Remove all subscriptions
         await Subscription.deleteMany({ publication: publication_id });
@@ -161,11 +161,11 @@ export const getPublicationBlogs = async (req, res) => {
             return res.status(400).json({ error: "Publication ID is required" });
         }
 
-        const blogs = await Blog.find({ publication: publication_id, draft: false })
+        const blogs = await Post.find({ publication: publication_id, draft: false })
             .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname -_id")
             .populate("publication", "title slug")
             .sort({ publishedAt: -1 })
-            .select("blog_id title des banner activity tags readTime publishedAt publication")
+            .select("blog_id title des banner activity tags readTime publishedAt publication type text_content images poll edited author")
             .skip((page - 1) * maxLimit)
             .limit(maxLimit);
 
@@ -189,7 +189,7 @@ export const getPublicationBlogsCount = async (req, res) => {
             return res.status(400).json({ error: "Publication ID is required" });
         }
 
-        const count = await Blog.countDocuments({ publication: publication_id, draft: false });
+        const count = await Post.countDocuments({ publication: publication_id, draft: false });
         return res.status(200).json({ totalDocs: count });
 
     } catch (err) {
@@ -262,7 +262,7 @@ export const addBlogToPublication = async (req, res) => {
         }
 
         // Verify ownership of blog
-        const blog = await Blog.findOne({ _id: blog_id, author: owner_id });
+        const blog = await Post.findOne({ _id: blog_id, author: owner_id });
         if (!blog) {
             return res.status(404).json({ error: "Blog not found or not authored by you" });
         }
@@ -302,7 +302,7 @@ export const removeBlogFromPublication = async (req, res) => {
             return res.status(400).json({ error: "Blog ID is required" });
         }
 
-        const blog = await Blog.findOne({ _id: blog_id, author: owner_id });
+        const blog = await Post.findOne({ _id: blog_id, author: owner_id });
         if (!blog || !blog.publication) {
             return res.status(200).json({ unlinked: true });
         }
@@ -479,11 +479,11 @@ export const getSubscriptionFeed = async (req, res) => {
             return res.status(200).json({ blogs: [] });
         }
 
-        const blogs = await Blog.find({ publication: { $in: pubIds }, draft: false })
+        const blogs = await Post.find({ publication: { $in: pubIds }, draft: false })
             .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname -_id")
             .populate("publication", "title slug banner")
             .sort({ publishedAt: -1 })
-            .select("blog_id title des banner activity tags readTime publishedAt publication type text_content images poll edited")
+            .select("blog_id title des banner activity tags readTime publishedAt publication type text_content images poll edited author")
             .skip((page - 1) * maxLimit)
             .limit(maxLimit);
 
@@ -517,7 +517,7 @@ export const getSubscriptionFeedCount = async (req, res) => {
             return res.status(200).json({ totalDocs: 0 });
         }
 
-        const count = await Blog.countDocuments({ publication: { $in: pubIds }, draft: false });
+        const count = await Post.countDocuments({ publication: { $in: pubIds }, draft: false });
         return res.status(200).json({ totalDocs: count });
 
     } catch (err) {

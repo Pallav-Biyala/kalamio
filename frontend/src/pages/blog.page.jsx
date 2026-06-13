@@ -14,6 +14,7 @@ import Avatar from "../components/Avatar";
 import Icon from "../components/Icon";
 import FollowButton from "../components/follow-button.component";
 import SubscribeButton from "../components/subscribe-button.component";
+import RightSidebar from "../components/right-sidebar.component";
 import { UserContext } from "../App";
 import toast from "react-hot-toast";
 
@@ -172,8 +173,9 @@ const BlogPage = () => {
                 loading ? <Loader />
                 :
                 <BlogContext.Provider value={{ blog, setBlog, isLikedByUser, setLikedByUser, commentsWrapper, setCommentsWrapper, totalParentCommentsLoaded, setTotalParentCommentsLoaded }}>
-
-                    <div className="max-w-[900px] w-full center py-10 max-lg:px-[5vw]">
+                    <div className={isTextPost ? "home-layout" : ""}>
+                        <div className={isTextPost ? "home-feed pt-10" : ""}>
+                            <div className="max-w-[900px] w-full center py-10 max-lg:px-[5vw]">
 
                         {isDraft && (
                             <div className="draft-preview-banner">
@@ -354,6 +356,9 @@ const BlogPage = () => {
                         </div>
                     </div>
                     )}
+                        </div>
+                        {isTextPost && <RightSidebar />}
+                    </div>
                 </BlogContext.Provider>
             }
         </AnimationWrapper>

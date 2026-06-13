@@ -80,7 +80,7 @@ const BlogPostCard = ({ content, author }) => {
                         </span>
                     </div>
                 </Link>
-                <PostMenu blogId={id} authorUsername={username} postType={type || 'article'} />
+                <PostMenu blogId={id} authorUsername={username} postType={type || 'blog'} />
             </div>
 
             {/* ── Content: Title + Description + Tags (left) | Thumbnail (right) ── */}

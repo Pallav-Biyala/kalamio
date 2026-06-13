@@ -1,5 +1,5 @@
 import Comment from '../Schema/Comment.js';
-import Blog from '../Schema/Blog.js';
+import Post from '../Schema/Post.js';
 import Notification from '../Schema/Notification.js';
 import sanitizeHtml from 'sanitize-html';
 
@@ -19,7 +19,7 @@ const deleteComments = (_id) => {
         Notification.findOneAndUpdate({ reply: _id }, { $unset: { reply: 1 } })
         .catch(err => console.error('[Comment] Failed to unset reply notification:', err.message));
 
-        Blog.findOneAndUpdate({ _id: comment.blog_id }, { $pull: { comments: _id }, $inc: { 'activity.total_comments': -1 }, "activity.total_parent_comments": comment.parent ? 0 : -1 })
+        Post.findOneAndUpdate({ _id: comment.blog_id }, { $pull: { comments: _id }, $inc: { 'activity.total_comments': -1 }, "activity.total_parent_comments": comment.parent ? 0 : -1 })
         .then(blog => {
             if(comment.children.length){
                 comment.children.map(replies => {
@@ -67,7 +67,7 @@ export const addComment = (req, res) => {
 
         let { comment, commentedAt, children } = commentFile;
 
-        Blog.findOneAndUpdate({ _id }, { 
+        Post.findOneAndUpdate({ _id }, { 
             $push: { "comments": commentFile._id }, 
             $inc: { "activity.total_comments": 1, "activity.total_parent_comments": replying_to ? 0 : 1  }
         })
@@ -195,4 +195,148 @@ export const deleteComment = (req, res) => {
         return res.status(500).json({ error: err.message });
     })
 
+};
+
+// Get comment thread (with full ancestor chain)
+export const getCommentThread = async (req, res) => {
+    try {
+        let { comment_id } = req.body;
+
+        let comment = await Comment.findOne({ _id: comment_id })
+            .populate("commented_by", "personal_info.username personal_info.fullname personal_info.profile_img");
+
+        if (!comment) {
+            return res.status(404).json({ error: "Comment not found" });
+        }
+
+        // Walk up the parent chain to build ancestors array
+        let ancestors = [];
+        let current = comment;
+        while (current.parent) {
+            let parentComment = await Comment.findOne({ _id: current.parent })
+                .populate("commented_by", "personal_info.username personal_info.fullname personal_info.profile_img");
+            if (parentComment) {
+                ancestors.unshift(parentComment); // prepend so oldest ancestor is first
+                current = parentComment;
+            } else {
+                break;
+            }
+        }
+
+        let blog = await Post.findOne({ _id: comment.blog_id })
+            .populate("author", "personal_info.username personal_info.fullname personal_info.profile_img")
+            .select("title text_content author publishedAt activity type images poll");
+
+        return res.status(200).json({ comment, ancestors, blog_context: blog });
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+};
+
+// Get preview replies
+export const getPreviewReplies = (req, res) => {
+    let { comment_id } = req.body;
+
+    Comment.findOne({ _id: comment_id })
+    .then(async parentComment => {
+        if (!parentComment) {
+            return res.status(404).json({ error: "Comment not found" });
+        }
+
+        let reply_count = parentComment.children.length;
+        if (reply_count === 0) {
+            return res.status(200).json({ replies: [], reply_count: 0 });
+        }
+
+        // Get the blog to find the author
+        let blog = await Post.findOne({ _id: parentComment.blog_id }).select("author");
+        let blog_author_id = blog.author.toString();
+
+        // Get latest reply
+        let latestReply = await Comment.findOne({ parent: comment_id })
+            .sort({ commentedAt: -1 })
+            .limit(1)
+            .populate("commented_by", "personal_info.username personal_info.fullname personal_info.profile_img");
+
+        // Check if author has replied
+        let authorReply = null;
+        if (latestReply && latestReply.commented_by._id.toString() !== blog_author_id) {
+            // Latest reply is NOT by the author, so check if author has replied at all
+            authorReply = await Comment.findOne({ parent: comment_id, commented_by: blog_author_id })
+                .sort({ commentedAt: -1 })
+                .limit(1)
+                .populate("commented_by", "personal_info.username personal_info.fullname personal_info.profile_img");
+        }
+
+        let replies = [latestReply];
+        if (authorReply && authorReply._id.toString() !== latestReply._id.toString()) {
+            replies = [authorReply, latestReply]; // Author reply shown first
+        }
+
+        return res.status(200).json({ replies: replies.filter(Boolean), reply_count });
+    })
+    .catch(err => res.status(500).json({ error: err.message }));
+};
+
+// Like / Unlike a comment
+export const likeComment = async (req, res) => {
+    try {
+        let user_id = req.user;
+        let { _id, isLikedByUser } = req.body;
+
+        if (!_id) {
+            return res.status(400).json({ error: "Comment ID is required" });
+        }
+
+        let incrementVal = !isLikedByUser ? 1 : -1;
+
+        let comment = await Comment.findOneAndUpdate(
+            { _id },
+            { $inc: { "activity.total_likes": incrementVal } },
+            { new: true }
+        );
+
+        if (!comment) {
+            return res.status(404).json({ error: "Comment not found" });
+        }
+
+        if (!isLikedByUser) {
+            // Like — create notification if not already exists
+            let existing = await Notification.findOne({ user: user_id, comment: _id, type: "comment_like" });
+            if (!existing) {
+                await new Notification({
+                    type: "comment_like",
+                    blog: comment.blog_id,
+                    comment: _id,
+                    notification_for: comment.commented_by,
+                    user: user_id
+                }).save();
+            }
+            return res.status(200).json({ liked_by_user: true, total_likes: comment.activity.total_likes });
+        } else {
+            // Unlike — remove notification
+            await Notification.findOneAndDelete({ user: user_id, comment: _id, type: "comment_like" });
+            return res.status(200).json({ liked_by_user: false, total_likes: comment.activity.total_likes });
+        }
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+};
+
+// Check if user has liked a comment
+export const isCommentLiked = async (req, res) => {
+    try {
+        let user_id = req.user;
+        let { _id } = req.body;
+
+        if (!_id) {
+            return res.status(400).json({ error: "Comment ID is required" });
+        }
+
+        let exists = await Notification.exists({ user: user_id, comment: _id, type: "comment_like" });
+
+        return res.status(200).json({ result: !!exists });
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
 };

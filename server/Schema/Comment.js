@@ -38,6 +38,12 @@ const commentSchema = mongoose.Schema({
         required: true,
         ref: 'users'
     },
+    activity: {
+        total_likes: {
+            type: Number,
+            default: 0
+        }
+    },
     isReply: {
         type: Boolean,
         default: false

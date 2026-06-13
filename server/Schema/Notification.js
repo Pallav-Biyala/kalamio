@@ -3,7 +3,7 @@ import mongoose, { Schema } from "mongoose";
 const notificationSchema = mongoose.Schema({
     type: {
         type: String,
-        enum: ["like", "comment", "reply", "follow", "subscribe", "connect_request", "connect_accepted", "mention", "share"],
+        enum: ["like", "comment", "reply", "follow", "subscribe", "connect_request", "connect_accepted", "mention", "share", "comment_like"],
         required: true
     },
     blog: {

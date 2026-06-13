@@ -246,13 +246,13 @@ export const followFeed = async (req, res) => {
             return res.status(200).json({ blogs: [] });
         }
 
-        // Import Blog dynamically to avoid circular deps (it's already cached by mongoose)
-        const Blog = (await import('../Schema/Blog.js')).default;
+        // Import Post dynamically to avoid circular deps (it's already cached by mongoose)
+        const Post = (await import('../Schema/Post.js')).default;
 
-        const blogs = await Blog.find({ author: { $in: followingIds }, draft: false })
+        const blogs = await Post.find({ author: { $in: followingIds }, draft: false })
             .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname -_id")
             .sort({ publishedAt: -1 })
-            .select("blog_id title des banner activity tags readTime publishedAt type text_content images poll edited")
+            .select("blog_id title des banner activity tags readTime publishedAt type text_content images poll edited author")
             .skip((page - 1) * maxLimit)
             .limit(maxLimit);
 
@@ -279,8 +279,8 @@ export const followFeedCount = async (req, res) => {
             return res.status(200).json({ totalDocs: 0 });
         }
 
-        const Blog = (await import('../Schema/Blog.js')).default;
-        const count = await Blog.countDocuments({ author: { $in: followingIds }, draft: false });
+        const Post = (await import('../Schema/Post.js')).default;
+        const count = await Post.countDocuments({ author: { $in: followingIds }, draft: false });
 
         return res.status(200).json({ totalDocs: count });
 
