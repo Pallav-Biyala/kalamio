@@ -24,6 +24,11 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId, replyTo }) =>
     const [pollOptions, setPollOptions] = useState(["", ""]);
     const [posting, setPosting] = useState(false);
 
+    // ── Publication state ──
+    const [publications, setPublications] = useState([]);
+    const [selectedPub, setSelectedPub] = useState(null);
+    const [showPubDropdown, setShowPubDropdown] = useState(false);
+
     // ── Mentions state ──
     const [mentionQuery, setMentionQuery] = useState("");
     const [showMentions, setShowMentions] = useState(false);
@@ -57,6 +62,17 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId, replyTo }) =>
         }
     }, [isOpen, view]);
 
+    // Fetch user's publications on open
+    useEffect(() => {
+        if (isOpen && access_token) {
+            api.post("/my-publications")
+            .then(({ data }) => {
+                setPublications(data.publications || []);
+            })
+            .catch(() => {});
+        }
+    }, [isOpen, access_token]);
+
     // Reset everything when modal closes
     useEffect(() => {
         if (!isOpen) {
@@ -83,6 +99,11 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId, replyTo }) =>
                     setShowPoll(true);
                     setPollQuestion(blog.poll.question || "");
                     setPollOptions(blog.poll.options.map(opt => opt.text || ""));
+                }
+                if (blog.publication) {
+                    setSelectedPub(blog.publication._id || blog.publication);
+                } else {
+                    setSelectedPub(null);
                 }
                 if (blog.draft) {
                     setEditingDraftId(blog.blog_id);
@@ -113,6 +134,7 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId, replyTo }) =>
         setPollOptions(["", ""]);
         setEditingDraftId(null);
         setEditingPublishedId(null);
+        setSelectedPub(null);
     };
 
     const resetAndClose = () => {
@@ -313,6 +335,7 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId, replyTo }) =>
             images,
             poll: pollData,
             draft,
+            publication: selectedPub || null,
             ...(activeEditId ? { id: activeEditId } : {})
         };
     };
@@ -820,12 +843,50 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId, replyTo }) =>
                             {editingDraftId && <span className="tp-composer__draft-badge">Editing draft</span>}
                         </div>
                     </div>
-                    {!isEditingPublishedPost && (
-                        <button className="tp-composer__drafts-btn" onClick={handleDraftsClick}>
-                            <Icon name="draft" className="text-lg" />
-                            Drafts
-                        </button>
-                    )}
+                    <div className="flex items-center gap-3">
+                        {!replyTo && (
+                            <div className="relative flex items-center">
+                                <button 
+                                    className="tp-composer__drafts-btn"
+                                    onClick={() => setShowPubDropdown(!showPubDropdown)}
+                                >
+                                    <span className="truncate max-w-[120px]">
+                                        {selectedPub && publications ? publications.find(p => p._id === selectedPub)?.title || "My Profile" : "My Profile"}
+                                    </span>
+                                    <Icon name="expand_more" className="text-dark-grey pointer-events-none text-lg" />
+                                </button>
+                                
+                                {showPubDropdown && (
+                                    <>
+                                        <div className="fixed inset-0 z-40" onClick={() => setShowPubDropdown(false)} />
+                                        <div className="absolute top-full right-0 mt-2 w-max min-w-[150px] max-w-[220px] bg-white border border-grey rounded-xl shadow-lg z-50 overflow-hidden py-1 flex flex-col">
+                                            <button 
+                                                className="w-full text-left px-4 py-2.5 text-sm text-dark-grey hover:bg-grey hover:text-black transition-colors"
+                                                onClick={() => { setSelectedPub(null); setShowPubDropdown(false); }}
+                                            >
+                                                My Profile
+                                            </button>
+                                            {publications && publications.map(pub => (
+                                                <button 
+                                                    key={pub._id}
+                                                    className="w-full text-left px-4 py-2.5 text-sm text-dark-grey hover:bg-grey hover:text-black transition-colors truncate"
+                                                    onClick={() => { setSelectedPub(pub._id); setShowPubDropdown(false); }}
+                                                >
+                                                    {pub.title}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                        {!isEditingPublishedPost && (
+                            <button className="tp-composer__drafts-btn" onClick={handleDraftsClick}>
+                                <Icon name="draft" className="text-lg" />
+                                Drafts
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Body */}

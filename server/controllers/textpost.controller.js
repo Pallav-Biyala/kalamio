@@ -2,6 +2,7 @@ import TextPost from '../Schema/TextPost.js';
 import PollVote from '../Schema/PollVote.js';
 import User from '../Schema/User.js';
 import Notification from '../Schema/Notification.js';
+import Publication from '../Schema/Publication.js';
 import { nanoid } from 'nanoid';
 import sanitizeHtml from 'sanitize-html';
 
@@ -10,7 +11,7 @@ export const createTextPost = (req, res) => {
 
     let authorId = req.user;
 
-    let { text_content, images, poll, draft, id } = req.body;
+    let { text_content, images, poll, draft, id, publication } = req.body;
 
     // Sanitize text content (strip all HTML)
     text_content = text_content ? sanitizeHtml(text_content, { allowedTags: [], allowedAttributes: {} }) : '';
@@ -70,8 +71,26 @@ export const createTextPost = (req, res) => {
                 updateData.publishedAt = new Date();
             }
 
+            // Handle publication change on update
+            if (publication !== undefined) {
+                updateData.publication = publication || null;
+            }
+
             const post = await TextPost.findOneAndUpdate({ blog_id, author: authorId }, updateData);
             if (!post) return res.status(403).json({ error: "You don't have permission to edit this post" });
+
+            // If publication changed, update counters
+            const oldPubId = existingPost.publication?.toString() || null;
+            const newPubId = (publication || null)?.toString?.() || publication || null;
+
+            if (oldPubId !== newPubId) {
+                if (oldPubId) {
+                    await Publication.findByIdAndUpdate(oldPubId, { $inc: { total_posts: -1 } });
+                }
+                if (newPubId) {
+                    await Publication.findByIdAndUpdate(newPubId, { $inc: { total_posts: 1 } });
+                }
+            }
 
             return res.status(200).json({ id: blog_id });
         })
@@ -88,11 +107,17 @@ export const createTextPost = (req, res) => {
             author: authorId,
             blog_id,
             draft: Boolean(draft),
+            publication: publication || undefined,
         })
 
         post.save().then(async post => {
 
         let incrementVal = draft ? 0 : 1;
+
+        // If post is linked to a publication, increment its post count
+        if (publication && !draft) {
+            await Publication.findByIdAndUpdate(publication, { $inc: { total_posts: 1 } }).catch(() => {});
+        }
 
         User.findOneAndUpdate({ _id: authorId }, { $inc : { "account_info.total_posts" : incrementVal }, $push : { "blogs": post._id } })
         .then(user => {

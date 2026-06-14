@@ -53,7 +53,7 @@ export const allLatestPostsCount = (req, res) => {
 // Trending posts
 export const trendingPosts = (req, res) => {
 
-    Post.find({ draft: false })
+    Post.find({ draft: false, type: { $ne: 'text_post' } })
     .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname")
     .populate("publication", "title slug")
     .sort({ "activity.total_reads": -1, "activity.total_likes": -1, "publishedAt": -1 })

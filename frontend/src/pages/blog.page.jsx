@@ -25,6 +25,19 @@ const TextPostPollView = ({ poll: initialPoll, blogId }) => {
     const [hasVoted, setHasVoted] = useState(false);
     const [selectedOption, setSelectedOption] = useState(null);
 
+    useEffect(() => {
+        if (access_token && initialPoll && initialPoll.options && initialPoll.options.length > 0) {
+            api.post("/check-poll-vote", { blog_id: blogId })
+            .then(({ data }) => {
+                if (data.hasVoted) {
+                    setHasVoted(true);
+                    setSelectedOption(data.option_index);
+                }
+            })
+            .catch(() => {});
+        }
+    }, [access_token, initialPoll, blogId]);
+
     const handleVote = (optionIndex) => {
         if (hasVoted || !access_token) {
             if (!access_token) toast.error("Please login to vote");
@@ -55,7 +68,12 @@ const TextPostPollView = ({ poll: initialPoll, blogId }) => {
 
     return (
         <div className="feed-card__text-post-poll mb-6">
-            {poll.question && <div className="feed-card__text-post-poll-question">{poll.question}</div>}
+            {poll.question && (
+                <div className="feed-card__text-post-poll-header">
+                    <Icon name="bar_chart" className="feed-card__text-post-poll-icon" />
+                    <span className="feed-card__text-post-poll-question">{poll.question}</span>
+                </div>
+            )}
             <div className="feed-card__text-post-poll-options">
                 {poll.options.map((opt, i) => {
                     const totalVotes = poll.total_votes || 0;
@@ -67,7 +85,15 @@ const TextPostPollView = ({ poll: initialPoll, blogId }) => {
                         >
                             {hasVoted && <div className="feed-card__text-post-poll-bar" style={{ width: `${percent}%` }} />}
                             <div className="feed-card__text-post-poll-label">
-                                <span className="feed-card__text-post-poll-text">{opt.text}</span>
+                                <span className="feed-card__text-post-poll-text">
+                                    {!hasVoted && (
+                                        <span className="feed-card__text-post-poll-radio" />
+                                    )}
+                                    {hasVoted && selectedOption === i && (
+                                        <Icon name="check_circle" className="feed-card__text-post-poll-check" />
+                                    )}
+                                    {opt.text}
+                                </span>
                                 {hasVoted && <span className="feed-card__text-post-poll-percent">{percent}%</span>}
                             </div>
                         </div>
