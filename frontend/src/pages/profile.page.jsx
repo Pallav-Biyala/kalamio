@@ -1,7 +1,7 @@
 import api from "../common/api";
 import usePageTitle from "../common/usePageTitle";
 import { useContext, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import AnimationWrapper from "../common/page-animation";
 import Loader from "../components/loader.component";
 import { UserContext } from "../App";
@@ -39,6 +39,7 @@ export const profileDataStructure = {
 const ProfilePage = () => {
 
     let { id: profileId } = useParams();
+    const navigate = useNavigate();
 
     let [ profile, setProfile ] = useState(profileDataStructure);
     let [ loading, setLoading ] = useState(true);
@@ -151,8 +152,14 @@ const ProfilePage = () => {
           <Loader />
         ) : (
             profile_username.length ? 
-                <section className="h-cover lg:flex flex-row-reverse items-start gap-5 min-[1100px]:gap-12">
+                <section className="h-cover lg:flex flex-row-reverse items-start gap-5 min-[1100px]:gap-12 max-lg:pt-0">
                     <div className="flex flex-col max-lg:items-center gap-5 min-w-[250px] lg:w-[50%] lg:pl-8 lg:border-l border-border lg:sticky lg:top-[100px] lg:py-10 ">
+                        <div className="flex items-center gap-4 w-full lg:hidden mb-2 mt-4">
+                            <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full hover:bg-grey flex items-center justify-center transition-colors -ml-2">
+                                <Icon name="arrow_back" className="text-xl" />
+                            </button>
+                            <h1 className="font-semibold text-xl">Profile</h1>
+                        </div>
                     
                     {/* Avatar with gradient ring */}
                     <div className="relative">

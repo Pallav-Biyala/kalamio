@@ -1,7 +1,7 @@
 import api from "../common/api";
 import usePageTitle from "../common/usePageTitle";
 import { createContext, useContext, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import AnimationWrapper from "../common/page-animation";
 import Loader from "../components/loader.component";
 import { getDay } from "../common/date";
@@ -121,7 +121,8 @@ export const BlogContext = createContext({  })
 
 const BlogPage = () => {
 
-    let { blog_id } = useParams()
+    let { blog_id } = useParams();
+    const navigate = useNavigate();
 
     const [ blog, setBlog ] = useState(blogStructure);
     const [ similarBlogs, setSimilarBlogs ] = useState(null);
@@ -149,10 +150,12 @@ const BlogPage = () => {
             if (!blog.draft) {
                 saveReadingProgress(blog);
 
-                api.post("/search-blogs", { tag: blog.tags[0], limit: 6, eliminate_blog: blog_id })
-                .then(({ data }) => {
-                    setSimilarBlogs(data.blogs);
-                })
+                if (blog.tags && blog.tags.length > 0) {
+                    api.post("/search-blogs", { tag: blog.tags[0], limit: 6, eliminate_blog: blog_id })
+                    .then(({ data }) => {
+                        setSimilarBlogs(data.blogs);
+                    })
+                }
             }
 
             setLoading(false);
@@ -200,8 +203,8 @@ const BlogPage = () => {
                 :
                 <BlogContext.Provider value={{ blog, setBlog, isLikedByUser, setLikedByUser, commentsWrapper, setCommentsWrapper, totalParentCommentsLoaded, setTotalParentCommentsLoaded }}>
                     <div className={isTextPost ? "home-layout" : ""}>
-                        <div className={isTextPost ? "home-feed pt-10" : ""}>
-                            <div className="max-w-[900px] w-full center py-10 max-lg:px-[5vw]">
+                        <div className={isTextPost ? "home-feed max-lg:pt-0 lg:pt-10" : ""}>
+                            <div className={`max-w-[900px] w-full center max-lg:px-[5vw] ${isTextPost ? 'max-lg:pt-0 max-lg:pb-6 lg:py-10' : 'py-10'}`}>
 
                         {isDraft && (
                             <div className="draft-preview-banner">
@@ -219,6 +222,12 @@ const BlogPage = () => {
                         {isTextPost ? (
                             /* ── Text Post View ── */
                             <div>
+                                <div className="flex items-center gap-4 mb-6 lg:hidden">
+                                    <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full hover:bg-grey flex items-center justify-center transition-colors -ml-2">
+                                        <Icon name="arrow_back" className="text-xl" />
+                                    </button>
+                                    <h1 className="font-semibold text-xl">Post</h1>
+                                </div>
                                 <div className="flex gap-5 items-start mb-6">
                                     <Avatar src={profile_img} alt={fullname} size={48} />
                                     <div>

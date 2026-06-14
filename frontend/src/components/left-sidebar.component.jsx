@@ -113,7 +113,7 @@ const LeftSidebar = () => {
                                         <Icon name="edit_note" className="text-xl" />
                                     </span>
                                     <span className="create-menu__item-text">
-                                        <span className="create-menu__item-label">Text Post</span>
+                                        <span className="create-menu__item-label">Post</span>
                                         <span className="create-menu__item-desc">Share a quick thought</span>
                                     </span>
                                 </button>
@@ -122,8 +122,8 @@ const LeftSidebar = () => {
                                         <Icon name="article" className="text-xl" />
                                     </span>
                                     <span className="create-menu__item-text">
-                                        <span className="create-menu__item-label">Write Article</span>
-                                        <span className="create-menu__item-desc">Long-form blog post</span>
+                                        <span className="create-menu__item-label">Article</span>
+                                        <span className="create-menu__item-desc">Long form article post</span>
                                     </span>
                                 </button>
                             </div>

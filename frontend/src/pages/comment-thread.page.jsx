@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { UserContext } from "../App";
 import { BlogContext } from "./blog.page";
 import api from "../common/api";
@@ -16,6 +16,7 @@ import NoDataMessage from "../components/nodata.component";
 const CommentThreadPage = () => {
 
     let { comment_id } = useParams();
+    const navigate = useNavigate();
     let { userAuth: { access_token, username, profile_img, fullname } } = useContext(UserContext);
 
     const [loading, setLoading] = useState(true);
@@ -150,8 +151,14 @@ const CommentThreadPage = () => {
                 setTotalParentCommentsLoaded,
             }}>
                 <div className="home-layout">
-                    <div className="home-feed pt-10">
-                        <div className="comment-thread-page">
+                    <div className="home-feed max-lg:pt-0 lg:pt-10">
+                        <div className="comment-thread-page max-lg:pt-4 max-lg:pb-6">
+                            <div className="flex items-center gap-4 mb-6 lg:hidden">
+                                <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full hover:bg-grey flex items-center justify-center transition-colors -ml-2">
+                                    <Icon name="arrow_back" className="text-xl" />
+                                </button>
+                                <h1 className="font-semibold text-xl">Post</h1>
+                            </div>
                     {/* ── Original Post Context (with thread line) ── */}
                     <div className="comment-thread__post-context">
                         <div className="comment-thread__row">

@@ -189,7 +189,7 @@ const HomePage = () => {
   // Restore scroll position on mount, save on unmount
   useEffect(() => {
     if (feedCache.scrollY > 0) {
-      window.scrollTo(0, feedCache.scrollY);
+      window.scrollTo({ top: feedCache.scrollY, left: 0, behavior: 'instant' });
     }
     return () => { feedCache.scrollY = window.scrollY; };
   }, []);
@@ -259,8 +259,7 @@ const HomePage = () => {
 
             {/* Category tabs */}
             <div className="category-tabs" ref={tabsRef}>
-              {/* Explore Icon Button (Mobile Only, similar to YouTube) */}
-              <div className="flex items-center lg:hidden flex-shrink-0 py-2 pr-2">
+              <div className="flex items-center lg:hidden flex-shrink-0 py-2 -mr-2">
                   <Link 
                       to="/search/" 
                       className="flex items-center justify-center bg-grey hover:bg-border transition-colors rounded-radius-sm text-black"
@@ -268,7 +267,7 @@ const HomePage = () => {
                   >
                       <Icon name="explore" className="text-xl" />
                   </Link>
-                  <div className="h-6 w-[1.5px] bg-border ml-3"></div>
+                  <div className="h-6 w-[1px] bg-border ml-1"></div>
               </div>
 
               {categories.map((category, i) => {
