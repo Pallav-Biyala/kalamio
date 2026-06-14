@@ -125,7 +125,7 @@ export const searchConnectionsFollows = async (req, res) => {
 
         const uniqueIds = [...new Set([...followedIds.map(String), ...connectedIds.map(String)])].filter(id => id !== 'undefined' && id);
 
-        const users = await User.find({
+        let users = await User.find({
             _id: { $in: uniqueIds },
             $or: [
                 { "personal_info.username": new RegExp(escapeRegex(query), 'i') },
@@ -134,6 +134,20 @@ export const searchConnectionsFollows = async (req, res) => {
         })
         .limit(10)
         .select("personal_info.fullname personal_info.username personal_info.profile_img");
+
+        if (users.length < 10 && query && query.trim() !== '') {
+            const extraUsers = await User.find({
+                _id: { $nin: [...uniqueIds, userId] },
+                $or: [
+                    { "personal_info.username": new RegExp(escapeRegex(query), 'i') },
+                    { "personal_info.fullname": new RegExp(escapeRegex(query), 'i') }
+                ]
+            })
+            .limit(10 - users.length)
+            .select("personal_info.fullname personal_info.username personal_info.profile_img");
+
+            users = [...users, ...extraUsers];
+        }
 
         return res.status(200).json({ users });
 

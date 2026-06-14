@@ -100,10 +100,10 @@ const SubscriptionsPage = () => {
                                     onClick={() => setSelectedPub(pub)}
                                 >
                                     <div className="subscriptions-page__pub-avatar">
-                                        {pub.banner ? (
-                                            <img src={pub.banner} alt="" />
+                                        {pub.profile_photo ? (
+                                            <img src={pub.profile_photo} alt="" />
                                         ) : (
-                                            <Icon name="import_contacts" className="text-lg text-dark-grey" />
+                                            <span className="text-sm font-bold text-dark-grey">{pub.title.charAt(0).toUpperCase()}</span>
                                         )}
                                     </div>
                                     <span className="subscriptions-page__pub-name">{pub.title}</span>
@@ -118,10 +118,10 @@ const SubscriptionsPage = () => {
                     <div className="subscriptions-page__selected-card">
                         <div className="subscriptions-page__selected-top">
                             <div className="subscriptions-page__selected-avatar">
-                                {selectedPub.banner ? (
-                                    <img src={selectedPub.banner} alt="" />
+                                {selectedPub.profile_photo ? (
+                                    <img src={selectedPub.profile_photo} alt="" />
                                 ) : (
-                                    <Icon name="import_contacts" className="text-2xl text-dark-grey" />
+                                    <span className="text-3xl font-bold text-dark-grey">{selectedPub.title.charAt(0).toUpperCase()}</span>
                                 )}
                             </div>
                             <div className="subscriptions-page__selected-text">

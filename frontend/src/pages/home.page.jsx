@@ -248,11 +248,11 @@ const HomePage = () => {
                 </div>
                 <span className="composer-prompt__input">Write to the world...</span>
                 <div className="flex items-center gap-1 text-dark-grey ml-auto">
-                    <div className="w-[36px] h-[36px] rounded-full hover:bg-grey flex items-center justify-center transition-colors" title="Add images">
-                        <Icon name="image" className="text-[20px] text-brand" />
+                    <div className="w-[44px] h-[44px] rounded-full hover:bg-grey flex items-center justify-center transition-colors" title="Add images">
+                        <Icon name="image" className="text-[26px] text-brand" />
                     </div>
-                    <div className="w-[36px] h-[36px] rounded-full hover:bg-grey flex items-center justify-center transition-colors" title="Add poll">
-                        <Icon name="poll" className="text-[20px] text-brand" />
+                    <div className="w-[44px] h-[44px] rounded-full hover:bg-grey flex items-center justify-center transition-colors" title="Add poll">
+                        <Icon name="poll" className="text-[26px] text-brand" />
                     </div>
                 </div>
             </div>

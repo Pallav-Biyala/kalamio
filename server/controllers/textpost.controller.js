@@ -79,18 +79,9 @@ export const createTextPost = (req, res) => {
             const post = await TextPost.findOneAndUpdate({ blog_id, author: authorId }, updateData);
             if (!post) return res.status(403).json({ error: "You don't have permission to edit this post" });
 
-            // If publication changed, update counters
+            // If publication changed, text posts no longer update total_posts
             const oldPubId = existingPost.publication?.toString() || null;
             const newPubId = (publication || null)?.toString?.() || publication || null;
-
-            if (oldPubId !== newPubId) {
-                if (oldPubId) {
-                    await Publication.findByIdAndUpdate(oldPubId, { $inc: { total_posts: -1 } });
-                }
-                if (newPubId) {
-                    await Publication.findByIdAndUpdate(newPubId, { $inc: { total_posts: 1 } });
-                }
-            }
 
             return res.status(200).json({ id: blog_id });
         })
@@ -112,14 +103,9 @@ export const createTextPost = (req, res) => {
 
         post.save().then(async post => {
 
-        let incrementVal = draft ? 0 : 1;
+        // If post is linked to a publication, no longer increment its post count for text posts
 
-        // If post is linked to a publication, increment its post count
-        if (publication && !draft) {
-            await Publication.findByIdAndUpdate(publication, { $inc: { total_posts: 1 } }).catch(() => {});
-        }
-
-        User.findOneAndUpdate({ _id: authorId }, { $inc : { "account_info.total_posts" : incrementVal }, $push : { "blogs": post._id } })
+        User.findOneAndUpdate({ _id: authorId }, { $push : { "blogs": post._id } })
         .then(user => {
             // Process mentions for text posts if not draft
             if (text_content && !draft) {

@@ -12,7 +12,7 @@ import api from "../common/api";
 const TextPostCard = ({ content, author, onEdit }) => {
 
     const navigate = useNavigate();
-    const { _id, publishedAt, text_content, images, poll: initialPoll, activity: { total_likes, total_comments }, blog_id: id, edited } = content;
+    const { _id, publishedAt, text_content, images, poll: initialPoll, activity: { total_likes, total_comments }, blog_id: id, edited, publication } = content;
     const { fullname, profile_img, username } = author;
     const { userAuth: { access_token } } = useContext(UserContext);
 
@@ -140,6 +140,13 @@ const TextPostCard = ({ content, author, onEdit }) => {
                     <div className="feed-card__author-info">
                         <span className="feed-card__author-name">{fullname}</span>
                         <span className="feed-card__meta">
+                            {publication && (
+                                <span className="feed-card__pub-label" onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(`/publication/${publication.slug}`); }} role="link" tabIndex={0}>
+                                    <Icon name="import_contacts" className="feed-card__pub-icon" />
+                                    {publication.title}
+                                </span>
+                            )}
+                            {publication && <span className="feed-card__meta-dot">·</span>}
                             {getRelativeTime(publishedAt)}
                             {edited && <span className="feed-card__edited">· edited</span>}
                         </span>

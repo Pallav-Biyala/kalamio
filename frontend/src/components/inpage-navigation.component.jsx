@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 export let activeTabLineRef;
 export let activeTabRef;
 
-const InPageNavigation = ({ routes, defaultHidden = [], defaultActiveIndex = 0, children }) => {
+const InPageNavigation = ({ routes, defaultHidden = [], defaultActiveIndex = 0, children, className = "" }) => {
     
     let [ inPageNavIndex, setInPageNavIndex ] = useState(defaultActiveIndex);
 
@@ -49,7 +49,7 @@ const InPageNavigation = ({ routes, defaultHidden = [], defaultActiveIndex = 0, 
     
     return(
         <>
-            <div className="relative mb-8 bg-surface border-b border-border flex flex-nowrap overflow-x-auto">
+            <div className={`relative mb-8 bg-surface border-b border-border flex flex-nowrap overflow-x-auto ${className}`}>
 
                 {/* Create buttons "home" & "trending blogs" */}
                 {

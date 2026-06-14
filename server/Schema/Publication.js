@@ -23,6 +23,10 @@ const publicationSchema = mongoose.Schema({
         type: String,
         default: ""
     },
+    profile_photo: {
+        type: String,
+        default: ""
+    },
     owner: {
         type: Schema.Types.ObjectId,
         required: true,
@@ -39,6 +43,18 @@ const publicationSchema = mongoose.Schema({
     total_posts: {
         type: Number,
         default: 0
+    },
+    total_reads: {
+        type: Number,
+        default: 0
+    },
+    social_links: {
+        youtube: { type: String, default: "" },
+        instagram: { type: String, default: "" },
+        facebook: { type: String, default: "" },
+        twitter: { type: String, default: "" },
+        github: { type: String, default: "" },
+        website: { type: String, default: "" }
     },
     visibility: {
         type: String,

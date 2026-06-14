@@ -847,16 +847,16 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId, replyTo }) =>
                         {!replyTo && (
                             <div className="relative flex items-center">
                                 <button 
-                                    className="tp-composer__drafts-btn"
-                                    onClick={() => setShowPubDropdown(!showPubDropdown)}
+                                    className={`tp-composer__drafts-btn ${isEditingPublishedPost ? 'cursor-default opacity-80' : ''}`}
+                                    onClick={() => !isEditingPublishedPost && setShowPubDropdown(!showPubDropdown)}
                                 >
                                     <span className="truncate max-w-[120px]">
                                         {selectedPub && publications ? publications.find(p => p._id === selectedPub)?.title || "My Profile" : "My Profile"}
                                     </span>
-                                    <Icon name="expand_more" className="text-dark-grey pointer-events-none text-lg" />
+                                    {!isEditingPublishedPost && <Icon name="expand_more" className="text-dark-grey pointer-events-none text-lg" />}
                                 </button>
                                 
-                                {showPubDropdown && (
+                                {showPubDropdown && !isEditingPublishedPost && (
                                     <>
                                         <div className="fixed inset-0 z-40" onClick={() => setShowPubDropdown(false)} />
                                         <div className="absolute top-full right-0 mt-2 w-max min-w-[150px] max-w-[220px] bg-white border border-grey rounded-xl shadow-lg z-50 overflow-hidden py-1 flex flex-col">

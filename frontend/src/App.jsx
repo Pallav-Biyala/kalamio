@@ -23,6 +23,7 @@ const ManageBlogs = lazy(() => import("./pages/manage-blogs.page"));
 const ConnectionsPage = lazy(() => import("./pages/connections.page"));
 const PublicationPage = lazy(() => import("./pages/publication.page"));
 const CreatePublicationPage = lazy(() => import("./pages/create-publication.page"));
+const EditPublicationPage = lazy(() => import("./pages/edit-publication.page"));
 const ManagePublicationsPage = lazy(() => import("./pages/manage-publications.page"));
 const MessagesPage = lazy(() => import("./pages/messages.page"));
 const AuthCallback = lazy(() => import("./pages/auth-callback.page"));
@@ -108,6 +109,7 @@ const App = () => {
                                 <Route path="connections" element={<ConnectionsPage />} />
                                 <Route path="publications" element={<ManagePublicationsPage />} />
                                 <Route path="create-publication" element={<CreatePublicationPage />} />
+                                <Route path="edit-publication/:slug" element={<EditPublicationPage />} />
                             </Route>
                             <Route path="settings" element={<SideNav />} >
                                 <Route path="edit-profile" element={<EditProfile />} />

@@ -170,6 +170,9 @@ export const getPost = (req, res) => {
                     { "personal_info.username": blog.author.personal_info.username },
                     { $inc: { "account_info.total_reads": incrementVal } }
                 ).catch(err => console.error(err));
+                if (blog.publication) {
+                    Publication.findByIdAndUpdate(blog.publication._id || blog.publication, { $inc: { total_reads: incrementVal } }).catch(err => console.error(err));
+                }
             }
 
             return res.status(200).json({ blog });
@@ -402,7 +405,12 @@ export const deletePost = (req, res) => {
         Comment.deleteMany({ blog_id: blog._id })
             .catch(err => req.log?.error({ err }, 'comments delete error'));
 
-        User.findOneAndUpdate({ _id: user_id }, { $pull: { blogs: blog._id }, $inc: { "account_info.total_posts": -1 } })
+        let updateQuery = { $pull: { blogs: blog._id } };
+        if (blog.type !== 'text_post') {
+            updateQuery.$inc = { "account_info.total_posts": -1 };
+        }
+
+        User.findOneAndUpdate({ _id: user_id }, updateQuery)
             .catch(err => req.log?.error({ err }, 'user update error'));
 
         return res.status(200).json({ status: "done" });

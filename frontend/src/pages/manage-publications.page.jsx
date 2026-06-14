@@ -76,6 +76,9 @@ const ManagePublicationsPage = () => {
                                     <Link to={`/publication/${pub.slug}`} className="pub-manage-card__btn" title="View">
                                         <Icon name="visibility" />
                                     </Link>
+                                    <Link to={`/dashboard/edit-publication/${pub.slug}`} className="pub-manage-card__btn" title="Edit">
+                                        <Icon name="edit" />
+                                    </Link>
                                     <button
                                         onClick={() => handleDelete(pub._id, pub.title)}
                                         className="pub-manage-card__btn pub-manage-card__btn--danger"

@@ -3,6 +3,8 @@ import Subscription from '../Schema/Subscription.js';
 import Notification from '../Schema/Notification.js';
 import User from '../Schema/User.js';
 import Post from '../Schema/Post.js';
+import Blog from '../Schema/Blog.js';
+import TextPost from '../Schema/TextPost.js';
 
 // ────────────────────────────────────────────────────────
 // PUBLICATION CRUD
@@ -15,7 +17,7 @@ import Post from '../Schema/Post.js';
 export const createPublication = async (req, res) => {
     try {
         const owner_id = req.user;
-        const { title, description, banner, tags } = req.body;
+        const { title, description, banner, profile_photo, tags, social_links } = req.body;
 
         if (!title || !title.trim()) {
             return res.status(400).json({ error: "Publication title is required" });
@@ -36,14 +38,18 @@ export const createPublication = async (req, res) => {
             counter++;
         }
 
-        const publication = await new Publication({
-            title: title.trim(),
+        let publication = new Publication({
+            title,
             slug,
-            description: description?.trim() || "",
-            banner: banner || "",
-            tags: tags || [],
-            owner: owner_id
-        }).save();
+            description,
+            banner,
+            profile_photo,
+            tags,
+            owner: owner_id,
+            social_links
+        });
+
+        await publication.save();
 
         return res.status(201).json({ publication });
 
@@ -60,7 +66,7 @@ export const createPublication = async (req, res) => {
 export const updatePublication = async (req, res) => {
     try {
         const owner_id = req.user;
-        const { publication_id, title, description, banner, tags } = req.body;
+        const { publication_id, title, description, banner, profile_photo, tags, social_links } = req.body;
 
         if (!publication_id) {
             return res.status(400).json({ error: "Publication ID is required" });
@@ -70,11 +76,18 @@ export const updatePublication = async (req, res) => {
         if (!publication) {
             return res.status(404).json({ error: "Publication not found or not owned by you" });
         }
-
         if (title) publication.title = title.trim();
         if (description !== undefined) publication.description = description.trim();
         if (banner !== undefined) publication.banner = banner;
+        if (profile_photo !== undefined) publication.profile_photo = profile_photo;
         if (tags) publication.tags = tags;
+        
+        if (social_links) {
+            publication.social_links = {
+                ...publication.social_links,
+                ...social_links
+            };
+        }
 
         await publication.save();
 
@@ -133,11 +146,25 @@ export const getPublication = async (req, res) => {
             return res.status(400).json({ error: "Slug is required" });
         }
 
-        const publication = await Publication.findOne({ slug })
+        let publication = await Publication.findOne({ slug })
             .populate("owner", "personal_info.fullname personal_info.username personal_info.profile_img");
 
         if (!publication) {
             return res.status(404).json({ error: "Publication not found" });
+        }
+
+        // Calculate actual total reads from all posts under this publication
+        const readsResult = await Post.aggregate([
+            { $match: { publication: publication._id } },
+            { $group: { _id: null, totalReads: { $sum: "$activity.total_reads" } } }
+        ]);
+
+        const actualReads = readsResult.length > 0 ? readsResult[0].totalReads : 0;
+
+        // Sync it if it's different (handles initial sync for existing publications)
+        if (actualReads > publication.total_reads) {
+            publication.total_reads = actualReads;
+            await Publication.findByIdAndUpdate(publication._id, { total_reads: actualReads });
         }
 
         return res.status(200).json({ publication });
@@ -154,14 +181,20 @@ export const getPublication = async (req, res) => {
  */
 export const getPublicationBlogs = async (req, res) => {
     try {
-        const { publication_id, page = 1 } = req.body;
+        const { publication_id, page = 1, type } = req.body;
         const maxLimit = 5;
 
         if (!publication_id) {
             return res.status(400).json({ error: "Publication ID is required" });
         }
 
-        const blogs = await Post.find({ publication: publication_id, draft: false })
+        const query = { publication: publication_id, draft: false };
+        
+        let ModelToUse = Post;
+        if (type === 'blog') ModelToUse = Blog;
+        else if (type === 'text_post') ModelToUse = TextPost;
+
+        const blogs = await ModelToUse.find(query)
             .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname -_id")
             .populate("publication", "title slug")
             .sort({ publishedAt: -1 })
@@ -183,13 +216,19 @@ export const getPublicationBlogs = async (req, res) => {
  */
 export const getPublicationBlogsCount = async (req, res) => {
     try {
-        const { publication_id } = req.body;
+        const { publication_id, type } = req.body;
 
         if (!publication_id) {
             return res.status(400).json({ error: "Publication ID is required" });
         }
 
-        const count = await Post.countDocuments({ publication: publication_id, draft: false });
+        const query = { publication: publication_id, draft: false };
+        
+        let ModelToUse = Post;
+        if (type === 'blog') ModelToUse = Blog;
+        else if (type === 'text_post') ModelToUse = TextPost;
+
+        const count = await ModelToUse.countDocuments(query);
         return res.status(200).json({ totalDocs: count });
 
     } catch (err) {
@@ -439,7 +478,7 @@ export const getMySubscriptions = async (req, res) => {
         const subs = await Subscription.find({ subscriber: subscriber_id })
             .populate({
                 path: "publication",
-                select: "title slug description banner total_subscribers total_posts owner",
+                select: "title slug description banner profile_photo total_subscribers total_posts owner",
                 populate: { path: "owner", select: "personal_info.username personal_info.fullname personal_info.profile_img" }
             })
             .sort({ subscribedAt: -1 });
