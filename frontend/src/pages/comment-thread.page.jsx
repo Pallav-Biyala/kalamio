@@ -91,7 +91,7 @@ const CommentThreadPage = () => {
     const blogObj = buildBlogObj(blogContext, replies, parentComment);
     const { personal_info: { profile_img: authorImg, fullname: authorName, username: authorUsername } } = blogContext.author;
 
-    // ── Ancestor row component ──
+    // ── Ancestor row component  ──
     const AncestorRow = ({ ancestor }) => {
         const { personal_info: { profile_img: aImg, fullname: aName, username: aUsername } } = ancestor.commented_by;
         return (
