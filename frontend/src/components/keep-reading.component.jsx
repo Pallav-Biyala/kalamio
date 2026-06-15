@@ -10,7 +10,9 @@ export const saveReadingProgress = (blog) => {
 
     const data = {
         blog_id: blog.blog_id,
-        title: blog.title,
+        title: blog.title || "",
+        text_content: blog.text_content || "",
+        type: blog.type || "blog",
         banner: blog.banner || "",
         author: blog.author?.personal_info?.fullname || "",
         savedAt: Date.now(),
@@ -46,20 +48,42 @@ const KeepReading = () => {
 
     return (
         <div className="keep-reading">
-            <p className="keep-reading__label">
-                <Icon name="auto_stories" className="text-base" />
-                Keep reading
-            </p>
-            <Link to={`/blog/${article.blog_id}`} className="keep-reading__card">
-                {article.banner && (
-                    <div className="keep-reading__thumb">
-                        <img src={article.banner} alt={article.title} />
+            <div className="flex items-center justify-between mb-3">
+                <p className="keep-reading__label !mb-0" style={{ marginBottom: 0 }}>
+                    <Icon name="auto_stories" className="text-base" />
+                    Keep reading
+                </p>
+                <div className="relative group cursor-pointer text-dark-grey hover:text-black transition-colors flex items-center">
+                    <Icon name="info" className="text-[16px]" />
+                    <div className="absolute bottom-full right-0 mb-2 w-[180px] p-2 bg-black text-white text-[11px] rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-lg leading-relaxed text-center">
+                        Here you will find the post or article where you left off reading.
                     </div>
-                )}
-                <div className="keep-reading__info">
-                    <span className="keep-reading__title">{article.title}</span>
-                    <span className="keep-reading__meta">{article.author}</span>
                 </div>
+            </div>
+            <Link to={`/blog/${article.blog_id}`} className="keep-reading__card">
+                {article.type === 'text_post' ? (
+                    <div className="keep-reading__info w-full" style={{ padding: '4px 0' }}>
+                        <span className="keep-reading__meta" style={{ marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Icon name="format_quote" className="text-[14px]" />
+                            {article.author}
+                        </span>
+                        <span className="keep-reading__title" style={{ WebkitLineClamp: 3, fontSize: '13px', lineHeight: '1.4' }}>
+                            {article.text_content || "Text post"}
+                        </span>
+                    </div>
+                ) : (
+                    <>
+                        {article.banner && (
+                            <div className="keep-reading__thumb">
+                                <img src={article.banner} alt={article.title} />
+                            </div>
+                        )}
+                        <div className="keep-reading__info">
+                            <span className="keep-reading__title">{article.title || "Untitled"}</span>
+                            <span className="keep-reading__meta">{article.author}</span>
+                        </div>
+                    </>
+                )}
             </Link>
         </div>
     );

@@ -69,7 +69,13 @@ const CommentCard = ({ index, commentData, isTextPost = false }) => {
     const [ replyCount, setReplyCount ] = useState(children ? children.length : 0);
     const [ previewLoaded, setPreviewLoaded ] = useState(false);
 
-    // Fetch preview replies for text-post mode
+    // ── Inline replies state (Article mode) ──
+    const [ inlineReplies, setInlineReplies ] = useState([]);
+    const [ inlineRepliesLoaded, setInlineRepliesLoaded ] = useState(0);
+    const [ showInlineReplies, setShowInlineReplies ] = useState(false);
+    const [ loadingInlineReplies, setLoadingInlineReplies ] = useState(false);
+
+    // Fetch preview replies (text-post only)
     useEffect(() => {
         if (isTextPost && children && children.length > 0 && !previewLoaded) {
             api.post("/get-preview-replies", { comment_id: _id })
@@ -80,7 +86,11 @@ const CommentCard = ({ index, commentData, isTextPost = false }) => {
             })
             .catch(() => {});
         }
-    }, [_id, isTextPost, children?.length]);
+        // For articles, just sync replyCount from children
+        if (!isTextPost && children) {
+            setReplyCount(children.length);
+        }
+    }, [_id, children?.length]);
 
     const isOwner = username === commented_by_username || username === blog_author;
 
@@ -164,8 +174,16 @@ const CommentCard = ({ index, commentData, isTextPost = false }) => {
             data.commented_by = { personal_info: { username, profile_img: my_profile_img, fullname: my_fullname } }
 
             setReplyCount(prev => prev + 1);
-            setPreviewReplies([data]);
-            setPreviewLoaded(true);
+
+            if (isTextPost) {
+                setPreviewReplies([data]);
+                setPreviewLoaded(true);
+            } else {
+                // Article: add to inline replies if expanded
+                setInlineReplies(prev => [data, ...prev]);
+                setInlineRepliesLoaded(prev => prev + 1);
+                setShowInlineReplies(true);
+            }
 
             if (!commentData.children) commentData.children = [];
             commentData.children.push(data._id);
@@ -178,10 +196,31 @@ const CommentCard = ({ index, commentData, isTextPost = false }) => {
         .catch(() => {});
     }
 
-    // ── Navigate to comment thread page (always for text-posts) ──
+    // ── Navigate to comment thread page (text-post only) ──
     const handleCommentClick = () => {
-        if (isTextPost) {
-            navigate(`/comment/${_id}`);
+        navigate(`/comment/${_id}`);
+    }
+
+    // ── Inline reply expansion (Article only) ──
+    const loadInlineReplies = () => {
+        setLoadingInlineReplies(true);
+        api.post("/get-replies", { _id, skip: inlineRepliesLoaded })
+        .then(({ data }) => {
+            setInlineReplies(prev => [...prev, ...(data.replies || [])]);
+            setInlineRepliesLoaded(prev => prev + (data.replies?.length || 0));
+            setShowInlineReplies(true);
+            setLoadingInlineReplies(false);
+        })
+        .catch(() => setLoadingInlineReplies(false));
+    }
+
+    const toggleInlineReplies = () => {
+        if (showInlineReplies) {
+            setShowInlineReplies(false);
+        } else if (inlineReplies.length > 0) {
+            setShowInlineReplies(true);
+        } else {
+            loadInlineReplies();
         }
     }
 
@@ -207,7 +246,7 @@ const CommentCard = ({ index, commentData, isTextPost = false }) => {
         if (!reply || !reply.commented_by) return null;
         const { personal_info: { profile_img: rImg, fullname: rName, username: rUsername } } = reply.commented_by;
         return (
-            <div className="reply-preview" onClick={() => isTextPost && navigate(`/comment/${reply._id || _id}`)} style={{ cursor: isTextPost ? 'pointer' : 'default' }}>
+            <div className="reply-preview" onClick={() => navigate(`/comment/${reply._id || _id}`)} style={{ cursor: 'pointer' }}>
                 <div className="reply-preview__body">
                     <Link to={`/user/${rUsername}`} className="reply-preview__avatar" onClick={e => e.stopPropagation()}>
                         <Avatar src={rImg} alt={rUsername} size={28} />
@@ -228,9 +267,11 @@ const CommentCard = ({ index, commentData, isTextPost = false }) => {
                                 <Icon name="chat_bubble_outline" />
                                 <span>{reply.children?.length || ""}</span>
                             </button>
-                            <button className="comment-card__action-btn">
-                                <Icon name="repeat" />
-                            </button>
+                            {isTextPost && (
+                                <button className="comment-card__action-btn">
+                                    <Icon name="repeat" />
+                                </button>
+                            )}
                             <button className="comment-card__action-btn">
                                 <Icon name="upload" />
                             </button>
@@ -241,7 +282,7 @@ const CommentCard = ({ index, commentData, isTextPost = false }) => {
         );
     };
 
-    const hasPreview = isTextPost && previewLoaded && previewReplies.length > 0;
+    const hasPreview = previewLoaded && previewReplies.length > 0;
 
     // ── Three-dot menu component ──
     const ThreeDotMenu = () => (
@@ -249,7 +290,6 @@ const CommentCard = ({ index, commentData, isTextPost = false }) => {
             <button 
                 onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
                 className="comment-card__delete"
-                title="More options"
             >
                 <Icon name="more_horiz" className="text-lg" />
             </button>
@@ -289,16 +329,20 @@ const CommentCard = ({ index, commentData, isTextPost = false }) => {
                         <Link to={`/user/${commented_by_username}`} className="comment-card__name">{fullname}</Link>
                         <span className="comment-card__dot">·</span>
                         <span className="comment-card__time">{getDay(commentedAt)}</span>
-                        {isTextPost && <ThreeDotMenu />}
+                        <ThreeDotMenu />
                     </div>
 
-                    {/* Comment text — always clickable in text-post mode */}
-                    <div 
-                        className={isTextPost ? "comment-card__text-clickable" : ""}
-                        onClick={handleCommentClick}
-                    >
+                    {/* Comment text — clickable to go to thread (text-post only) */}
+                    {isTextPost ? (
+                        <div 
+                            className="comment-card__text-clickable"
+                            onClick={handleCommentClick}
+                        >
+                            <p className="comment-card__text">{renderText(comment)}</p>
+                        </div>
+                    ) : (
                         <p className="comment-card__text">{renderText(comment)}</p>
-                    </div>
+                    )}
 
                     {/* Images */}
                     {images && images.length > 0 && (
@@ -335,35 +379,79 @@ const CommentCard = ({ index, commentData, isTextPost = false }) => {
                     )}
 
                     {/* Action bar */}
-                    <div className="comment-card__actions">
-                        <button className={`comment-card__action-btn ${isLiked ? 'comment-card__action-btn--liked' : ''}`} onClick={handleLike}>
-                            <Icon name={isLiked ? "favorite" : "favorite_border"} filled={isLiked} />
-                            <span>{likesCount || ""}</span>
-                        </button>
+                    {isTextPost ? (
+                        /* ── Text-post style actions ── */
+                        <div className="comment-card__actions">
+                            <button className={`comment-card__action-btn ${isLiked ? 'comment-card__action-btn--liked' : ''}`} onClick={handleLike}>
+                                <Icon name={isLiked ? "favorite" : "favorite_border"} filled={isLiked} />
+                                <span>{likesCount}</span>
+                            </button>
 
-                        <button className="comment-card__action-btn" onClick={handleReplyClick}>
-                            <Icon name="chat_bubble_outline" />
-                            <span>{replyCount || ""}</span>
-                        </button>
+                            <button className="comment-card__action-btn" onClick={handleReplyClick}>
+                                <Icon name="chat_bubble_outline" />
+                                <span>{replyCount}</span>
+                            </button>
 
-                        <button className="comment-card__action-btn">
-                            <Icon name="repeat" />
-                            <span>{commentData.reshares || ""}</span>
-                        </button>
+                            <button className="comment-card__action-btn">
+                                <Icon name="repeat" />
+                                <span>{commentData.reshares || ""}</span>
+                            </button>
 
-                        <button className="comment-card__action-btn">
-                            <Icon name="upload" />
-                        </button>
-                    </div>
+                            <button className="comment-card__action-btn">
+                                <Icon name="upload" />
+                            </button>
+                        </div>
+                    ) : (
+                        /* ── Article actions ── */
+                        <>
+                            <div className="comment-card__actions comment-card__actions--yt">
+                                <button className={`comment-card__action-btn ${isLiked ? 'comment-card__action-btn--liked' : ''}`} onClick={handleLike}>
+                                    <Icon name={isLiked ? "favorite" : "favorite_border"} filled={isLiked} />
+                                    <span>{likesCount}</span>
+                                </button>
+
+                                <button className="comment-card__reply-text-btn" onClick={handleReplyClick}>
+                                    Reply
+                                </button>
+                            </div>
+
+                            {replyCount > 0 && (
+                                <button className={`comment-card__replies-toggle ${showInlineReplies ? 'comment-card__replies-toggle--open' : ''}`} onClick={toggleInlineReplies} disabled={loadingInlineReplies}>
+                                    <Icon name={showInlineReplies ? "expand_less" : "expand_more"} />
+                                    <span>{loadingInlineReplies ? 'Loading...' : `${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`}</span>
+                                </button>
+                            )}
+                        </>
+                    )}
                 </div>
             </div>
 
-            {/* ── Text-post mode: inline preview replies ── */}
-            {hasPreview && (
-                <div className="comment-card__previews">
+            {/* Inline expanded replies (Article only) */}
+            {!isTextPost && showInlineReplies && inlineReplies.length > 0 && (
+                <div className="comment-card__inline-replies">
+                    {inlineReplies.map((reply, i) => (
+                        <CommentCard key={reply._id || i} index={i} commentData={{...reply, childrenLevel: (commentData.childrenLevel || 0) + 1}} isTextPost={false} />
+                    ))}
+                    {inlineRepliesLoaded < replyCount && (
+                        <button className="comment-card__replies-toggle" onClick={loadInlineReplies} disabled={loadingInlineReplies}>
+                            <Icon name="expand_more" />
+                            <span>{loadingInlineReplies ? 'Loading...' : 'Show more replies'}</span>
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {/* Inline Preview Replies (text-post only) */}
+            {isTextPost && hasPreview && (
+                <div className="comment-card__preview-replies">
                     {previewReplies.map((reply, i) => (
                         <ReplyPreview key={reply._id || i} reply={reply} />
                     ))}
+                    {replyCount > previewReplies.length && (
+                        <button className="comment-card__view-thread-btn text-purple text-sm font-medium mt-2 hover:underline ml-11" onClick={handleCommentClick}>
+                            Show {replyCount - previewReplies.length} more repl{replyCount - previewReplies.length === 1 ? 'y' : 'ies'}
+                        </button>
+                    )}
                 </div>
             )}
 

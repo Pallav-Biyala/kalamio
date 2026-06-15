@@ -204,7 +204,7 @@ const BlogPage = () => {
                 <BlogContext.Provider value={{ blog, setBlog, isLikedByUser, setLikedByUser, commentsWrapper, setCommentsWrapper, totalParentCommentsLoaded, setTotalParentCommentsLoaded }}>
                     <div className={isTextPost ? "home-layout" : ""}>
                         <div className={isTextPost ? "home-feed max-lg:pt-0 lg:pt-10" : ""}>
-                            <div className={`max-w-[900px] w-full center max-lg:px-[5vw] ${isTextPost ? 'max-lg:pt-0 max-lg:pb-6 lg:py-10' : 'py-10'}`}>
+                            <div className={`max-w-[900px] w-full center max-lg:px-[5vw] ${isTextPost ? 'max-lg:pt-0 max-lg:pb-6 lg:py-10' : 'max-lg:pt-0 max-lg:pb-10 lg:py-10'}`}>
 
                         {isDraft && (
                             <div className="draft-preview-banner">
@@ -261,6 +261,13 @@ const BlogPage = () => {
                         ) : (
                             /* ── Article View (existing) ── */
                             <>
+                                <div className="flex items-center gap-4 mb-6 lg:hidden">
+                                    <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full hover:bg-grey flex items-center justify-center transition-colors -ml-2">
+                                        <Icon name="arrow_back" className="text-xl" />
+                                    </button>
+                                    <span className="font-semibold text-xl text-dark-grey">Article</span>
+                                </div>
+                                
                                 {banner && <img src={banner} className="aspect-video rounded-radius-lg" alt={title} />}
 
                                 <div className="mt-12">
@@ -347,7 +354,11 @@ const BlogPage = () => {
                                     </div>
                                     <div className="blog-cta-card__body">
                                         <div className="blog-cta-card__pub-icon-wrap">
-                                            <Icon name="menu_book" className="blog-cta-card__pub-icon" />
+                                            {publication.profile_photo ? (
+                                                <img src={publication.profile_photo} alt={publication.title} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <Icon name="menu_book" className="blog-cta-card__pub-icon" />
+                                            )}
                                         </div>
                                         <div className="blog-cta-card__info">
                                             <Link to={`/publication/${publication.slug}`} className="blog-cta-card__name">{publication.title}</Link>

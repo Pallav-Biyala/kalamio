@@ -19,7 +19,7 @@ export const latestPosts = (req, res) => {
 
     Post.find(findQuery)
     .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname")
-    .populate("publication", "title slug")
+    .populate("publication", "title slug profile_photo")
     .sort({ "publishedAt": -1 })
     .select("blog_id title des banner activity tags readTime publishedAt publication type text_content images poll edited author")
     .limit(maxLimit)
@@ -55,7 +55,7 @@ export const trendingPosts = (req, res) => {
 
     Post.find({ draft: false, type: { $ne: 'text_post' } })
     .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname")
-    .populate("publication", "title slug")
+    .populate("publication", "title slug profile_photo")
     .sort({ "activity.total_reads": -1, "activity.total_likes": -1, "publishedAt": -1 })
     .select("blog_id title des banner activity tags readTime publishedAt publication type text_content images poll edited author")
     .limit(5)
@@ -89,7 +89,7 @@ export const searchPosts = (req, res) => {
 
     Post.find(findQuery)
     .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname")
-    .populate("publication", "title slug")
+    .populate("publication", "title slug profile_photo")
     .sort({ "publishedAt": -1 })
     .select("blog_id title des banner activity tags readTime publishedAt publication type text_content images poll edited author")
     .skip((page - 1) * maxLimit)
@@ -138,7 +138,7 @@ export const getPost = (req, res) => {
 
     Post.findOne({ blog_id })
         .populate("author", "personal_info.fullname personal_info.username personal_info.profile_img personal_info.bio account_info.total_posts account_info.total_reads")
-        .populate("publication", "title slug description total_subscribers total_posts")
+        .populate("publication", "title slug description total_subscribers total_posts profile_photo")
         .select("title des content banner activity publishedAt blog_id tags draft author publication type text_content images poll")
         .then(blog => {
             if (!blog) {

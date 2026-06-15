@@ -116,26 +116,30 @@ export const addComment = (req, res) => {
 };
 
 // Get blog comments
-export const getBlogComments = (req, res) => {
+export const getBlogComments = async (req, res) => {
 
     let { blog_id, skip } = req.body;
 
     let maxLimit = 5;
 
-    Comment.find({ blog_id, isReply: false })
-    .populate("commented_by", "personal_info.username personal_info.fullname personal_info.profile_img")
-    .skip(skip)
-    .limit(maxLimit)
-    .sort({
-        'commentedAt': -1
-    })
-    .then(comment => {
+    try {
+        // Auto-sync counter
+        const actual_count = await Comment.countDocuments({ blog_id, isReply: false });
+        await Post.updateOne({ _id: blog_id }, { $set: { "activity.total_parent_comments": actual_count } });
+
+        const comment = await Comment.find({ blog_id, isReply: false })
+            .populate("commented_by", "personal_info.username personal_info.fullname personal_info.profile_img")
+            .skip(skip)
+            .limit(maxLimit)
+            .sort({
+                'commentedAt': -1
+            });
+            
         return res.status(200).json(comment);
-    })
-    .catch(err => {
+    } catch (err) {
         console.error('[Comment] getBlogComments failed:', err.message);
-        return res.status(500).json({ error: err.message })
-    })
+        return res.status(500).json({ error: err.message });
+    }
 
 };
 

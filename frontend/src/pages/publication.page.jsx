@@ -143,7 +143,8 @@ const PublicationPage = () => {
                         </div>
                     )}
                     <div className="publication-header__content">
-                        <div className="publication-header__top-row">
+                        {/* Row: profile photo + info */}
+                        <div className="publication-header__identity">
                             <div className="publication-header__profile-photo">
                                 {profile_photo ? (
                                     <img src={profile_photo} alt={title} />
@@ -153,9 +154,28 @@ const PublicationPage = () => {
                                     </span>
                                 )}
                             </div>
-                            
-                            <div className="publication-header__title-actions">
+                            <div className="publication-header__info">
                                 <h1 className="publication-header__title">{title}</h1>
+                                <div className="publication-header__meta-line">
+                                    <Link to={`/user/${owner.personal_info.username}`} className="publication-header__handle">
+                                        @{owner.personal_info.username}
+                                    </Link>
+                                    <span className="publication-header__meta-dot">·</span>
+                                    <span>{displaySubs.toLocaleString()} subscribers</span>
+                                    <span className="publication-header__meta-dot">·</span>
+                                    <span>{total_posts.toLocaleString()} articles</span>
+                                </div>
+                                {description && (
+                                    <div className="publication-header__description-wrapper">
+                                        <span className="publication-header__description">{description}</span>
+                                        <button 
+                                            className="publication-header__more-btn"
+                                            onClick={() => document.querySelector('[data-tab="About"]')?.click()}
+                                        >
+                                            ...more
+                                        </button>
+                                    </div>
+                                )}
                                 <div className="publication-header__actions">
                                     <SubscribeButton
                                         publicationId={pubId}
@@ -173,43 +193,19 @@ const PublicationPage = () => {
                             </div>
                         </div>
 
-                        <div className="publication-header__bottom-section">
-                            {description && (
-                                <p className="publication-header__description">{description}</p>
-                            )}
-
-                            <div className="publication-header__meta-row">
-                                <Link to={`/user/${owner.personal_info.username}`} className="publication-header__owner">
-                                    <Avatar src={owner.personal_info.profile_img} alt={owner.personal_info.fullname} size={24} />
-                                    <span>by <strong>{owner.personal_info.fullname}</strong></span>
-                                </Link>
-
-                                <div className="publication-header__stats">
-                                    <span className="publication-stat">
-                                        <Icon name="group" className="publication-stat__icon" />
-                                        {displaySubs.toLocaleString()} subscribers
-                                    </span>
-                                    <span className="publication-stat">
-                                        <Icon name="article" className="publication-stat__icon" />
-                                        {total_posts.toLocaleString()} articles
-                                    </span>
-                                </div>
-
-                                {tags?.length > 0 && (
-                                    <div className="publication-header__tags">
-                                        {tags.map((tag, i) => (
-                                            <Link key={i} to={`/search/${tag}`} className="publication-tag">
-                                                {tag}
-                                            </Link>
-                                        ))}
-                                    </div>
-                                )}
+                        {tags?.length > 0 && (
+                            <div className="publication-header__tags">
+                                {tags.map((tag, i) => (
+                                    <Link key={i} to={`/search/${tag}`} className="publication-tag">
+                                        {tag}
+                                    </Link>
+                                ))}
                             </div>
-                        </div>
+                        )}
                     </div>
                 </div>
 
-                <div className="w-full mt-4">
+                <div className="w-full mt-4 px-4 md:px-0">
                     <InPageNavigation 
                         routes={["Home", "Articles", "Posts", "Collections", "About"]}
                         className="rounded-2xl"

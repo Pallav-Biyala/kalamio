@@ -142,7 +142,11 @@ const TextPostCard = ({ content, author, onEdit }) => {
                         <span className="feed-card__meta">
                             {publication && (
                                 <span className="feed-card__pub-label" onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(`/publication/${publication.slug}`); }} role="link" tabIndex={0}>
-                                    <Icon name="import_contacts" className="feed-card__pub-icon" />
+                                    {publication.profile_photo ? (
+                                        <img src={publication.profile_photo} alt={publication.title} className="feed-card__pub-icon" style={{ width: '14px', height: '14px', borderRadius: '2px', objectFit: 'cover' }} />
+                                    ) : (
+                                        <Icon name="import_contacts" className="feed-card__pub-icon" />
+                                    )}
                                     {publication.title}
                                 </span>
                             )}
