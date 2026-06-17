@@ -70,13 +70,14 @@ const MobileTopBar = () => {
             ) : (
                 <>
                     {/* Left: Logo + Brand name */}
-                    <Link to="/" className="mobile-top-bar__brand">
+                    <Link to="/" className="mobile-top-bar__brand flex items-center">
                         <img
                             src={theme === "light" ? darkLogo : lightLogo}
                             alt="Kalamio logo"
                             className="mobile-top-bar__brand-icon"
                         />
                         <span className="mobile-top-bar__brand-name">Kalamio</span>
+                        <span className="bg-[#FF6B00]/10 text-[#FF6B00] text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1 border border-[#FF6B00]/20 leading-none">BETA</span>
                     </Link>
 
                     {/* Right: Notification + Search */}

@@ -11,7 +11,7 @@ import Avatar from "./Avatar";
 
 const navItems = [
     { to: "/", icon: "home", label: "Home", end: true },
-    { to: "/reads", icon: "auto_stories", label: "Articles" },
+    { to: "/reads", icon: "auto_stories", label: "Scrolls" },
     { to: "/search/", icon: "explore", label: "Explore" },
     { to: "/subscriptions", icon: "subscriptions", label: "Subscriptions", authOnly: true },
     { to: "/dashboard/publications", icon: "import_contacts", label: "Publications", authOnly: true },
@@ -59,12 +59,13 @@ const LeftSidebar = () => {
         <>
         <aside className="left-sidebar">
             {/* Logo */}
-            <Link to="/" className="left-sidebar__logo">
+            <Link to="/" className="left-sidebar__logo flex items-center">
                 <img
                     src={theme === "light" ? darkLogo : lightLogo}
                     alt="Kalamio logo"
                 />
                 <span className="left-sidebar__logo-text">Kalamio</span>
+                <span className="bg-[#FF6B00]/10 text-[#FF6B00] text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-2 border border-[#FF6B00]/20 leading-none mt-1">BETA</span>
             </Link>
 
             {/* Navigation */}

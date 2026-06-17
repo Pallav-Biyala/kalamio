@@ -3,6 +3,7 @@ import { getRelativeTime } from "../common/date";
 import Icon from "./Icon";
 import Avatar from "./Avatar";
 import PostMenu from "./post-menu.component";
+import CommentField from "./comment-field.component";
 import { useContext, useState, useEffect } from "react";
 import { UserContext } from "../App";
 import toast from "react-hot-toast";
@@ -19,10 +20,16 @@ const BlogPostCard = ({ content, author }) => {
 
    const [isLiked, setIsLiked] = useState(false);
    const [likesCount, setLikesCount] = useState(total_likes);
+   const [commentsCount, setCommentsCount] = useState(total_comments);
+   const [showCommentModal, setShowCommentModal] = useState(false);
 
    useEffect(() => {
        setLikesCount(total_likes);
    }, [total_likes]);
+
+   useEffect(() => {
+       setCommentsCount(total_comments);
+   }, [total_comments]);
 
    useEffect(() => {
         if(access_token){
@@ -116,10 +123,18 @@ const BlogPostCard = ({ content, author }) => {
                     <Icon name={isLiked ? "favorite" : "favorite_border"} />
                     <span>{likesCount > 0 ? formatCount(likesCount) : "0"}</span>
                 </button>
-                <span className="feed-card__action">
+                <button 
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (!access_token) return toast.error("Please login to comment");
+                        setShowCommentModal(true);
+                    }}
+                    className="feed-card__action"
+                >
                     <Icon name="chat_bubble_outline" />
-                    <span>{total_comments > 0 ? total_comments : "0"}</span>
-                </span>
+                    <span>{commentsCount > 0 ? commentsCount : "0"}</span>
+                </button>
                 <span className="feed-card__action">
                     <Icon name="bookmark_border" />
                     <span className="hidden sm:inline">Save</span>
@@ -129,6 +144,19 @@ const BlogPostCard = ({ content, author }) => {
                     <span className="hidden sm:inline">Share</span>
                 </span>
             </div>
+
+            {/* Comment Modal */}
+            {showCommentModal && (
+                <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                    <CommentField 
+                        action="comment" 
+                        defaultOpen={true} 
+                        onClose={() => setShowCommentModal(false)}
+                        customBlogData={{ ...content, author }}
+                        onCommentPosted={() => setCommentsCount(prev => prev + 1)}
+                    />
+                </div>
+            )}
         </div>
     )
 }

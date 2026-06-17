@@ -1,7 +1,7 @@
 import api from "../common/api";
 import usePageTitle from "../common/usePageTitle";
 import { createContext, useContext, useEffect, useState } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
 import AnimationWrapper from "../common/page-animation";
 import Loader from "../components/loader.component";
 import { getDay } from "../common/date";
@@ -123,6 +123,7 @@ const BlogPage = () => {
 
     let { blog_id } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const [ blog, setBlog ] = useState(blogStructure);
     const [ similarBlogs, setSimilarBlogs ] = useState(null);
@@ -182,6 +183,10 @@ const BlogPage = () => {
         resetStates();
         window.scrollTo(0, 0);
         fetchBlog();
+
+        if (location.state?.openComments) {
+            setCommentsWrapper(true);
+        }
 
     }, [blog_id])
 
@@ -268,44 +273,55 @@ const BlogPage = () => {
                                     <span className="font-semibold text-xl text-dark-grey">Article</span>
                                 </div>
                                 
-                                {banner && <img src={banner} className="aspect-video rounded-radius-lg" alt={title} />}
 
-                                <div className="mt-12">
-                                    <h2 className="font-display text-4xl font-semibold leading-tight">{title}</h2>
+                                <div className="max-w-[700px] mx-auto mt-4 md:mt-8">
+                                    <h1 className="text-4xl md:text-5xl font-bold font-gelasio leading-tight md:leading-[1.1] text-black mb-8 tracking-tight">{title}</h1>
 
-                                    <div className="flex max-sm:flex-col justify-between my-8">
-                                        <div className="flex gap-5 items-start">
-                                            <Avatar src={profile_img} alt={fullname} size={48} />
-
-                                            <p className="capitalize">
+                                    <div className="flex items-center gap-4 mb-6">
+                                        <Avatar src={profile_img} alt={fullname} size={48} />
+                                        <div className="flex flex-col">
+                                            <p className="font-semibold text-black capitalize">
                                                 {fullname}
-                                                <br />
-                                                <Link to={`/user/${author_username}`} className="text-dark-grey text-sm hover:text-black transition-colors">@{author_username}</Link>
+                                            </p>
+                                            <p className="text-dark-grey text-sm mt-0.5 flex items-center gap-1.5">
+                                                {isDraft ? "Draft" : getDay(publishedAt)}
                                                 {publication && (
                                                     <>
-                                                        <span className="text-dark-grey text-sm"> in </span>
-                                                        <Link to={`/publication/${publication.slug}`} className="blog-page__pub-link">
-                                                            <Icon name="import_contacts" className="blog-page__pub-link-icon" />
+                                                        <span className="text-grey/50">•</span>
+                                                        <span>Published in</span>
+                                                        <Link to={`/publication/${publication.slug}`} className="text-black hover:underline transition-colors font-medium">
                                                             {publication.title}
                                                         </Link>
                                                     </>
                                                 )}
                                             </p>
-
                                         </div>
-                                        <p className="text-dark-grey opacity-75 max-sm:mt-6 max-sm:ml-12 max-sm:pl-5 text-sm">
-                                            {isDraft ? "Draft" : `Published on ${getDay(publishedAt)}`}
-                                        </p>
                                     </div>
+
+                                    {!isDraft && (
+                                        <div className="mb-8">
+                                            <BlogInteraction />
+                                        </div>
+                                    )}
                                 </div>
 
-                                {!isDraft && <BlogInteraction />}
-                                
-                                <div className="my-12 font-merriweather blog-page-content" style={{ lineHeight: '1.9' }}>
-                                    <BlogContent content={content} />
-                                </div>
+                                {banner && (
+                                    <div className="my-8 md:my-12 max-sm:-mx-[5vw] sm:max-w-[800px] sm:mx-auto">
+                                        <img 
+                                            src={banner} 
+                                            className="w-full aspect-video md:aspect-[2/1] object-cover sm:rounded-2xl shadow-xl shadow-black/5" 
+                                            alt={title} 
+                                        />
+                                    </div>
+                                )}
 
-                                {!isDraft && <BlogInteraction />}
+                                <div className="max-w-[700px] mx-auto">
+                                    <div className="my-8 font-merriweather blog-page-content" style={{ lineHeight: '1.9' }}>
+                                        <BlogContent content={content} />
+                                    </div>
+
+                                    {!isDraft && <BlogInteraction />}
+                                </div>
                             </>
                         )}
 

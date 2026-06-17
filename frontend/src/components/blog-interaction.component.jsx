@@ -67,18 +67,18 @@ const BlogInteraction = () => {
     return (
         <>
 
-            <hr className="border-border my-2" />
+            <hr className="border-border/50 my-2" />
 
             <div className="flex gap-4 sm:gap-6 justify-between flex-wrap py-1">
-                <div className="flex gap-3 items-center">
+                <div className="flex gap-2.5 items-center">
 
                     <button 
                         onClick={handleLike}
-                        className={"w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-90 " + ( isLikedByUser ? "bg-red/10 text-red" : "bg-grey hover:bg-grey/80" )}
+                        className={"w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-90 " + ( isLikedByUser ? "bg-red/10 text-red" : "bg-grey hover:bg-grey/80" )}
                     >
-                        <Icon name="favorite" filled={isLikedByUser} />
+                        <Icon name="favorite" filled={isLikedByUser} className="text-[18px]" />
                     </button>
-                    <p className="text-xl text-dark-grey">{total_likes}</p>
+                    <p className="text-base text-dark-grey">{total_likes}</p>
 
 
                     <button 
@@ -89,11 +89,11 @@ const BlogInteraction = () => {
                                 setTimeout(() => commentBox.click(), 400);
                             }
                         }}
-                        className="w-10 h-10 rounded-full flex items-center justify-center bg-grey hover:bg-grey/80 transition-colors"
+                        className="w-8 h-8 rounded-full flex items-center justify-center bg-grey hover:bg-grey/80 transition-colors ml-2"
                     >
-                        <Icon name="chat_bubble" />
+                        <Icon name="chat_bubble" className="text-[18px]" />
                     </button>
-                    <p className="text-xl text-dark-grey">{total_comments}</p>
+                    <p className="text-base text-dark-grey">{total_comments}</p>
 
                 </div>
 
@@ -101,23 +101,23 @@ const BlogInteraction = () => {
 
                     {
                         username == author_username ?
-                        <Link to={`/editor/${blog_id}`} className="text-dark-grey hover:text-black transition-colors flex items-center gap-1.5 text-sm font-medium">
-                            <Icon name="edit" className="text-xl" />
+                        <Link to={`/editor/${blog_id}`} className="text-dark-grey hover:text-black transition-colors flex items-center gap-1 text-sm font-medium">
+                            <Icon name="edit" className="text-lg" />
                             Edit
                         </Link> : ""
                     }
 
                     <button 
                         onClick={handleShare}
-                        className="text-dark-grey hover:text-black transition-colors flex items-center gap-1.5 text-sm font-medium"
+                        className="text-dark-grey hover:text-black transition-colors flex items-center gap-1 text-sm font-medium"
                     >
-                        <Icon name="link" className="text-xl" />
+                        <Icon name="link" className="text-lg" />
                         Share
                     </button>
                 </div>
             </div>
 
-            <hr className="border-border my-2" />
+            <hr className="border-border/50 my-2" />
         </>
     )
 }

@@ -1,5 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Cormorant+Garamond:wght@700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block');
 @import "./editor-theme.css";
 
 @tailwind base;
@@ -305,7 +305,15 @@ body,
     }
 
     #textEditor *, .blog-page-content *{
-        @apply font-merriweather text-xl leading-10 md:text-2xl;
+        font-family: 'Merriweather', Charter, Georgia, serif !important;
+        word-spacing: 0.25em;
+        font-weight: 300;
+        color: rgb(var(--c-black) / 0.85);
+        @apply text-xl leading-10 md:text-2xl;
+    }
+
+    #textEditor p, .blog-page-content p {
+        margin-bottom: 1.5em;
     }
 
     #textEditor a, .blog-page-content a{

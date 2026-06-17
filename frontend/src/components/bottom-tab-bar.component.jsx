@@ -1,5 +1,5 @@
 import { useContext, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { UserContext } from "../App";
 import Icon from "./Icon";
 import Avatar from "./Avatar";
@@ -9,6 +9,7 @@ const BottomTabBar = () => {
 
     const { userAuth: { access_token, profile_img } } = useContext(UserContext);
     const navigate = useNavigate();
+    const location = useLocation();
 
     const [showFabMenu, setShowFabMenu] = useState(false);
     const [showComposer, setShowComposer] = useState(false);
@@ -106,8 +107,8 @@ const BottomTabBar = () => {
             )}
         </nav>
 
-        {/* Floating Action Button (FAB) — bottom right, like Twitter/X */}
-        {access_token && (
+        {/* Floating Action Button (FAB) — bottom right, only on Home */}
+        {access_token && location.pathname === "/" && (
             <div className="fab-container">
                 {showFabMenu && (
                     <>

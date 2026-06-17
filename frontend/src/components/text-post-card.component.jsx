@@ -3,7 +3,7 @@ import { getRelativeTime } from "../common/date";
 import Icon from "./Icon";
 import Avatar from "./Avatar";
 import PostMenu from "./post-menu.component";
-import TextPostComposer from "./text-post-composer.component";
+import CommentField from "./comment-field.component";
 import { useContext, useState, useEffect, useRef } from "react";
 import { UserContext } from "../App";
 import toast from "react-hot-toast";
@@ -25,6 +25,7 @@ const TextPostCard = ({ content, author, onEdit }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [needsTruncation, setNeedsTruncation] = useState(false);
     const [isReplying, setIsReplying] = useState(false);
+    const [commentsCount, setCommentsCount] = useState(total_comments);
     const textRef = useRef(null);
 
     useEffect(() => {
@@ -263,7 +264,7 @@ const TextPostCard = ({ content, author, onEdit }) => {
                     className="feed-card__action"
                 >
                     <Icon name="chat_bubble_outline" />
-                    <span>{total_comments > 0 ? total_comments : "0"}</span>
+                    <span>{commentsCount > 0 ? commentsCount : "0"}</span>
                 </button>
                 <span className="feed-card__action">
                     <Icon name="bookmark_border" />
@@ -276,12 +277,15 @@ const TextPostCard = ({ content, author, onEdit }) => {
             </div>
 
             {isReplying && (
-                <TextPostComposer 
-                    isOpen={isReplying}
-                    onClose={() => setIsReplying(false)}
-                    replyTo={content} 
-                    onPosted={() => setIsReplying(false)}
-                />
+                <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                    <CommentField 
+                        action="comment" 
+                        defaultOpen={true} 
+                        onClose={() => setIsReplying(false)}
+                        customBlogData={{ ...content, author }}
+                        onCommentPosted={() => setCommentsCount(prev => prev + 1)}
+                    />
+                </div>
             )}
         </div>
     );

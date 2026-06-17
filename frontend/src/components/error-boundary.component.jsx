@@ -22,45 +22,16 @@ class ErrorBoundary extends Component {
     render() {
         if (this.state.hasError) {
             return (
-                <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minHeight: '60vh',
-                    padding: '2rem',
-                    textAlign: 'center',
-                    fontFamily: "'DM Sans', sans-serif",
-                }}>
-                    <h2 style={{
-                        fontSize: '1.5rem',
-                        fontWeight: 600,
-                        marginBottom: '1rem',
-                        color: 'var(--text-primary, #f5f5f5)',
-                    }}>
+                <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center font-inter">
+                    <h2 className="text-2xl font-semibold mb-4 text-black">
                         Something went wrong
                     </h2>
-                    <p style={{
-                        fontSize: '0.95rem',
-                        color: 'var(--text-secondary, #a0a0a0)',
-                        marginBottom: '1.5rem',
-                        maxWidth: '400px',
-                    }}>
+                    <p className="text-[0.95rem] text-dark-grey mb-6 max-w-[400px]">
                         An unexpected error occurred. Please try refreshing the page.
                     </p>
                     <button
                         onClick={() => window.location.reload()}
-                        style={{
-                            padding: '0.6rem 1.5rem',
-                            borderRadius: '8px',
-                            border: 'none',
-                            background: 'var(--accent, #6366f1)',
-                            color: '#fff',
-                            fontSize: '0.9rem',
-                            fontWeight: 500,
-                            cursor: 'pointer',
-                            fontFamily: "'DM Sans', sans-serif",
-                        }}
+                        className="px-6 py-2.5 rounded-lg border-none bg-[#FF6B00] text-white text-[0.9rem] font-medium cursor-pointer transition-opacity hover:opacity-90 active:scale-95"
                     >
                         Refresh Page
                     </button>
