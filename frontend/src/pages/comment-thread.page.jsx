@@ -30,8 +30,7 @@ const CommentThreadPage = () => {
     const buildBlogObj = (blogCtx, repliesArr, comment) => {
         if (!blogCtx || !comment) return null;
         return {
-            _id: comment._id,
-            blog_id: blogCtx._id,
+            _id: blogCtx._id, // Must be the real Post ID for correct DB updates
             title: comment.comment || '',
             text_content: comment.comment || '',
             type: 'text_post',
@@ -173,7 +172,7 @@ const CommentThreadPage = () => {
                                     <Link to={`/user/${authorUsername}`} className="comment-thread__post-author">{authorName}</Link>
                                     <span className="comment-thread__post-date">{getDay(blogContext.publishedAt)}</span>
                                 </div>
-                                <Link to={`/blog/${blogContext._id}`} className="comment-thread__post-body">
+                                <Link to={`/blog/${blogContext.blog_id}`} className="comment-thread__post-body">
                                     <p className="comment-thread__post-text">
                                         {blogContext.text_content || blogContext.title}
                                     </p>
@@ -251,7 +250,7 @@ const CommentThreadPage = () => {
 
                     {/* ── Replies Section ── */}
                     <div className="comment-thread__replies">
-                        <CommentField action="Comment" />
+                        <CommentField action="Comment" replyingTo={parentComment._id} />
 
                         <div className="comments-section__list">
                             {replies.length > 0 ? 

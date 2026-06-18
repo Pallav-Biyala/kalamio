@@ -229,7 +229,7 @@ export const getCommentThread = async (req, res) => {
 
         let blog = await Post.findOne({ _id: comment.blog_id })
             .populate("author", "personal_info.username personal_info.fullname personal_info.profile_img")
-            .select("title text_content author publishedAt activity type images poll");
+            .select("title text_content author publishedAt activity type images poll blog_id");
 
         return res.status(200).json({ comment, ancestors, blog_context: blog });
     } catch (err) {

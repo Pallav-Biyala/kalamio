@@ -5,24 +5,123 @@ import api from "../common/api";
 import { BlogContext } from "../pages/blog.page";
 import { getDay } from "../common/date";
 import Avatar from "./Avatar";
+import Icon from "./Icon";
 
-const CommentField = ({ action, index = undefined, replyingTo = undefined, setReplying }) => {
+const CommentField = ({ action, index = undefined, replyingTo = undefined, setReplying, defaultOpen = false, onClose, customBlogData, onCommentPosted }) => {
 
-    let { blog, blog: { _id, author: { _id: blog_author }, comments, comments: { results: commentsArr }, activity, activity: { total_comments, total_parent_comments } }, setBlog, setTotalParentCommentsLoaded } = useContext(BlogContext);
+    let blogContext = useContext(BlogContext);
+    
+    // Fallback to custom data if used outside of blog details (e.g. in feed)
+    let blogData = customBlogData || (blogContext ? blogContext.blog : null);
 
     let { userAuth: { access_token, username, profile_img, fullname } } = useContext(UserContext);
 
     const [ comment, setComment ] = useState("");
-    const [ showModal, setShowModal ] = useState(false);
+    const [ showModal, setShowModal ] = useState(defaultOpen);
     const textareaRef = useRef(null);
 
+    // Mentions state
+    const [ mentionQuery, setMentionQuery ] = useState("");
+    const [ showMentions, setShowMentions ] = useState(false);
+    const [ mentionResults, setMentionResults ] = useState([]);
+    const [ mentionIndex, setMentionIndex ] = useState(-1);
+    const mentionTimeoutRef = useRef(null);
+
     const isReply = action === 'reply';
+
+    useEffect(() => {
+        if (defaultOpen !== undefined) setShowModal(defaultOpen);
+    }, [defaultOpen]);
 
     useEffect(() => {
         if (showModal && textareaRef.current) {
             textareaRef.current.focus();
         }
-    }, [showModal]);
+
+        // Lock body scroll when modal is open
+        if (showModal && !isReply) {
+            document.body.style.overflow = 'hidden';
+            document.documentElement.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+            document.documentElement.style.overflow = '';
+        }
+
+        return () => {
+            document.body.style.overflow = '';
+            document.documentElement.style.overflow = '';
+        };
+    }, [showModal, isReply]);
+
+    const fetchMentions = async (query) => {
+        try {
+            const { data } = await api.post("/search-connections-follows", { query });
+            setMentionResults(data.users || []);
+        } catch (err) {
+            setMentionResults([]);
+        }
+    };
+
+    const detectMention = (textarea) => {
+        const val = textarea.value;
+        const cursorPosition = textarea.selectionStart;
+        const textBeforeCursor = val.slice(0, cursorPosition);
+        const match = textBeforeCursor.match(/(?:^|[\s\n])@([\w.]*)$/);
+        
+        if (match) {
+            const query = match[1];
+            setMentionQuery(query);
+            setShowMentions(true);
+            setMentionIndex(textBeforeCursor.lastIndexOf("@"));
+            
+            clearTimeout(mentionTimeoutRef.current);
+            mentionTimeoutRef.current = setTimeout(() => {
+                fetchMentions(query);
+            }, 300);
+        } else {
+            setShowMentions(false);
+        }
+    };
+
+    const handleMentionIconClick = () => {
+        if (!textareaRef.current) return;
+        const cursorPosition = textareaRef.current.selectionStart;
+        const textBefore = comment.slice(0, cursorPosition);
+        const textAfter = comment.slice(cursorPosition);
+        
+        setComment(`${textBefore}@${textAfter}`);
+        
+        setTimeout(() => {
+            if (textareaRef.current) {
+                textareaRef.current.focus();
+                textareaRef.current.setSelectionRange(cursorPosition + 1, cursorPosition + 1);
+                detectMention(textareaRef.current);
+            }
+        }, 0);
+    };
+
+    const insertMention = (username) => {
+        const textBefore = comment.slice(0, mentionIndex);
+        const afterMentionPos = mentionIndex + 1 + mentionQuery.length;
+        const textAfter = comment.slice(afterMentionPos);
+        const newText = `${textBefore}@${username} ${textAfter}`;
+        
+        setComment(newText);
+        setShowMentions(false);
+        setMentionResults([]);
+        
+        setTimeout(() => {
+            if (textareaRef.current) {
+                textareaRef.current.focus();
+                const newPos = textBefore.length + username.length + 2;
+                textareaRef.current.setSelectionRange(newPos, newPos);
+            }
+        }, 0);
+    };
+
+    const handleCursorMove = (e) => {
+        detectMention(e.target);
+    };
 
     const handleComment = () => {
 
@@ -34,6 +133,11 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
             return toast.error("Write something to leave a comment")
         }
 
+        if(!blogData) return;
+
+        let _id = blogData._id;
+        let blog_author = blogData.author._id;
+
         api.post("/add-comment", {
             _id, blog_author, comment, replying_to: replyingTo
         })
@@ -41,45 +145,52 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
             
             setComment("");
             setShowModal(false);
+            if (onClose) onClose();
 
             data.commented_by = { personal_info: { username, profile_img, fullname } }
 
-            let newCommentArr;
-
-            if(replyingTo){
-                
-                commentsArr[index].children.push(data._id);
-
-                data.childrenLevel = commentsArr[index].childrenLevel + 1;
-                data.parentIndex = index;
-
-                commentsArr[index].isReplyLoaded = true;
-
-                commentsArr.splice(index + 1, 0, data);
-
-                newCommentArr = commentsArr;
-
-                if (setReplying) setReplying(false);
-
-            } else{
-                data.childrenLevel = 0;
-                newCommentArr = [ data, ...commentsArr ];
+            if (onCommentPosted) {
+                onCommentPosted(data);
             }
 
-            let parentCommentIncrementVal = replyingTo ? 0 : 1;
+            if (blogContext && blogContext.setBlog) {
+                let newCommentArr;
+                let commentsArr = blogContext.blog.comments?.results || [];
+                let activity = blogContext.blog.activity || { total_comments: 0, total_parent_comments: 0 };
+                let total_comments = activity.total_comments;
+                let total_parent_comments = activity.total_parent_comments;
 
-            setBlog({ ...blog, 
-                comments: { ...comments, results: newCommentArr }, 
-                activity: { ...activity, 
-                    total_comments: total_comments + 1, 
-                    total_parent_comments: total_parent_comments + parentCommentIncrementVal 
-                } 
-            })
+                if(replyingTo && index !== undefined){
+                    commentsArr[index].children.push(data._id);
+                    data.childrenLevel = commentsArr[index].childrenLevel + 1;
+                    data.parentIndex = index;
+                    commentsArr[index].isReplyLoaded = true;
+                    commentsArr.splice(index + 1, 0, data);
+                    newCommentArr = commentsArr;
+                    if (setReplying) setReplying(false);
+                } else {
+                    data.childrenLevel = 0;
+                    newCommentArr = [ data, ...commentsArr ];
+                }
 
-            setTotalParentCommentsLoaded(preVal => preVal + parentCommentIncrementVal)
+                let parentCommentIncrementVal = replyingTo ? 0 : 1;
+
+                blogContext.setBlog({ ...blogContext.blog, 
+                    comments: { ...blogContext.blog.comments, results: newCommentArr }, 
+                    activity: { ...activity, 
+                        total_comments: total_comments + 1, 
+                        total_parent_comments: total_parent_comments + parentCommentIncrementVal 
+                    } 
+                });
+
+                if (blogContext.setTotalParentCommentsLoaded) {
+                    blogContext.setTotalParentCommentsLoaded(preVal => preVal + parentCommentIncrementVal);
+                }
+            }
 
         })
         .catch(err => {
+            toast.error(err.message || "Failed to post comment");
         })
 
     }
@@ -94,7 +205,10 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
     const closeModal = () => {
         setShowModal(false);
         setComment("");
+        if (onClose) onClose();
     };
+
+    if(!blogData) return null;
 
     // ── Inline reply mode (inside comment cards) ──
     if (isReply) {
@@ -110,7 +224,10 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
                             setComment(e.target.value);
                             e.target.style.height = 'auto';
                             e.target.style.height = e.target.scrollHeight + 'px';
+                            detectMention(e.target);
                         }}
+                        onClick={handleCursorMove}
+                        onKeyUp={handleCursorMove}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && !e.shiftKey && comment.trim().length > 0) {
                                 e.preventDefault();
@@ -121,7 +238,63 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
                         className="comment-input__textarea"
                         rows={1}
                     />
+                    
+                    {showMentions && (
+                        <div className="mention-dropdown">
+                            <div className="mention-dropdown__header">
+                                <Icon name="search" className="mention-dropdown__search-icon" />
+                                <input 
+                                    type="text" 
+                                    className="mention-dropdown__search-input" 
+                                    placeholder="Search people..."
+                                    value={mentionQuery}
+                                    onChange={(e) => {
+                                        setMentionQuery(e.target.value);
+                                        clearTimeout(mentionTimeoutRef.current);
+                                        mentionTimeoutRef.current = setTimeout(() => {
+                                            fetchMentions(e.target.value);
+                                        }, 300);
+                                    }}
+                                />
+                                <button className="mention-dropdown__close" onClick={() => setShowMentions(false)}>
+                                    <Icon name="close" className="text-base" />
+                                </button>
+                            </div>
+                            <div className="mention-dropdown__list">
+                                {mentionResults.length > 0 ? (
+                                    mentionResults.map((user, i) => (
+                                        <div 
+                                            key={i} 
+                                            className="mention-dropdown__item"
+                                            onClick={() => insertMention(user.personal_info.username)}
+                                        >
+                                            <Avatar src={user.personal_info.profile_img} alt={user.personal_info.fullname} size={28} />
+                                            <div className="mention-dropdown__info">
+                                                <span className="mention-dropdown__fullname">{user.personal_info.fullname}</span>
+                                                <span className="mention-dropdown__username">@{user.personal_info.username}</span>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="p-3 text-center text-sm text-dark-grey">No users found</div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="comment-input__actions">
+                        <div className="flex gap-2 mr-auto">
+                            <button
+                                className="tp-composer__tool-btn p-1 flex items-center justify-center hover:bg-grey rounded-full transition-colors"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    handleMentionIconClick();
+                                }}
+                                title="Mention someone"
+                            >
+                                <Icon name="alternate_email" />
+                            </button>
+                        </div>
                         <button 
                             className="comment-input__cancel"
                             onClick={() => { setComment(""); if (setReplying) setReplying(false); }}
@@ -160,8 +333,8 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
                         <div className="reply-modal__row">
                             <div className="reply-modal__left">
                                 <Avatar 
-                                    src={blog.author.personal_info.profile_img} 
-                                    alt={blog.author.personal_info.fullname} 
+                                    src={blogData.author.personal_info.profile_img} 
+                                    alt={blogData.author.personal_info.fullname} 
                                     size={36} 
                                 />
                                 <div className="reply-modal__line"></div>
@@ -169,16 +342,16 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
                             <div className="reply-modal__right">
                                 <div className="reply-modal__header">
                                     <span className="reply-modal__name">
-                                        {blog.author.personal_info.fullname}
+                                        {blogData.author.personal_info.fullname}
                                     </span>
-                                    {blog.publishedAt && (
+                                    {blogData.publishedAt && (
                                         <span className="reply-modal__time">
-                                            {getDay(blog.publishedAt)}
+                                            {getDay(blogData.publishedAt)}
                                         </span>
                                     )}
                                 </div>
                                 <div className="reply-modal__text">
-                                    {blog.text_content || blog.title}
+                                    {blogData.text_content || blogData.title}
                                 </div>
                             </div>
                         </div>
@@ -199,7 +372,10 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
                                         setComment(e.target.value);
                                         e.target.style.height = 'auto';
                                         e.target.style.height = e.target.scrollHeight + 'px';
+                                        detectMention(e.target);
                                     }}
+                                    onClick={handleCursorMove}
+                                    onKeyUp={handleCursorMove}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' && !e.shiftKey && comment.trim().length > 0) {
                                             e.preventDefault();
@@ -211,9 +387,60 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
                             </div>
                         </div>
 
+                        {showMentions && (
+                            <div className="mention-dropdown">
+                                <div className="mention-dropdown__header">
+                                    <Icon name="search" className="mention-dropdown__search-icon" />
+                                    <input 
+                                        type="text" 
+                                        className="mention-dropdown__search-input" 
+                                        placeholder="Search people..."
+                                        value={mentionQuery}
+                                        onChange={(e) => {
+                                            setMentionQuery(e.target.value);
+                                            clearTimeout(mentionTimeoutRef.current);
+                                            mentionTimeoutRef.current = setTimeout(() => {
+                                                fetchMentions(e.target.value);
+                                            }, 300);
+                                        }}
+                                    />
+                                    <button className="mention-dropdown__close" onClick={() => setShowMentions(false)}>
+                                        <Icon name="close" className="text-base" />
+                                    </button>
+                                </div>
+                                <div className="mention-dropdown__list">
+                                    {mentionResults.length > 0 ? (
+                                        mentionResults.map((user, i) => (
+                                            <div 
+                                                key={i} 
+                                                className="mention-dropdown__item"
+                                                onClick={() => insertMention(user.personal_info.username)}
+                                            >
+                                                <Avatar src={user.personal_info.profile_img} alt={user.personal_info.fullname} size={28} />
+                                                <div className="mention-dropdown__info">
+                                                    <span className="mention-dropdown__fullname">{user.personal_info.fullname}</span>
+                                                    <span className="mention-dropdown__username">@{user.personal_info.username}</span>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="p-3 text-center text-sm text-dark-grey">No users found</div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Footer */}
                         <div className="reply-modal__footer">
-                            <div></div>
+                            <div className="flex gap-2">
+                                <button
+                                    className="tp-composer__tool-btn p-1 flex items-center justify-center hover:bg-grey rounded-full transition-colors"
+                                    onClick={handleMentionIconClick}
+                                    title="Mention someone"
+                                >
+                                    <Icon name="alternate_email" />
+                                </button>
+                            </div>
                             <div className="reply-modal__actions">
                                 <button className="reply-modal__cancel-btn" onClick={closeModal}>
                                     Cancel

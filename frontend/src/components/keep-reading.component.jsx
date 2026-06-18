@@ -54,8 +54,8 @@ const KeepReading = () => {
                     Keep reading
                 </p>
                 <div className="relative group cursor-pointer text-dark-grey hover:text-black transition-colors flex items-center">
-                    <Icon name="info" className="text-[16px]" />
-                    <div className="absolute bottom-full right-0 mb-2 w-[180px] p-2 bg-black text-white text-[11px] rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-lg leading-relaxed text-center">
+                    <Icon name="info" className="text-[14px]" />
+                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 w-[180px] p-2.5 bg-black !text-white text-[12px] font-medium rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-lg leading-relaxed text-center">
                         Here you will find the post or article where you left off reading.
                     </div>
                 </div>

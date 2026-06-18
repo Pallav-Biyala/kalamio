@@ -57,7 +57,7 @@ const BottomTabBar = () => {
                 <NavLink to="/messages" className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>
                     {({ isActive }) => (
                         <>
-                            <Icon name="chat_bubble_outline" className="text-2xl" filled={isActive} />
+                            <Icon name="forum" className="text-2xl" filled={isActive} />
                             <span>Chat</span>
                         </>
                     )}
@@ -66,7 +66,7 @@ const BottomTabBar = () => {
                 <NavLink to="/signin" className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>
                     {({ isActive }) => (
                         <>
-                            <Icon name="chat_bubble_outline" className="text-2xl" filled={isActive} />
+                            <Icon name="forum" className="text-2xl" filled={isActive} />
                             <span>Chat</span>
                         </>
                     )}

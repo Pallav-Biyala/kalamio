@@ -201,6 +201,25 @@ const BlogPage = () => {
 
     let isDraft = blog.draft;
 
+    // Render text with line breaks and mentions preserved
+    const renderText = (text) => {
+        if (!text) return null;
+        
+        const parts = text.split(/(@[\w](?:[\w.]*[\w])?)/g);
+        
+        return parts.map((part, i) => {
+            if (part.startsWith('@') && part.length > 1) {
+                const username = part.slice(1);
+                return (
+                    <Link key={i} to={`/user/${username}`} className="mention-link">
+                        {part}
+                    </Link>
+                );
+            }
+            return <span key={i}>{part}</span>;
+        });
+    };
+
     return (
         <AnimationWrapper>
             {
@@ -241,12 +260,21 @@ const BlogPage = () => {
                                             <Link to={`/user/${author_username}`} className="hover:text-black transition-colors">@{author_username}</Link>
                                             <span>·</span>
                                             <span>{isDraft ? "Draft" : getDay(publishedAt)}</span>
+                                            {publication && (
+                                                <>
+                                                    <span>·</span>
+                                                    <span>in</span>
+                                                    <Link to={`/publication/${publication.slug}`} className="text-black hover:underline transition-colors font-medium">
+                                                        {publication.title}
+                                                    </Link>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="text-lg leading-relaxed whitespace-pre-wrap mb-6" style={{ lineHeight: '1.8' }}>
-                                    {text_content}
+                                    {renderText(text_content)}
                                 </div>
 
                                 {images && images.length > 0 && (

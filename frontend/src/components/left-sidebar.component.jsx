@@ -11,12 +11,12 @@ import Avatar from "./Avatar";
 
 const navItems = [
     { to: "/", icon: "home", label: "Home", end: true },
-    { to: "/reads", icon: "auto_stories", label: "Scrolls" },
+    { to: "/reads", icon: "auto_stories", label: "Articles" },
     { to: "/search/", icon: "explore", label: "Explore" },
     { to: "/subscriptions", icon: "subscriptions", label: "Subscriptions", authOnly: true },
     { to: "/dashboard/publications", icon: "import_contacts", label: "Publications", authOnly: true },
     { to: "/dashboard/notifications", icon: "notifications", label: "Activity", authOnly: true },
-    { to: "/messages", icon: "chat_bubble_outline", label: "Chat", authOnly: true },
+    { to: "/messages", icon: "forum", label: "Chat", authOnly: true },
 ];
 
 const LeftSidebar = () => {
@@ -205,7 +205,7 @@ const LeftSidebar = () => {
                                         <Icon name="dashboard" className="text-[20px]" />
                                         <span>Dashboard</span>
                                     </Link>
-                                    <button className="left-sidebar__profile-dropdown-item" onClick={() => { changeTheme(); }}>
+                                    <button className="left-sidebar__profile-dropdown-item" onClick={() => { changeTheme(); setShowProfileMenu(false); }}>
                                         <Icon name={theme === "light" ? "dark_mode" : "light_mode"} className="text-[20px]" />
                                         <span>{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
                                     </button>

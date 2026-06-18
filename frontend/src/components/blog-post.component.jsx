@@ -71,18 +71,16 @@ const BlogPostCard = ({ content, author }) => {
             {/* ── Author Row ── */}
             <div className="feed-card__header">
                 <Link to={`/user/${username}`} className="feed-card__author">
-                    <Avatar src={profile_img} alt={fullname} size={32} className="feed-card__avatar" />
+                    <Avatar src={profile_img} alt={fullname} size={40} className="feed-card__avatar" />
                     <div className="feed-card__author-info">
                         <span className="feed-card__author-name">{fullname}</span>
                         <span className="feed-card__meta">
                             {publication && (
-                                <span className="feed-card__pub-label" onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(`/publication/${publication.slug}`); }} role="link" tabIndex={0}>
-                                    {publication.profile_photo ? (
-                                        <img src={publication.profile_photo} alt={publication.title} className="feed-card__pub-icon" style={{ width: '14px', height: '14px', borderRadius: '2px', objectFit: 'cover' }} />
-                                    ) : (
-                                        <Icon name="import_contacts" className="feed-card__pub-icon" />
-                                    )}
-                                    {publication.title}
+                                <span className="opacity-80">
+                                    in{' '}
+                                    <span className="feed-card__pub-label" onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(`/publication/${publication.slug}`); }} role="link" tabIndex={0}>
+                                        {publication.title}
+                                    </span>
                                 </span>
                             )}
                             {publication && <span className="feed-card__meta-dot">·</span>}
@@ -152,7 +150,7 @@ const BlogPostCard = ({ content, author }) => {
                         action="comment" 
                         defaultOpen={true} 
                         onClose={() => setShowCommentModal(false)}
-                        customBlogData={{ ...content, author }}
+                        customBlogData={content}
                         onCommentPosted={() => setCommentsCount(prev => prev + 1)}
                     />
                 </div>

@@ -1,5 +1,5 @@
 import { useContext, useState, useRef, useEffect } from "react";
-import { getDay } from "../common/date";
+import { getDay, getRelativeTime } from "../common/date";
 import { UserContext } from "../App";
 import toast from "react-hot-toast";
 import { BlogContext } from "../pages/blog.page";
@@ -243,8 +243,13 @@ const CommentCard = ({ index, commentData, isTextPost = false }) => {
 
     // ── Reply Preview sub-component (for text-post inline replies) ──
     const ReplyPreview = ({ reply }) => {
-        if (!reply || !reply.commented_by) return null;
-        const { personal_info: { profile_img: rImg, fullname: rName, username: rUsername } } = reply.commented_by;
+        if (!reply) return null;
+        
+        // Fallback for missing commented_by
+        const rImg = reply.commented_by?.personal_info?.profile_img || "";
+        const rName = reply.commented_by?.personal_info?.fullname || "Unknown User";
+        const rUsername = reply.commented_by?.personal_info?.username || "";
+        
         return (
             <div className="reply-preview" onClick={() => navigate(`/comment/${reply._id || _id}`)} style={{ cursor: 'pointer' }}>
                 <div className="reply-preview__body">
@@ -255,7 +260,7 @@ const CommentCard = ({ index, commentData, isTextPost = false }) => {
                         <div className="reply-preview__meta">
                             <Link to={`/user/${rUsername}`} className="reply-preview__name" onClick={e => e.stopPropagation()}>{rName}</Link>
                             <span className="comment-card__dot">·</span>
-                            <span className="reply-preview__time">{getDay(reply.commentedAt)}</span>
+                            <span className="reply-preview__time">{getRelativeTime(reply.commentedAt)}</span>
                         </div>
                         <p className="reply-preview__text">{renderText(reply.comment)}</p>
                         <div className="reply-preview__actions">
@@ -328,7 +333,7 @@ const CommentCard = ({ index, commentData, isTextPost = false }) => {
                     <div className="comment-card__meta">
                         <Link to={`/user/${commented_by_username}`} className="comment-card__name">{fullname}</Link>
                         <span className="comment-card__dot">·</span>
-                        <span className="comment-card__time">{getDay(commentedAt)}</span>
+                        <span className="comment-card__time">{getRelativeTime(commentedAt)}</span>
                         <ThreeDotMenu />
                     </div>
 
@@ -448,8 +453,9 @@ const CommentCard = ({ index, commentData, isTextPost = false }) => {
                         <ReplyPreview key={reply._id || i} reply={reply} />
                     ))}
                     {replyCount > previewReplies.length && (
-                        <button className="comment-card__view-thread-btn text-purple text-sm font-medium mt-2 hover:underline ml-11" onClick={handleCommentClick}>
-                            Show {replyCount - previewReplies.length} more repl{replyCount - previewReplies.length === 1 ? 'y' : 'ies'}
+                        <button className="comment-card__replies-toggle mt-4 ml-11" onClick={handleCommentClick}>
+                            <Icon name="expand_more" />
+                            <span>Show {replyCount - previewReplies.length} more repl{replyCount - previewReplies.length === 1 ? 'y' : 'ies'}</span>
                         </button>
                     )}
                 </div>
@@ -468,7 +474,7 @@ const CommentCard = ({ index, commentData, isTextPost = false }) => {
                             <div className="reply-modal__right">
                                 <div className="reply-modal__header">
                                     <span className="reply-modal__name">{fullname}</span>
-                                    <span className="reply-modal__time">{getDay(commentedAt)}</span>
+                                    <span className="reply-modal__time">{getRelativeTime(commentedAt)}</span>
                                 </div>
                                 <div className="reply-modal__text">{comment}</div>
                             </div>
