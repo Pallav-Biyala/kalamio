@@ -36,30 +36,27 @@ const MainLayout = () => {
         let lastScrollY = window.scrollY;
         let headerOffset = 0;
         let ticking = false;
-        let scrollUpAccum = 0; // accumulates scroll-up pixels before revealing
-        const SCROLL_UP_THRESHOLD = 10; // ignore small scroll-ups from browser chrome
+        let scrollUpAccum = 0;
+        let isTouching = false; // track if finger is on screen
+        const SCROLL_UP_THRESHOLD = 10;
+
+        const onTouchStart = () => { isTouching = true; };
+        const onTouchEnd = () => { isTouching = false; };
 
         const applyTransform = (offset) => {
             const isDesktop = window.innerWidth >= 1024;
             const transform = offset === 0 ? '' : `translateY(${-offset}px)`;
 
             if (isDesktop) {
-                // Clear mobile transforms just in case
                 const topBar = document.querySelector('.mobile-top-bar');
                 if (topBar) topBar.style.transform = '';
-                
-                // Clear desktop transform so it stays perfectly sticky at top: 0
                 const feedHeader = document.querySelector('.feed-sticky-header');
                 if (feedHeader) feedHeader.style.transform = '';
             } else {
-                // On mobile, hide the top bar and category tabs together
                 const topBar = document.querySelector('.mobile-top-bar');
                 const tabs = document.querySelector('.category-tabs');
-                
                 if (topBar) topBar.style.transform = transform;
                 if (tabs) tabs.style.transform = transform;
-                
-                // Clear desktop transform just in case
                 const feedHeader = document.querySelector('.feed-sticky-header');
                 if (feedHeader) feedHeader.style.transform = '';
             }
@@ -71,15 +68,14 @@ const MainLayout = () => {
             lastScrollY = currentScrollY;
             const isDesktop = window.innerWidth >= 1024;
 
-            // Determine max offset dynamically
-            let maxOffset = 112; // default mobile maxOffset (57px header + ~55px tabs)
+            let maxOffset = 112;
             if (isDesktop) {
                 const composer = document.querySelector('.composer-prompt');
                 if (composer) {
                     const style = window.getComputedStyle(composer);
                     maxOffset = composer.offsetHeight + parseFloat(style.marginTop) + parseFloat(style.marginBottom);
                 } else {
-                    maxOffset = 0; // If no composer, nothing needs to scroll away
+                    maxOffset = 0;
                 }
             }
 
@@ -89,7 +85,7 @@ const MainLayout = () => {
                 applyTransform(0);
                 document.body.classList.remove('scroll-down', 'scroll-up');
             } else if (delta > 0) {
-                // Scrolling DOWN — reset scroll-up accumulator
+                // Scrolling DOWN — always hide (even during momentum)
                 scrollUpAccum = 0;
                 if (maxOffset > 0) {
                     headerOffset = Math.min(headerOffset + delta, maxOffset);
@@ -100,23 +96,22 @@ const MainLayout = () => {
                     }
                 }
             } else if (delta < 0) {
-                // Scrolling UP — accumulate first, then reveal after threshold
+                // Scrolling UP
                 if (maxOffset > 0) {
                     if (isDesktop) {
-                        // Desktop: no browser chrome interference, track directly
                         headerOffset = Math.max(headerOffset + delta, 0);
                         applyTransform(headerOffset);
-                    } else {
-                        // Mobile: cap scroll-up to prevent browser chrome from
-                        // inflating deltas and causing instant reveal
+                    } else if (isTouching) {
+                        // Mobile: only reveal while finger is on screen
                         scrollUpAccum += Math.abs(delta);
                         if (scrollUpAccum >= SCROLL_UP_THRESHOLD) {
-                            // Max 3px reveal per frame — guarantees gradual appearance
                             const cappedDelta = Math.max(delta, -3);
                             headerOffset = Math.max(headerOffset + cappedDelta, 0);
                             applyTransform(headerOffset);
                         }
                     }
+                    // else: finger lifted → freeze header in place (do nothing)
+
                     if (headerOffset <= 0) {
                         document.body.classList.remove('scroll-down');
                         document.body.classList.add('scroll-up');
@@ -135,7 +130,8 @@ const MainLayout = () => {
         };
 
         window.addEventListener('scroll', handleScroll, { passive: true });
-        // Handle window resize to reset transforms when crossing breakpoint
+        window.addEventListener('touchstart', onTouchStart, { passive: true });
+        window.addEventListener('touchend', onTouchEnd, { passive: true });
         window.addEventListener('resize', () => {
             headerOffset = 0;
             applyTransform(0);
@@ -143,6 +139,8 @@ const MainLayout = () => {
 
         return () => {
             window.removeEventListener('scroll', handleScroll);
+            window.removeEventListener('touchstart', onTouchStart);
+            window.removeEventListener('touchend', onTouchEnd);
             applyTransform(0);
         };
     }, []);
