@@ -1060,6 +1060,266 @@
         cursor: not-allowed;
     }
 
+    /* ── Analytics Dashboard ──────────────────────── */
+    .analytics__cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 14px;
+        margin: 24px 0;
+    }
+
+    .analytics__card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px;
+        background: rgb(var(--c-white));
+        border: 1px solid rgb(var(--c-border));
+        border-radius: 14px;
+        transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .analytics__card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgb(0 0 0 / 0.06);
+    }
+
+    .analytics__card-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .analytics__card-data {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    .analytics__card-value {
+        font-size: 20px;
+        font-weight: 700;
+        line-height: 1.2;
+        color: rgb(var(--c-black));
+    }
+
+    .analytics__card-label {
+        font-size: 12px;
+        color: rgb(var(--c-dark-grey));
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .analytics__section {
+        margin-bottom: 32px;
+    }
+
+    .analytics__section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: rgb(var(--c-black));
+        margin-bottom: 16px;
+    }
+
+    /* Growth Chart */
+    .analytics__growth {
+        display: flex;
+        align-items: flex-end;
+        gap: 12px;
+        height: 180px;
+        padding: 16px 8px;
+        background: rgb(var(--c-grey));
+        border-radius: 14px;
+        margin-bottom: 32px;
+    }
+
+    .analytics__growth-bar-wrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        height: 100%;
+        justify-content: flex-end;
+    }
+
+    .analytics__growth-count {
+        font-size: 11px;
+        font-weight: 600;
+        color: rgb(var(--c-dark-grey));
+    }
+
+    .analytics__growth-bar {
+        width: 100%;
+        max-width: 48px;
+        background: linear-gradient(to top, rgb(var(--c-purple)), rgb(var(--c-purple) / 0.6));
+        border-radius: 6px 6px 2px 2px;
+        min-height: 8px;
+        transition: height 0.5s ease-out;
+    }
+
+    .analytics__growth-label {
+        font-size: 10px;
+        color: rgb(var(--c-dark-grey));
+        white-space: nowrap;
+    }
+
+    /* Top Posts Table */
+    .analytics__table-wrap {
+        overflow-x: auto;
+        border: 1px solid rgb(var(--c-border));
+        border-radius: 12px;
+    }
+
+    .analytics__table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+    .analytics__table thead {
+        background: rgb(var(--c-grey));
+    }
+
+    .analytics__table th {
+        padding: 10px 14px;
+        font-weight: 600;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: rgb(var(--c-dark-grey));
+        white-space: nowrap;
+    }
+
+    .analytics__table td {
+        padding: 12px 14px;
+        border-top: 1px solid rgb(var(--c-border));
+        color: rgb(var(--c-black));
+    }
+
+    .analytics__table tbody tr:hover {
+        background: rgb(var(--c-grey) / 0.5);
+    }
+
+    .analytics__post-link {
+        color: rgb(var(--c-black));
+        font-weight: 500;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .analytics__post-link:hover {
+        text-decoration: underline;
+    }
+
+    .analytics__post-badge {
+        font-size: 10px;
+        font-weight: 600;
+        padding: 2px 6px;
+        background: rgb(var(--c-grey));
+        border-radius: 4px;
+        color: rgb(var(--c-dark-grey));
+        flex-shrink: 0;
+    }
+
+    /* ── Blocked Users ───────────────────────────── */
+    .blocked-user__list {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .blocked-user__card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 0;
+        border-bottom: 1px solid rgb(var(--c-border));
+    }
+
+    .blocked-user__info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .blocked-user__unblock-btn {
+        padding: 6px 16px;
+        border: 1px solid rgb(var(--c-border));
+        border-radius: 8px;
+        background: transparent;
+        color: rgb(var(--c-black));
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s;
+        flex-shrink: 0;
+    }
+
+    .blocked-user__unblock-btn:hover {
+        background: rgb(var(--c-grey));
+    }
+
+    /* ── Profile Block Button ────────────────────── */
+    .profile-block-btn {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 8px 14px;
+        border: 1px solid rgb(var(--c-border));
+        border-radius: 999px;
+        background: transparent;
+        color: rgb(var(--c-dark-grey));
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .profile-block-btn:hover {
+        border-color: rgb(var(--c-red));
+        color: rgb(var(--c-red));
+        background: rgb(var(--c-red) / 0.06);
+    }
+
+    .profile-block-btn--active {
+        border-color: rgb(var(--c-red));
+        background: rgb(var(--c-red) / 0.08);
+        color: rgb(var(--c-red));
+    }
+
+    /* ── Connection Card Enhancements ────────────── */
+    .connection-card__msg-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 1px solid rgb(var(--c-border));
+        background: transparent;
+        color: rgb(var(--c-dark-grey));
+        cursor: pointer;
+        transition: all 0.15s;
+        flex-shrink: 0;
+    }
+
+    .connection-card__msg-btn:hover {
+        background: rgb(var(--c-purple) / 0.1);
+        border-color: rgb(var(--c-purple));
+        color: rgb(var(--c-purple));
+    }
+
+    .connection-card__since {
+        font-size: 11px;
+        color: rgb(var(--c-dark-grey) / 0.7);
+    }
+
     /* ── Bottom Search Overlay ──────────────────── */
     .bottom-search-overlay {
         position: fixed;

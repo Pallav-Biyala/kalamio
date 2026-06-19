@@ -93,6 +93,7 @@ const YouPage = () => {
                         />
                         <MenuLink to="/dashboard/connections" icon="handshake" label="Connections" />
                         <MenuLink to="/dashboard/publications" icon="import_contacts" label="Publications" />
+                        <MenuLink to="/dashboard/analytics" icon="bar_chart" label="Analytics" />
                         <MenuLink to="/editor" icon="edit_note" label="Write" />
                     </div>
                 </div>
@@ -104,6 +105,7 @@ const YouPage = () => {
                         <MenuLink to="/settings/edit-profile" icon="person" label="Edit Profile" />
                         <MenuLink to="/settings/change-password" icon="lock" label="Change Password" />
                         <MenuLink to="/settings/notification-preferences" icon="notifications_active" label="Notification Prefs" />
+                        <MenuLink to="/settings/blocked-users" icon="block" label="Blocked Users" />
                         <MenuLink
                             icon={theme === "light" ? "dark_mode" : "light_mode"}
                             label={theme === "light" ? "Dark Mode" : "Light Mode"}

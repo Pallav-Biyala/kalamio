@@ -26,6 +26,7 @@ const dashboardItems = [
     { to: "/dashboard/notifications", icon: "notifications", label: "Notifications", showBadge: true },
     { to: "/dashboard/connections", icon: "handshake", label: "Connections" },
     { to: "/dashboard/publications", icon: "import_contacts", label: "Publications" },
+    { to: "/dashboard/analytics", icon: "bar_chart", label: "Analytics" },
     { to: "/messages", icon: "chat", label: "Messages" },
     { to: "/editor", icon: "edit_note", label: "Write" },
 ];
@@ -34,6 +35,7 @@ const settingsItems = [
     { to: "/settings/edit-profile", icon: "person", label: "Edit Profile" },
     { to: "/settings/change-password", icon: "lock", label: "Change Password" },
     { to: "/settings/notification-preferences", icon: "notifications_active", label: "Notification Prefs" },
+    { to: "/settings/blocked-users", icon: "block", label: "Blocked Users" },
 ];
 
 const LeftSidebar = () => {

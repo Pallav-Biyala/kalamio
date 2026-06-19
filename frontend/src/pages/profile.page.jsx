@@ -18,6 +18,7 @@ import Avatar from "../components/Avatar";
 import FollowButton from "../components/follow-button.component";
 import ConnectButton from "../components/connect-button.component";
 import SubscribeButton from "../components/subscribe-button.component";
+import toast from "react-hot-toast";
 
 export const profileDataStructure = {
     personal_info: {
@@ -47,6 +48,7 @@ const ProfilePage = () => {
     let [ profileLoaded, setProfileLoaded ] = useState("");
     let [ followsYou, setFollowsYou ] = useState(false);
     let [ publications, setPublications ] = useState(null);
+    let [ isBlocked, setIsBlocked ] = useState(false);
 
     let { 
         personal_info: { fullname, username: profile_username, profile_img, bio }, 
@@ -65,10 +67,14 @@ const ProfilePage = () => {
                 setProfile(user);
 
                 // Check if this user follows you back (for badge)
-                if (access_token && username && user.personal_info.username !== username) {
+                if(access_token && user._id !== username){
                     api.post("/is-following-back", { user_id: user._id })
-                        .then(({ data }) => setFollowsYou(data.follows_you))
-                        .catch(() => {});
+                    .then(({ data: followData }) => setFollowsYou(followData.is_following_back))
+                    .catch(() => {});
+
+                    api.post("/is-blocked", { user_id: user._id })
+                    .then(({ data: blockData }) => setIsBlocked(blockData.is_blocked && blockData.direction === 'blocker'))
+                    .catch(() => {});
                 }
             }
             setProfileLoaded(profileId);
@@ -225,6 +231,25 @@ const ProfilePage = () => {
                                 targetUserId={profileUserId}
                                 size="md"
                             />
+                            <button
+                                className={isBlocked ? "profile-block-btn profile-block-btn--active" : "profile-block-btn"}
+                                onClick={() => {
+                                    if (isBlocked) {
+                                        api.post("/unblock-user", { user_id: profileUserId })
+                                        .then(() => { setIsBlocked(false); toast.success("User unblocked"); })
+                                        .catch(() => toast.error("Failed to unblock"));
+                                    } else {
+                                        if (!window.confirm(`Block @${profile_username}? They won't be able to follow you or send messages.`)) return;
+                                        api.post("/block-user", { user_id: profileUserId })
+                                        .then(() => { setIsBlocked(true); toast.success("User blocked"); })
+                                        .catch(() => toast.error("Failed to block"));
+                                    }
+                                }}
+                                title={isBlocked ? "Unblock user" : "Block user"}
+                            >
+                                <Icon name="block" className="text-lg" />
+                                {isBlocked ? "Unblock" : "Block"}
+                            </button>
                         </div>
                         )}
                     </div>

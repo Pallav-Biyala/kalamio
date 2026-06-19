@@ -1,7 +1,8 @@
 import api from "../common/api";
 import usePageTitle from "../common/usePageTitle";
 import { useContext, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { getDay } from "../common/date";
 import { UserContext } from "../App";
 import Loader from "../components/loader.component";
 import AnimationWrapper from "../common/page-animation";
@@ -24,6 +25,8 @@ const ConnectionsPage = () => {
     const [sent, setSent] = useState(null);
     const [pendingCount, setPendingCount] = useState(0);
     const [sentCount, setSentCount] = useState(0);
+    const [searchQuery, setSearchQuery] = useState("");
+    const navigate = useNavigate();
 
     const fetchConnections = ({ page = 1 }) => {
         api.post("/connections", { page })
@@ -114,7 +117,7 @@ const ConnectionsPage = () => {
         fetchCounts();
     };
 
-    const ConnectionCard = ({ user }) => {
+    const ConnectionCard = ({ user, acceptedAt }) => {
         const { personal_info: { fullname, username, profile_img, bio }, _id } = user;
         return (
             <div className="connection-card">
@@ -123,10 +126,22 @@ const ConnectionsPage = () => {
                     <div className="connection-card__info">
                         <span className="connection-card__name">{fullname}</span>
                         <span className="connection-card__handle">@{username}</span>
+                        {tab === 'connections' && acceptedAt && (
+                            <span className="connection-card__since">Connected {getDay(acceptedAt)}</span>
+                        )}
                         {bio && <span className="connection-card__bio">{bio}</span>}
                     </div>
                 </Link>
                 <div className="connection-card__actions">
+                    {tab === 'connections' && (
+                        <button
+                            className="connection-card__msg-btn"
+                            onClick={(e) => { e.preventDefault(); navigate(`/messages?user=${username}`); }}
+                            title="Send message"
+                        >
+                            <Icon name="chat_bubble_outline" className="text-[20px]" />
+                        </button>
+                    )}
                     {tab === 'received' ? (
                         <ConnectButton
                             targetUserId={_id}
@@ -187,21 +202,46 @@ const ConnectionsPage = () => {
                 </button>
             </div>
 
+            {/* Search bar — only for connections tab */}
+            {tab === 'connections' && (
+                <div className="relative mb-6">
+                    <input
+                        type="search"
+                        className="w-full bg-grey p-3 pl-10 rounded-full placeholder:text-dark-grey text-sm"
+                        placeholder="Search connections..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    <Icon name="search" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-lg text-dark-grey" />
+                </div>
+            )}
+
             {currentData == null ? <Loader /> :
                 <>
-                    {currentData.results?.length ?
-                        currentData.results.map((user, i) => (
-                            <AnimationWrapper key={user._id || i} transition={{ delay: i * 0.06 }}>
-                                <ConnectionCard user={user} />
-                            </AnimationWrapper>
-                        ))
-                    : <NoDataMessage message={
-                        tab === 'connections' 
-                            ? "No connections yet. Visit profiles and send connect requests!" 
-                            : tab === 'received'
-                            ? "No pending requests received"
-                            : "No pending requests sent"
-                    } />}
+                    {(() => {
+                        const filtered = searchQuery.trim()
+                            ? currentData.results.filter(u => {
+                                const q = searchQuery.toLowerCase();
+                                const pi = u.personal_info || {};
+                                return (pi.fullname || '').toLowerCase().includes(q) ||
+                                       (pi.username || '').toLowerCase().includes(q);
+                            })
+                            : currentData.results;
+                        return filtered.length ?
+                            filtered.map((user, i) => (
+                                <AnimationWrapper key={user._id || i} transition={{ delay: i * 0.06 }}>
+                                    <ConnectionCard user={user} acceptedAt={user.acceptedAt} />
+                                </AnimationWrapper>
+                            ))
+                        : <NoDataMessage message={
+                            searchQuery.trim() ? "No connections match your search" :
+                            tab === 'connections'
+                                ? "No connections yet. Visit profiles and send connect requests!"
+                                : tab === 'received'
+                                ? "No pending requests received"
+                                : "No pending requests sent"
+                        } />
+                    })()}
 
                     <LoadMoreDataBtn
                         state={currentData}
