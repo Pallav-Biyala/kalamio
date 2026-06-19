@@ -107,12 +107,13 @@ const MainLayout = () => {
                         headerOffset = Math.max(headerOffset + delta, 0);
                         applyTransform(headerOffset);
                     } else {
-                        // Mobile: dampen scroll-up to counteract browser chrome inflation
+                        // Mobile: cap scroll-up to prevent browser chrome from
+                        // inflating deltas and causing instant reveal
                         scrollUpAccum += Math.abs(delta);
                         if (scrollUpAccum >= SCROLL_UP_THRESHOLD) {
-                            // Reveal at 40% of scroll speed for gradual appearance
-                            const dampenedDelta = delta * 0.4;
-                            headerOffset = Math.max(headerOffset + dampenedDelta, 0);
+                            // Max 3px reveal per frame — guarantees gradual appearance
+                            const cappedDelta = Math.max(delta, -3);
+                            headerOffset = Math.max(headerOffset + cappedDelta, 0);
                             applyTransform(headerOffset);
                         }
                     }
