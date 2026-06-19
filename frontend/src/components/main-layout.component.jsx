@@ -107,12 +107,12 @@ const MainLayout = () => {
                         headerOffset = Math.max(headerOffset + delta, 0);
                         applyTransform(headerOffset);
                     } else {
-                        // Mobile: require threshold to filter browser chrome noise
+                        // Mobile: dampen scroll-up to counteract browser chrome inflation
                         scrollUpAccum += Math.abs(delta);
                         if (scrollUpAccum >= SCROLL_UP_THRESHOLD) {
-                            // Apply only the delta beyond the threshold
-                            const effectiveDelta = delta;
-                            headerOffset = Math.max(headerOffset + effectiveDelta, 0);
+                            // Reveal at 40% of scroll speed for gradual appearance
+                            const dampenedDelta = delta * 0.4;
+                            headerOffset = Math.max(headerOffset + dampenedDelta, 0);
                             applyTransform(headerOffset);
                         }
                     }
