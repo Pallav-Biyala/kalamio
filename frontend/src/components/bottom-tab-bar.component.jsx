@@ -83,17 +83,30 @@ const BottomTabBar = () => {
             </NavLink>
 
             {access_token ? (
-                <NavLink to="/settings/edit-profile" className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>
-                    {({ isActive }) => (
-                        <>
-                            {profile_img ? (
-                                <Avatar src={profile_img} size={24} />
-                            ) : (
-                                <Icon name="person" className="text-2xl" filled={isActive} />
-                            )}
-                            <span>You</span>
-                        </>
-                    )}
+                <NavLink
+                    to="/you"
+                    className={() => {
+                        const isYouActive = location.pathname === "/you" ||
+                            location.pathname.startsWith("/dashboard") ||
+                            location.pathname.startsWith("/settings");
+                        return "bottom-tab-bar__item" + (isYouActive ? " active" : "");
+                    }}
+                >
+                    {() => {
+                        const isYouActive = location.pathname === "/you" ||
+                            location.pathname.startsWith("/dashboard") ||
+                            location.pathname.startsWith("/settings");
+                        return (
+                            <>
+                                {profile_img ? (
+                                    <Avatar src={profile_img} size={24} />
+                                ) : (
+                                    <Icon name="person" className="text-2xl" filled={isYouActive} />
+                                )}
+                                <span>You</span>
+                            </>
+                        );
+                    }}
                 </NavLink>
             ) : (
                 <NavLink to="/signin" className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>

@@ -15,7 +15,6 @@ const SearchPage = lazy(() => import("./pages/search.page"));
 const PageNotFound = lazy(() => import("./pages/404.page"));
 const ProfilePage = lazy(() => import("./pages/profile.page"));
 const BlogPage = lazy(() => import("./pages/blog.page"));
-const SideNav = lazy(() => import("./components/sidenavbar.component"));
 const ChangePassword = lazy(() => import("./pages/change-password.page"));
 const EditProfile = lazy(() => import("./pages/edit-profile.page"));
 const Notifications = lazy(() => import("./pages/notifications.page"));
@@ -25,6 +24,9 @@ const PublicationPage = lazy(() => import("./pages/publication.page"));
 const CreatePublicationPage = lazy(() => import("./pages/create-publication.page"));
 const EditPublicationPage = lazy(() => import("./pages/edit-publication.page"));
 const ManagePublicationsPage = lazy(() => import("./pages/manage-publications.page"));
+const BookmarksPage = lazy(() => import("./pages/bookmarks.page"));
+const DraftsPage = lazy(() => import("./pages/drafts.page"));
+const YouPage = lazy(() => import("./pages/you.page"));
 const MessagesPage = lazy(() => import("./pages/messages.page"));
 const AuthCallback = lazy(() => import("./pages/auth-callback.page"));
 const VerifyOtp = lazy(() => import("./pages/verify-otp.page"));
@@ -103,18 +105,17 @@ const App = () => {
                         <Route path="/" element={<MainLayout />} >
                             <Route index element={<HomePage />} />
                         <Route path="reads" element={<ReadsPage />} />
-                            <Route path="dashboard" element={<SideNav />} >
-                                <Route path="blogs" element={<ManageBlogs />} />
-                                <Route path="notifications" element={<Notifications />} />
-                                <Route path="connections" element={<ConnectionsPage />} />
-                                <Route path="publications" element={<ManagePublicationsPage />} />
-                                <Route path="create-publication" element={<CreatePublicationPage />} />
-                                <Route path="edit-publication/:slug" element={<EditPublicationPage />} />
-                            </Route>
-                            <Route path="settings" element={<SideNav />} >
-                                <Route path="edit-profile" element={<EditProfile />} />
-                                <Route path="change-password" element={<ChangePassword />} />
-                            </Route>
+                            <Route path="dashboard/blogs" element={<ManageBlogs />} />
+                            <Route path="dashboard/notifications" element={<Notifications />} />
+                            <Route path="dashboard/connections" element={<ConnectionsPage />} />
+                            <Route path="dashboard/publications" element={<ManagePublicationsPage />} />
+                            <Route path="dashboard/create-publication" element={<CreatePublicationPage />} />
+                            <Route path="dashboard/edit-publication/:slug" element={<EditPublicationPage />} />
+                            <Route path="dashboard/bookmarks" element={<BookmarksPage />} />
+                            <Route path="dashboard/drafts" element={<DraftsPage />} />
+                            <Route path="settings/edit-profile" element={<EditProfile />} />
+                            <Route path="settings/change-password" element={<ChangePassword />} />
+                            <Route path="you" element={<YouPage />} />
                             <Route path="signin" element={<UserAuthForm type="sign-in"/>} />
                             <Route path="signup" element={<UserAuthForm type="sign-up" />} />
                             <Route path="verify-otp" element={<VerifyOtp />} />

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Icon from "./Icon";
 
-const InputBox = ({ name, type, id, value, placeholder, icon, disable=false, className="" }) => {
+const InputBox = ({ name, type, id, value, placeholder, icon, disable=false, className="", onChange }) => {
     
     const [passwordVisible, setPasswordVisible] = useState(false)
     
@@ -14,6 +14,7 @@ const InputBox = ({ name, type, id, value, placeholder, icon, disable=false, cla
                 defaultValue={value}
                 id={id}
                 disabled={disable}
+                onChange={onChange}
                 className={`input-box ${className}`}
             />
 

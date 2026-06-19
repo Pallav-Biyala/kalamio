@@ -18,6 +18,7 @@ const MainLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const isReadsPage = location.pathname === "/reads";
+    const isDashboardOrSettings = location.pathname.startsWith("/dashboard") || location.pathname.startsWith("/settings");
 
     // Check for new notifications
     useEffect(() => {
@@ -159,7 +160,7 @@ const MainLayout = () => {
             <main className="app-layout__main">
 
                 {/* Page content */}
-                <div className="app-layout__content">
+                <div className={"app-layout__content" + (isDashboardOrSettings ? " app-layout__content--dashboard" : "")}>
                     <Outlet />
                 </div>
             </main>

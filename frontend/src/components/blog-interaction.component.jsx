@@ -1,4 +1,4 @@
-import { useContext, useEffect } from "react";
+import { useContext, useEffect, useState } from "react";
 import { BlogContext } from "../pages/blog.page";
 import { Link } from "react-router-dom";
 import { UserContext } from "../App";
@@ -21,6 +21,8 @@ const BlogInteraction = () => {
 
     let { userAuth: { username, access_token } } = useContext(UserContext);
 
+    const [isBookmarked, setIsBookmarked] = useState(false);
+
     useEffect(() => {
 
         if(access_token){
@@ -28,6 +30,14 @@ const BlogInteraction = () => {
             api.post("/isliked-by-user", { _id })
             .then(({ data: {result} }) => {
                 setLikedByUser(Boolean(result));
+            })
+            .catch(err => {
+            })
+
+            // check bookmark status
+            api.post("/is-bookmarked", { blog_id })
+            .then(({ data: { bookmarked } }) => {
+                setIsBookmarked(bookmarked);
             })
             .catch(err => {
             })
@@ -54,6 +64,25 @@ const BlogInteraction = () => {
             toast.error("Please login to like this blog");
         }
     }
+
+    const handleBookmark = () => {
+        if (access_token) {
+            const newState = !isBookmarked;
+            setIsBookmarked(newState);
+
+            const endpoint = newState ? "/bookmark" : "/remove-bookmark";
+            api.post(endpoint, { blog_id })
+            .then(() => {
+                toast.success(newState ? "Bookmarked" : "Bookmark removed");
+            })
+            .catch(err => {
+                setIsBookmarked(!newState); // revert on error
+                toast.error("Failed to update bookmark");
+            });
+        } else {
+            toast.error("Please login to bookmark");
+        }
+    };
 
     const handleShare = async () => {
         try {
@@ -98,6 +127,15 @@ const BlogInteraction = () => {
                 </div>
 
                 <div className="flex gap-4 sm:gap-6 items-center">
+
+                    <button
+                        onClick={handleBookmark}
+                        className={"text-dark-grey hover:text-black transition-colors flex items-center gap-1 text-sm font-medium " + (isBookmarked ? "text-black" : "")}
+                        aria-label={isBookmarked ? "Remove bookmark" : "Bookmark"}
+                    >
+                        <Icon name="bookmark" filled={isBookmarked} className="text-lg" />
+                        {isBookmarked ? "Saved" : "Save"}
+                    </button>
 
                     {
                         username == author_username ?
