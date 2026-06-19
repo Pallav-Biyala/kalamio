@@ -81,3 +81,228 @@ export const updateNotificationPreferences = async (req, res) => {
         return res.status(500).json({ error: err.message });
     }
 };
+
+// ────────────────────────────────────────────────────────
+// PRIVACY SETTINGS
+// ────────────────────────────────────────────────────────
+
+const PRIVACY_DEFAULTS = {
+    who_can_message: 'everyone',
+    show_profile: 'everyone',
+    show_read_count: true,
+    show_connections: true
+};
+
+const VALID_PRIVACY_KEYS = new Set(Object.keys(PRIVACY_DEFAULTS));
+const VALID_MESSAGE_OPTIONS = ['everyone', 'connections', 'nobody'];
+const VALID_PROFILE_OPTIONS = ['everyone', 'logged_in', 'connections'];
+
+export const getPrivacySettings = async (req, res) => {
+    try {
+        const user = await User.findById(req.user).select('privacy_settings');
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        return res.status(200).json({
+            privacy_settings: user.privacy_settings || PRIVACY_DEFAULTS
+        });
+    } catch (err) {
+        console.error('[Settings] getPrivacySettings failed:', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+};
+
+export const updatePrivacySettings = async (req, res) => {
+    try {
+        const { privacy_settings } = req.body;
+
+        if (!privacy_settings || typeof privacy_settings !== 'object') {
+            return res.status(400).json({ error: "privacy_settings must be an object" });
+        }
+
+        for (const key of Object.keys(privacy_settings)) {
+            if (!VALID_PRIVACY_KEYS.has(key)) {
+                return res.status(400).json({ error: `Unknown privacy key: ${key}` });
+            }
+        }
+
+        if (privacy_settings.who_can_message && !VALID_MESSAGE_OPTIONS.includes(privacy_settings.who_can_message)) {
+            return res.status(400).json({ error: "Invalid value for who_can_message" });
+        }
+        if (privacy_settings.show_profile && !VALID_PROFILE_OPTIONS.includes(privacy_settings.show_profile)) {
+            return res.status(400).json({ error: "Invalid value for show_profile" });
+        }
+
+        const updated = await User.findByIdAndUpdate(
+            req.user,
+            { $set: { privacy_settings } },
+            { new: true }
+        ).select('privacy_settings');
+
+        if (!updated) return res.status(404).json({ error: "User not found" });
+
+        return res.status(200).json({ privacy_settings: updated.privacy_settings });
+    } catch (err) {
+        console.error('[Settings] updatePrivacySettings failed:', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+};
+
+// ────────────────────────────────────────────────────────
+// ACCOUNT MANAGEMENT
+// ────────────────────────────────────────────────────────
+
+export const deactivateAccount = async (req, res) => {
+    try {
+        const user = await User.findById(req.user);
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        if (user.account_status?.status === 'deleted') {
+            return res.status(400).json({ error: "Account is already marked for deletion" });
+        }
+
+        await User.findByIdAndUpdate(req.user, {
+            $set: {
+                'account_status.status': 'deactivated',
+                'account_status.deactivated_at': new Date()
+            },
+            $unset: { refreshToken: 1 }
+        });
+
+        return res.status(200).json({ deactivated: true });
+    } catch (err) {
+        console.error('[Settings] deactivateAccount failed:', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+};
+
+export const reactivateAccount = async (req, res) => {
+    try {
+        const user = await User.findById(req.user);
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        const status = user.account_status?.status;
+        if (status !== 'deactivated' && status !== 'deleted') {
+            return res.status(400).json({ error: "Account is already active" });
+        }
+
+        await User.findByIdAndUpdate(req.user, {
+            $set: {
+                'account_status.status': 'active',
+                'account_status.deactivated_at': null,
+                'account_status.deletion_scheduled_at': null,
+                'account_status.deletion_reason': ''
+            }
+        });
+
+        return res.status(200).json({ reactivated: true });
+    } catch (err) {
+        console.error('[Settings] reactivateAccount failed:', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+};
+
+import bcrypt from 'bcrypt';
+
+export const deleteAccount = async (req, res) => {
+    try {
+        const { password, reason } = req.body;
+
+        const user = await User.findById(req.user).select('+password');
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        // Google auth users can skip password check
+        if (!user.google_auth) {
+            if (!password) {
+                return res.status(400).json({ error: "Password is required to delete your account" });
+            }
+            const isMatch = await bcrypt.compare(password, user.password);
+            if (!isMatch) {
+                return res.status(403).json({ error: "Incorrect password" });
+            }
+        }
+
+        const thirtyDaysFromNow = new Date();
+        thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+
+        await User.findByIdAndUpdate(req.user, {
+            $set: {
+                'account_status.status': 'deleted',
+                'account_status.deactivated_at': new Date(),
+                'account_status.deletion_scheduled_at': thirtyDaysFromNow,
+                'account_status.deletion_reason': reason || ''
+            },
+            $unset: { refreshToken: 1 }
+        });
+
+        return res.status(200).json({
+            deleted: true,
+            deletion_scheduled_at: thirtyDaysFromNow,
+            message: "Your account has been scheduled for deletion. You have 30 days to sign back in and cancel."
+        });
+    } catch (err) {
+        console.error('[Settings] deleteAccount failed:', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+};
+
+export const getAccountStatus = async (req, res) => {
+    try {
+        const user = await User.findById(req.user).select('account_status google_auth');
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        return res.status(200).json({
+            account_status: user.account_status || { status: 'active' },
+            google_auth: user.google_auth
+        });
+    } catch (err) {
+        console.error('[Settings] getAccountStatus failed:', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+};
+
+// ────────────────────────────────────────────────────────
+// DATA EXPORT
+// ────────────────────────────────────────────────────────
+
+import Post from '../Schema/Post.js';
+import Comment from '../Schema/Comment.js';
+import Bookmark from '../Schema/Bookmark.js';
+import Follow from '../Schema/Follow.js';
+import Connection from '../Schema/Connection.js';
+
+export const exportData = async (req, res) => {
+    try {
+        const user_id = req.user;
+
+        const [user, posts, comments, bookmarks, followers, following, connections] = await Promise.all([
+            User.findById(user_id).select('personal_info social_links account_info notification_preferences privacy_settings joinedAt -_id'),
+            Post.find({ author: user_id, draft: false }).select('blog_id title text_content type des tags content publishedAt activity -_id').lean(),
+            Comment.find({ commented_by: user_id }).populate('blog_id', 'blog_id title -_id').select('comment commentedAt blog_id -_id').lean(),
+            Bookmark.find({ user: user_id }).populate('blog', 'blog_id title -_id').select('blog savedAt -_id').lean(),
+            Follow.find({ following: user_id }).populate('follower', 'personal_info.username -_id').select('follower followedAt -_id').lean(),
+            Follow.find({ follower: user_id }).populate('following', 'personal_info.username -_id').select('following followedAt -_id').lean(),
+            Connection.find({ $or: [{ requester: user_id }, { recipient: user_id }], status: 'accepted' })
+                .populate('requester', 'personal_info.username -_id')
+                .populate('recipient', 'personal_info.username -_id')
+                .select('requester recipient acceptedAt -_id').lean()
+        ]);
+
+        const exportPayload = {
+            exported_at: new Date().toISOString(),
+            profile: user?.toObject() || {},
+            posts: posts || [],
+            comments: comments || [],
+            bookmarks: bookmarks || [],
+            followers: followers || [],
+            following: following || [],
+            connections: connections || []
+        };
+
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', 'attachment; filename="kalamio-data-export.json"');
+        return res.status(200).json(exportPayload);
+    } catch (err) {
+        console.error('[Settings] exportData failed:', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+};

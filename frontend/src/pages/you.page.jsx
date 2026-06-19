@@ -106,6 +106,8 @@ const YouPage = () => {
                         <MenuLink to="/settings/change-password" icon="lock" label="Change Password" />
                         <MenuLink to="/settings/notification-preferences" icon="notifications_active" label="Notification Prefs" />
                         <MenuLink to="/settings/blocked-users" icon="block" label="Blocked Users" />
+                        <MenuLink to="/settings/privacy" icon="shield" label="Privacy" />
+                        <MenuLink to="/settings/account" icon="manage_accounts" label="Account" />
                         <MenuLink
                             icon={theme === "light" ? "dark_mode" : "light_mode"}
                             label={theme === "light" ? "Dark Mode" : "Light Mode"}

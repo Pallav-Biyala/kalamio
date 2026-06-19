@@ -8,7 +8,13 @@ export const searchUsers = (req, res) => {
 
     let { query } = req.body;
 
-    User.find({ "personal_info.username": new RegExp(escapeRegex(query), 'i') })
+    User.find({
+        "personal_info.username": new RegExp(escapeRegex(query), 'i'),
+        $or: [
+            { 'account_status.status': { $exists: false } },
+            { 'account_status.status': 'active' }
+        ]
+    })
     .limit(50)
     .select("personal_info.fullname personal_info.username personal_info.profile_img")
     .then(users => {
@@ -30,7 +36,23 @@ export const getProfile = (req, res) => {
         if (!user) {
             return res.status(404).json({ error: "User not found" });
         }
-        return res.status(200).json(user)
+
+        // Hide deactivated/deleted profiles
+        const status = user.account_status?.status;
+        if (status === 'deactivated' || status === 'deleted') {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        // Respect privacy: hide read count and connections if user opted out
+        const userObj = user.toObject();
+        if (userObj.privacy_settings?.show_read_count === false) {
+            userObj.account_info.total_reads = undefined;
+        }
+        if (userObj.privacy_settings?.show_connections === false) {
+            userObj.account_info.total_connections = undefined;
+        }
+
+        return res.status(200).json(userObj)
     })
     .catch(err => {
         console.error('[User] getProfile failed:', err.message);

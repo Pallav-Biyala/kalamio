@@ -2,6 +2,7 @@ import Conversation from '../Schema/Conversation.js';
 import Message from '../Schema/Message.js';
 import Connection from '../Schema/Connection.js';
 import User from '../Schema/User.js';
+import BlockedUser from '../Schema/BlockedUser.js';
 import sanitizeHtml from 'sanitize-html';
 
 /**
@@ -100,9 +101,32 @@ export const sendMessage = async (req, res) => {
                 return res.status(400).json({ error: "Cannot message yourself" });
             }
 
-            const targetUser = await User.findById(recipient_id).select("_id");
+            const targetUser = await User.findById(recipient_id).select("_id privacy_settings");
             if (!targetUser) {
                 return res.status(404).json({ error: "User not found" });
+            }
+
+            // Block check — either direction
+            const blocked = await BlockedUser.findOne({
+                $or: [
+                    { blocker: sender_id, blocked: recipient_id },
+                    { blocker: recipient_id, blocked: sender_id }
+                ]
+            });
+            if (blocked) {
+                return res.status(403).json({ error: "Cannot message this user" });
+            }
+
+            // Privacy check — respect recipient's who_can_message setting
+            const msgPref = targetUser.privacy_settings?.who_can_message || 'everyone';
+            if (msgPref === 'nobody') {
+                return res.status(403).json({ error: "This user is not accepting messages" });
+            }
+            if (msgPref === 'connections') {
+                const connected = await areConnected(sender_id, recipient_id);
+                if (!connected) {
+                    return res.status(403).json({ error: "This user only accepts messages from connections" });
+                }
             }
 
             conversation = await findOrCreateConversation(sender_id, recipient_id);

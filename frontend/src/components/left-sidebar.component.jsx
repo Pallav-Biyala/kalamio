@@ -35,7 +35,9 @@ const settingsItems = [
     { to: "/settings/edit-profile", icon: "person", label: "Edit Profile" },
     { to: "/settings/change-password", icon: "lock", label: "Change Password" },
     { to: "/settings/notification-preferences", icon: "notifications_active", label: "Notification Prefs" },
+    { to: "/settings/privacy", icon: "shield", label: "Privacy" },
     { to: "/settings/blocked-users", icon: "block", label: "Blocked Users" },
+    { to: "/settings/account", icon: "manage_accounts", label: "Account" },
 ];
 
 const LeftSidebar = () => {

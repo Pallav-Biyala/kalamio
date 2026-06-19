@@ -30,6 +30,8 @@ const YouPage = lazy(() => import("./pages/you.page"));
 const NotificationPreferences = lazy(() => import("./pages/notification-preferences.page"));
 const AnalyticsPage = lazy(() => import("./pages/analytics.page"));
 const BlockedUsersPage = lazy(() => import("./pages/blocked-users.page"));
+const AccountManagementPage = lazy(() => import("./pages/account-management.page"));
+const PrivacySettingsPage = lazy(() => import("./pages/privacy-settings.page"));
 const MessagesPage = lazy(() => import("./pages/messages.page"));
 const AuthCallback = lazy(() => import("./pages/auth-callback.page"));
 const VerifyOtp = lazy(() => import("./pages/verify-otp.page"));
@@ -121,6 +123,8 @@ const App = () => {
                             <Route path="settings/notification-preferences" element={<NotificationPreferences />} />
                             <Route path="settings/blocked-users" element={<BlockedUsersPage />} />
                             <Route path="dashboard/analytics" element={<AnalyticsPage />} />
+                            <Route path="settings/privacy" element={<PrivacySettingsPage />} />
+                            <Route path="settings/account" element={<AccountManagementPage />} />
                             <Route path="you" element={<YouPage />} />
                             <Route path="signin" element={<UserAuthForm type="sign-in"/>} />
                             <Route path="signup" element={<UserAuthForm type="sign-up" />} />

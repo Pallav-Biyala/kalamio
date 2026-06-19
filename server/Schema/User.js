@@ -141,8 +141,19 @@ const userSchema = mongoose.Schema({
         subscribe:        { in_app: { type: Boolean, default: true },  email: { type: Boolean, default: false } },
         mention:          { in_app: { type: Boolean, default: true },  email: { type: Boolean, default: true } },
         mute_all:         { type: Boolean, default: false }
+    },
+    account_status: {
+        status:                { type: String, enum: ['active', 'deactivated', 'deleted'], default: 'active' },
+        deactivated_at:        { type: Date, default: null },
+        deletion_scheduled_at: { type: Date, default: null },
+        deletion_reason:       { type: String, default: '' }
+    },
+    privacy_settings: {
+        who_can_message:  { type: String, enum: ['everyone', 'connections', 'nobody'], default: 'everyone' },
+        show_profile:     { type: String, enum: ['everyone', 'logged_in', 'connections'], default: 'everyone' },
+        show_read_count:  { type: Boolean, default: true },
+        show_connections: { type: Boolean, default: true }
     }
-
 }, 
 { 
     timestamps: {

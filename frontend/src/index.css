@@ -1320,6 +1320,218 @@
         color: rgb(var(--c-dark-grey) / 0.7);
     }
 
+    /* ── Account Management ──────────────────────── */
+    .account-mgmt__status-banner {
+        display: flex;
+        gap: 12px;
+        padding: 16px;
+        border-radius: 12px;
+        margin-bottom: 24px;
+        align-items: flex-start;
+    }
+
+    .account-mgmt__status-banner--warning {
+        background: rgb(var(--c-orange) / 0.08);
+        border: 1px solid rgb(var(--c-orange) / 0.25);
+        color: rgb(var(--c-orange));
+    }
+
+    .account-mgmt__status-banner--danger {
+        background: rgb(var(--c-red) / 0.08);
+        border: 1px solid rgb(var(--c-red) / 0.25);
+        color: rgb(var(--c-red));
+    }
+
+    .account-mgmt__reactivate-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 10px;
+        padding: 6px 16px;
+        border-radius: 8px;
+        border: none;
+        background: rgb(var(--c-green));
+        color: white;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.15s;
+    }
+
+    .account-mgmt__reactivate-btn:hover { opacity: 0.85; }
+
+    .account-mgmt__card {
+        padding: 20px;
+        border: 1px solid rgb(var(--c-border));
+        border-radius: 14px;
+        margin-bottom: 20px;
+    }
+
+    .account-mgmt__card--warning {
+        border-color: rgb(var(--c-orange) / 0.3);
+    }
+
+    .account-mgmt__card--danger {
+        border-color: rgb(var(--c-red) / 0.3);
+    }
+
+    .account-mgmt__card-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .account-mgmt__card-header h2 {
+        font-size: 16px;
+        font-weight: 600;
+    }
+
+    .account-mgmt__list {
+        list-style: none;
+        padding: 0;
+        margin: 8px 0 16px;
+    }
+
+    .account-mgmt__list li {
+        position: relative;
+        padding-left: 18px;
+        font-size: 13px;
+        color: rgb(var(--c-dark-grey));
+        margin-bottom: 4px;
+    }
+
+    .account-mgmt__list li::before {
+        content: '•';
+        position: absolute;
+        left: 4px;
+        color: rgb(var(--c-orange));
+    }
+
+    .account-mgmt__list--danger li::before {
+        color: rgb(var(--c-red));
+    }
+
+    .account-mgmt__deactivate-btn {
+        padding: 8px 20px;
+        border: 1px solid rgb(var(--c-orange));
+        border-radius: 8px;
+        background: transparent;
+        color: rgb(var(--c-orange));
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .account-mgmt__deactivate-btn:hover {
+        background: rgb(var(--c-orange) / 0.08);
+    }
+
+    .account-mgmt__delete-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 8px 20px;
+        border: none;
+        border-radius: 8px;
+        background: rgb(var(--c-red));
+        color: white;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.15s;
+    }
+
+    .account-mgmt__delete-btn:hover { opacity: 0.85; }
+
+    .account-mgmt__delete-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* ── Privacy Settings ────────────────────────── */
+    .privacy__section {
+        margin-bottom: 28px;
+        padding-bottom: 24px;
+        border-bottom: 1px solid rgb(var(--c-border));
+    }
+
+    .privacy__section:last-child { border-bottom: none; }
+
+    .privacy__section-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 14px;
+    }
+
+    .privacy__section-header h2 {
+        font-size: 15px;
+        font-weight: 600;
+    }
+
+    .privacy__options {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .privacy__option {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        border: 1px solid rgb(var(--c-border));
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .privacy__option:hover {
+        background: rgb(var(--c-grey) / 0.5);
+    }
+
+    .privacy__option--active {
+        border-color: rgb(var(--c-purple));
+        background: rgb(var(--c-purple) / 0.04);
+    }
+
+    .privacy__option-radio {
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgb(var(--c-border));
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: border-color 0.15s;
+    }
+
+    .privacy__option--active .privacy__option-radio {
+        border-color: rgb(var(--c-purple));
+    }
+
+    .privacy__option-radio-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: rgb(var(--c-purple));
+    }
+
+    .privacy__toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 0;
+        border-bottom: 1px solid rgb(var(--c-border));
+    }
+
+    .privacy__toggle-row:last-child {
+        border-bottom: none;
+    }
+
     /* ── Bottom Search Overlay ──────────────────── */
     .bottom-search-overlay {
         position: fixed;
