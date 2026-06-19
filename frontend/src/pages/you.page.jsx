@@ -11,10 +11,9 @@ import Avatar from "../components/Avatar";
 const MenuLink = ({ to, icon, label, badge, onClick }) => {
     const content = (
         <>
-            <Icon name={icon} className="text-[22px] text-dark-grey" />
+            <Icon name={icon} className="text-[26px] text-dark-grey" />
             <span className="flex-1">{label}</span>
             {badge && <span className="you-hub__badge">{badge}</span>}
-            <Icon name="chevron_right" className="text-[20px] text-dark-grey/50" />
         </>
     );
 
@@ -69,13 +68,12 @@ const YouPage = () => {
                 {/* Profile Card */}
                 <Link to={`/user/${username}`} className="you-hub__profile-card">
                     <div className="you-hub__avatar">
-                        <Avatar src={profile_img} alt={username} size={56} />
+                        <Avatar src={profile_img} alt={username} size={64} />
                     </div>
                     <div className="you-hub__profile-info">
                         <h2 className="you-hub__name">{fullname || username}</h2>
                         <p className="you-hub__username">@{username}</p>
                     </div>
-                    <Icon name="chevron_right" className="text-[22px] text-dark-grey/50" />
                 </Link>
 
                 {/* Dashboard Section */}

@@ -779,16 +779,16 @@
 
     /* ── You Hub Page (Mobile) ───────────────────── */
     .you-hub {
-        padding: 8px 0 100px;
+        padding: 12px 16px 100px;
     }
 
     .you-hub__profile-card {
         display: flex;
         align-items: center;
-        gap: 14px;
+        gap: 16px;
         padding: 16px;
-        margin: 0 0 8px;
-        border-radius: 16px;
+        margin: 0 0 16px;
+        border-radius: 24px;
         background: rgb(var(--c-grey));
         text-decoration: none;
         transition: background 0.15s;
@@ -824,22 +824,24 @@
     }
 
     .you-hub__section {
-        margin-top: 12px;
+        margin-top: 16px;
     }
 
     .you-hub__section-header {
-        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
         font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
+        letter-spacing: 0.04em;
         color: rgb(var(--c-dark-grey));
-        padding: 8px 4px 6px;
+        padding: 4px 16px 8px;
     }
 
     .you-hub__menu {
         display: flex;
         flex-direction: column;
-        border-radius: 14px;
+        border-radius: 24px;
         overflow: hidden;
         background: rgb(var(--c-grey));
     }
@@ -847,11 +849,11 @@
     .you-hub__item {
         display: flex;
         align-items: center;
-        gap: 14px;
-        padding: 14px 16px;
+        gap: 16px;
+        padding: 18px 16px;
         text-decoration: none;
         color: rgb(var(--c-black));
-        font-size: 15px;
+        font-size: 16px;
         font-weight: 500;
         border: none;
         background: none;
@@ -881,14 +883,14 @@
     .you-hub__signout {
         display: flex;
         align-items: center;
-        gap: 14px;
+        gap: 16px;
         width: 100%;
-        padding: 14px 16px;
+        padding: 18px 16px;
         border: none;
         background: rgb(var(--c-grey));
-        border-radius: 14px;
+        border-radius: 24px;
         color: rgb(var(--c-red));
-        font-size: 15px;
+        font-size: 16px;
         font-weight: 500;
         cursor: pointer;
         transition: background 0.12s;
