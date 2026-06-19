@@ -12,7 +12,9 @@ export const filterPaginationData = async ({ create_new_arr = false, state, data
         .then(({ data: { totalDocs } }) => {
             obj = { results: data, page: 1, totalDocs }
         })
-        .catch(err => {
+        .catch(() => {
+            // Fallback: render what we have even if count request fails
+            obj = { results: data, page: 1, totalDocs: 0 }
         })
 
     }

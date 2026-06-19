@@ -13,14 +13,14 @@ import { useNavigate } from "react-router-dom";
  *   size — "sm" | "md" (default "md")
  *   className — additional CSS classes
  */
-const FollowButton = ({ targetUserId, initiallyFollowing = null, onFollowChange, size = "md", className = "" }) => {
+const FollowButton = ({ targetUserId, initiallyFollowing = null, initialFollowsYou = null, onFollowChange, size = "md", className = "" }) => {
 
     const { userAuth: { access_token, _id: currentUserId } } = useContext(UserContext);
     const navigate = useNavigate();
 
     const [isFollowing, setIsFollowing] = useState(initiallyFollowing);
     const [loading, setLoading] = useState(false);
-    const [followsYou, setFollowsYou] = useState(false);
+    const [followsYou, setFollowsYou] = useState(initialFollowsYou ?? false);
 
     // Don't render if viewing own profile
     if (currentUserId === targetUserId) return null;
@@ -36,10 +36,12 @@ const FollowButton = ({ targetUserId, initiallyFollowing = null, onFollowChange,
                 .catch(() => setIsFollowing(false));
         }
 
-        // Check if target user follows the current user
-        api.post("/is-following-back", { user_id: targetUserId })
-            .then(({ data }) => setFollowsYou(data.follows_you))
-            .catch(() => setFollowsYou(false));
+        // Check if target user follows the current user (skip if parent provided the data)
+        if (initialFollowsYou === null) {
+            api.post("/is-following-back", { user_id: targetUserId })
+                .then(({ data }) => setFollowsYou(data.follows_you))
+                .catch(() => setFollowsYou(false));
+        }
     }, [targetUserId, access_token]);
 
     const handleClick = async (e) => {

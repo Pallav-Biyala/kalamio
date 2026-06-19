@@ -312,3 +312,38 @@ export const isFollowingBack = async (req, res) => {
         return res.status(500).json({ error: err.message });
     }
 };
+
+/**
+ * POST /api/v1/batch-follow-status
+ * Batch check follow status for multiple users.
+ * Returns which users the logged-in user follows and which follow back.
+ */
+export const batchFollowStatus = async (req, res) => {
+    try {
+        const current_user_id = req.user;
+        const { user_ids } = req.body;
+
+        if (!user_ids || !Array.isArray(user_ids) || user_ids.length === 0) {
+            return res.status(200).json({ following: [], followers: [] });
+        }
+
+        // Cap at 20 to prevent abuse
+        const ids = user_ids.slice(0, 20);
+
+        const [followingDocs, followerDocs] = await Promise.all([
+            // Which of these users does the current user follow?
+            Follow.find({ follower: current_user_id, following: { $in: ids } }).select("following").lean(),
+            // Which of these users follow the current user back?
+            Follow.find({ follower: { $in: ids }, following: current_user_id }).select("follower").lean(),
+        ]);
+
+        return res.status(200).json({
+            following: followingDocs.map(d => d.following.toString()),
+            followers: followerDocs.map(d => d.follower.toString()),
+        });
+
+    } catch (err) {
+        console.error('[Follow] batchFollowStatus failed:', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+};

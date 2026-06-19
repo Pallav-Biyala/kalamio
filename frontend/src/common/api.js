@@ -6,17 +6,33 @@ const api = axios.create({
     baseURL: import.meta.env.VITE_SERVER_DOMAIN + 'api/v1',
 });
 
-// Auto-attach auth token from session
-api.interceptors.request.use((config) => {
-    const userSession = lookInSession("user");
-    if (userSession) {
-        const { access_token } = JSON.parse(userSession);
-        if (access_token) {
-            config.headers.Authorization = `Bearer ${access_token}`;
-        }
+// ── Token expiry helpers ────────────────────────────────────────────
+
+/**
+ * Decode JWT payload without verification (we only need the `exp` claim).
+ * Returns null if the token is malformed.
+ */
+const decodeTokenPayload = (token) => {
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        return JSON.parse(atob(base64));
+    } catch {
+        return null;
     }
-    return config;
-});
+};
+
+/**
+ * Returns true if the access token is expired or will expire within `bufferMs`.
+ * A 30-second buffer ensures we refresh before the server rejects us.
+ */
+const isTokenExpiringSoon = (token, bufferMs = 30_000) => {
+    const payload = decodeTokenPayload(token);
+    if (!payload?.exp) return true; // malformed → treat as expired
+    return payload.exp * 1000 <= Date.now() + bufferMs;
+};
+
+// ── Shared refresh state ────────────────────────────────────────────
 
 let isRefreshing = false;
 let failedQueue = [];
@@ -32,7 +48,87 @@ const processQueue = (error, token = null) => {
     failedQueue = [];
 };
 
-// Global error handling and transparent token refresh
+/**
+ * Perform the actual token refresh. Shared between request and response
+ * interceptors so we never have two refreshes running concurrently.
+ * Returns the new access_token on success, or throws on failure.
+ */
+const doRefresh = async () => {
+    const userSession = lookInSession("user");
+    if (!userSession) throw new Error("No session");
+
+    const userData = JSON.parse(userSession);
+    const { refresh_token } = userData;
+    if (!refresh_token) throw new Error("No refresh token");
+
+    const refreshUrl = `${import.meta.env.VITE_SERVER_DOMAIN}api/v1/refresh-token`;
+    const { data } = await axios.post(refreshUrl, { refresh_token });
+
+    // Persist new tokens
+    userData.access_token = data.access_token;
+    if (data.refresh_token) userData.refresh_token = data.refresh_token;
+    storeInSession("user", JSON.stringify(userData));
+
+    return data.access_token;
+};
+
+// ── Request interceptor — proactive token refresh ───────────────────
+// Checks token expiry BEFORE the request is sent. If expired, refreshes
+// first so the request goes out with a valid token (no 401 cascade).
+
+api.interceptors.request.use(async (config) => {
+    const userSession = lookInSession("user");
+    if (!userSession) return config;
+
+    const userData = JSON.parse(userSession);
+    const { access_token } = userData;
+    if (!access_token) return config;
+
+    // Skip proactive refresh for auth-flow endpoints
+    const authFlowPaths = ['/exchange-auth-code', '/signin', '/signup', '/verify-email', '/refresh-token'];
+    if (authFlowPaths.some(p => config.url?.includes(p))) {
+        config.headers.Authorization = `Bearer ${access_token}`;
+        return config;
+    }
+
+    // If the token is still valid, attach and proceed
+    if (!isTokenExpiringSoon(access_token)) {
+        config.headers.Authorization = `Bearer ${access_token}`;
+        return config;
+    }
+
+    // Token is expired or about to expire — refresh before sending
+    if (isRefreshing) {
+        // Another request already triggered the refresh; wait for it
+        const newToken = await new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+        });
+        config.headers.Authorization = `Bearer ${newToken}`;
+        return config;
+    }
+
+    // We are the first to detect expiry — start the refresh
+    isRefreshing = true;
+    try {
+        const newToken = await doRefresh();
+        processQueue(null, newToken);
+        config.headers.Authorization = `Bearer ${newToken}`;
+    } catch (err) {
+        processQueue(err, null);
+        // Let the request go out with the stale token; the response
+        // interceptor will handle the 401 and redirect to sign-in.
+        config.headers.Authorization = `Bearer ${access_token}`;
+    } finally {
+        isRefreshing = false;
+    }
+
+    return config;
+});
+
+// ── Response interceptor — safety net for edge cases ────────────────
+// Kept as a fallback in case the proactive check misses an edge case
+// (e.g. token revoked server-side, clock skew, etc.).
+
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -46,12 +142,9 @@ api.interceptors.response.use(
 
         // If 401 and we haven't retried yet (and it's not a login-flow endpoint)
         if (status === 401 && !originalRequest._retry && !isAuthFlow) {
-            console.log('[TokenRefresh] 401 received for:', originalRequest.url);
-            console.log('[TokenRefresh] isRefreshing:', isRefreshing, '| queueLength:', failedQueue.length);
 
             // If already refreshing, queue the request
             if (isRefreshing) {
-                console.log('[TokenRefresh] Queuing request:', originalRequest.url);
                 return new Promise(function(resolve, reject) {
                     failedQueue.push({ resolve, reject });
                 }).then(token => {
@@ -65,54 +158,22 @@ api.interceptors.response.use(
             originalRequest._retry = true;
             isRefreshing = true;
 
-            const userSession = lookInSession("user");
-            console.log('[TokenRefresh] Session exists:', !!userSession);
+            try {
+                const newToken = await doRefresh();
+                processQueue(null, newToken);
+                originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                isRefreshing = false;
 
-            if (userSession) {
-                const userData = JSON.parse(userSession);
-                const { refresh_token } = userData;
-                console.log('[TokenRefresh] refresh_token exists:', !!refresh_token);
-                console.log('[TokenRefresh] refresh_token preview:', refresh_token?.substring(0, 20) + '...');
-
-                if (refresh_token) {
-                    try {
-                        const refreshUrl = `${import.meta.env.VITE_SERVER_DOMAIN}api/v1/refresh-token`;
-                        console.log('[TokenRefresh] Calling:', refreshUrl);
-
-                        const { data } = await axios.post(refreshUrl, { refresh_token });
-                        console.log('[TokenRefresh] ✅ Success! New access_token received');
-
-                        // Update session with new tokens
-                        userData.access_token = data.access_token;
-                        if (data.refresh_token) userData.refresh_token = data.refresh_token;
-                        storeInSession("user", JSON.stringify(userData));
-
-                        processQueue(null, data.access_token);
-                        
-                        originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
-                        isRefreshing = false;
-                        
-                        // Retry original request with new token
-                        return api(originalRequest);
-                    } catch (err) {
-                        console.error('[TokenRefresh] ❌ Refresh FAILED:', err.response?.status, err.response?.data);
-                        processQueue(err, null);
-                        isRefreshing = false;
-                        removeFromSession("user");
-                        toast.error("Session expired. Please log in again.");
-                        setTimeout(() => window.location.href = "/signin", 1500);
-                        return Promise.reject(err);
-                    }
-                }
+                // Retry original request with new token
+                return api(originalRequest);
+            } catch (err) {
+                processQueue(err, null);
+                isRefreshing = false;
+                removeFromSession("user");
+                toast.error("Session expired. Please log in again.");
+                setTimeout(() => window.location.href = "/signin", 1500);
+                return Promise.reject(err);
             }
-
-            // No session or no refresh token — clear everything and redirect
-            console.error('[TokenRefresh] ❌ No session or no refresh_token found');
-            isRefreshing = false;
-            removeFromSession("user");
-            toast.error("Session expired. Please log in again.");
-            setTimeout(() => window.location.href = "/signin", 1500);
-            return Promise.reject(error);
         }
 
         // ── Non-401 error handling ─────────────────────────────────────

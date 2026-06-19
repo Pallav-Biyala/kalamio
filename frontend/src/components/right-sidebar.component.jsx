@@ -9,12 +9,21 @@ import MinimalBlogPost from "./nobanner-blog-post.component";
 import WhoToFollow from "./who-to-follow.component";
 import { UserContext } from "../App";
 
-const RightSidebar = ({ onTrendingClick }) => {
+const RightSidebar = ({ onTrendingClick, trendingBlogs: trendingBlogsProp }) => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [trendingBlogs, setTrendingBlogs] = useState(null);
+  const [trendingBlogs, setTrendingBlogs] = useState(trendingBlogsProp ?? null);
   const navigate = useNavigate();
 
+  // Sync prop → state when parent provides data
   useEffect(() => {
+    if (trendingBlogsProp != null) {
+      setTrendingBlogs(trendingBlogsProp);
+    }
+  }, [trendingBlogsProp]);
+
+  // Only fetch independently if no prop was provided (e.g. used outside HomePage)
+  useEffect(() => {
+    if (trendingBlogsProp != null) return; // parent already provides data
     api.get("/trending-blogs")
       .then(({ data }) => {
         setTrendingBlogs(data.blogs);

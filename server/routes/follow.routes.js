@@ -6,6 +6,7 @@ import {
     unfollowUser,
     isFollowing,
     isFollowingBack,
+    batchFollowStatus,
     getFollowers,
     getFollowersCount,
     getFollowing,
@@ -27,6 +28,7 @@ router.post("/follow", verifyJWT, asyncHandler(followUser));
 router.post("/unfollow", verifyJWT, asyncHandler(unfollowUser));
 router.post("/is-following", verifyJWT, asyncHandler(isFollowing));
 router.post("/is-following-back", verifyJWT, asyncHandler(isFollowingBack));
+router.post("/batch-follow-status", verifyJWT, asyncHandler(batchFollowStatus));
 router.post("/follow-feed", verifyJWT, asyncHandler(followFeed));
 router.post("/follow-feed-count", verifyJWT, asyncHandler(followFeedCount));
 

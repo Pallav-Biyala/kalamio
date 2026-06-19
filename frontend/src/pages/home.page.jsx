@@ -410,7 +410,7 @@ const HomePage = () => {
         </div>
 
         {/* ── Right Sidebar Column (Desktop) ───── */}
-        <RightSidebar onTrendingClick={() => loadBlogByCategory("Trending")} />
+        <RightSidebar onTrendingClick={() => loadBlogByCategory("Trending")} trendingBlogs={trendingBlogs} />
 
       </div>
 
