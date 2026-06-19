@@ -36,6 +36,8 @@ const MainLayout = () => {
         let lastScrollY = window.scrollY;
         let headerOffset = 0;
         let ticking = false;
+        let scrollUpAccum = 0; // accumulates scroll-up pixels before revealing
+        const SCROLL_UP_THRESHOLD = 10; // ignore small scroll-ups from browser chrome
 
         const applyTransform = (offset) => {
             const isDesktop = window.innerWidth >= 1024;
@@ -83,10 +85,12 @@ const MainLayout = () => {
 
             if (currentScrollY <= 5) {
                 headerOffset = 0;
+                scrollUpAccum = 0;
                 applyTransform(0);
                 document.body.classList.remove('scroll-down', 'scroll-up');
             } else if (delta > 0) {
-                // Scrolling DOWN
+                // Scrolling DOWN — reset scroll-up accumulator
+                scrollUpAccum = 0;
                 if (maxOffset > 0) {
                     headerOffset = Math.min(headerOffset + delta, maxOffset);
                     applyTransform(headerOffset);
@@ -96,10 +100,22 @@ const MainLayout = () => {
                     }
                 }
             } else if (delta < 0) {
-                // Scrolling UP — reveal proportionally with scroll
+                // Scrolling UP — accumulate first, then reveal after threshold
                 if (maxOffset > 0) {
-                    headerOffset = Math.max(headerOffset + delta, 0);
-                    applyTransform(headerOffset);
+                    if (isDesktop) {
+                        // Desktop: no browser chrome interference, track directly
+                        headerOffset = Math.max(headerOffset + delta, 0);
+                        applyTransform(headerOffset);
+                    } else {
+                        // Mobile: require threshold to filter browser chrome noise
+                        scrollUpAccum += Math.abs(delta);
+                        if (scrollUpAccum >= SCROLL_UP_THRESHOLD) {
+                            // Apply only the delta beyond the threshold
+                            const effectiveDelta = delta;
+                            headerOffset = Math.max(headerOffset + effectiveDelta, 0);
+                            applyTransform(headerOffset);
+                        }
+                    }
                     if (headerOffset <= 0) {
                         document.body.classList.remove('scroll-down');
                         document.body.classList.add('scroll-up');
