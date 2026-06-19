@@ -265,13 +265,31 @@ export const userWrittenPosts = (req, res) => {
 
     let user_id = req.user;
 
-    let { page, draft, query, deletedDocCount } = req.body;
+    let { page, draft, query, deletedDocCount, sort } = req.body;
 
     let maxLimit = 5;
     let skipDocs = (page - 1) * maxLimit;
 
     if(deletedDocCount){
         skipDocs -= deletedDocCount;
+    }
+
+    // Map sort parameter to MongoDB sort object
+    let sortQuery;
+    switch (sort) {
+        case 'oldest':
+            sortQuery = { publishedAt: 1 };
+            break;
+        case 'most_liked':
+            sortQuery = { 'activity.total_likes': -1 };
+            break;
+        case 'most_read':
+            sortQuery = { 'activity.total_reads': -1 };
+            break;
+        case 'newest':
+        default:
+            sortQuery = { publishedAt: -1 };
+            break;
     }
 
     // For text posts, also match against text_content
@@ -287,7 +305,7 @@ export const userWrittenPosts = (req, res) => {
     Post.find(findQuery)
     .skip(skipDocs)
     .limit(maxLimit)
-    .sort({publishedAt: -1})
+    .sort(sortQuery)
     .select(" title banner publishedAt blog_id activity des draft type text_content images poll content tags -_id ")
     .then(blogs => {
         return res.status(200).json({ blogs });

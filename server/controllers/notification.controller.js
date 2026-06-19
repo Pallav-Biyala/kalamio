@@ -92,3 +92,50 @@ export const allNotificationsCount = (req, res) => {
     })
 
 };
+
+// Mark all notifications as read
+export const markAllNotificationsRead = (req, res) => {
+
+    let user_id = req.user;
+
+    Notification.updateMany({ notification_for: user_id, seen: false }, { seen: true })
+    .then(result => {
+        return res.status(200).json({ success: true, modified_count: result.modifiedCount });
+    })
+    .catch(err => {
+        console.error('[Notification] markAllNotificationsRead failed:', err.message);
+        return res.status(500).json({ error: err.message });
+    })
+
+};
+
+// Delete a single notification (with ownership check)
+export const deleteNotification = (req, res) => {
+
+    let user_id = req.user;
+    let { _id } = req.body;
+
+    if (!_id) {
+        return res.status(400).json({ error: "Notification ID is required" });
+    }
+
+    Notification.findById(_id)
+    .then(notification => {
+        if (!notification || notification.notification_for.toString() !== user_id) {
+            return res.status(404).json({ error: "Notification not found" });
+        }
+
+        Notification.findByIdAndDelete(_id)
+        .then(() => {
+            return res.status(200).json({ deleted: true });
+        })
+        .catch(err => {
+            return res.status(500).json({ error: err.message });
+        })
+    })
+    .catch(err => {
+        console.error('[Notification] deleteNotification failed:', err.message);
+        return res.status(500).json({ error: err.message });
+    })
+
+};

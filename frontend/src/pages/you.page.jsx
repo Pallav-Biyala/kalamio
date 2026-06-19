@@ -103,6 +103,7 @@ const YouPage = () => {
                     <div className="you-hub__menu">
                         <MenuLink to="/settings/edit-profile" icon="person" label="Edit Profile" />
                         <MenuLink to="/settings/change-password" icon="lock" label="Change Password" />
+                        <MenuLink to="/settings/notification-preferences" icon="notifications_active" label="Notification Prefs" />
                         <MenuLink
                             icon={theme === "light" ? "dark_mode" : "light_mode"}
                             label={theme === "light" ? "Dark Mode" : "Light Mode"}

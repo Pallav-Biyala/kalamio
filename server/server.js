@@ -31,6 +31,7 @@ import publicationRoutes from './routes/publication.routes.js';
 import messageRoutes from './routes/message.routes.js';
 import metadataRoutes from './routes/metadata.routes.js';
 import bookmarkRoutes from './routes/bookmark.routes.js';
+import settingsRoutes from './routes/settings.routes.js';
 
 const server = express();
 const httpServer = createServer(server);
@@ -103,6 +104,7 @@ server.use('/api/v1', publicationRoutes);
 server.use('/api/v1', messageRoutes);
 server.use('/api/v1', metadataRoutes);
 server.use('/api/v1', bookmarkRoutes);
+server.use('/api/v1', settingsRoutes);
 
 // Backward compat: /api/* → /api/v1/* redirect (remove once all clients updated)
 server.use('/api', (req, res, next) => {

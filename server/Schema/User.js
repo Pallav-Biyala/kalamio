@@ -131,6 +131,16 @@ const userSchema = mongoose.Schema({
         type: [ Schema.Types.ObjectId ],
         ref: 'blogs',
         default: [],
+    },
+    notification_preferences: {
+        like:             { in_app: { type: Boolean, default: true },  email: { type: Boolean, default: false } },
+        comment:          { in_app: { type: Boolean, default: true },  email: { type: Boolean, default: true } },
+        reply:            { in_app: { type: Boolean, default: true },  email: { type: Boolean, default: true } },
+        follow:           { in_app: { type: Boolean, default: true },  email: { type: Boolean, default: false } },
+        connect_request:  { in_app: { type: Boolean, default: true },  email: { type: Boolean, default: true } },
+        subscribe:        { in_app: { type: Boolean, default: true },  email: { type: Boolean, default: false } },
+        mention:          { in_app: { type: Boolean, default: true },  email: { type: Boolean, default: true } },
+        mute_all:         { type: Boolean, default: false }
     }
 
 }, 

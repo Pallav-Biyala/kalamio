@@ -22,7 +22,7 @@ import {
 } from '../controllers/post.controller.js';
 
 // Blog-specific handlers
-import { createBlog } from '../controllers/blog.controller.js';
+import { createBlog, bulkDeleteBlogs } from '../controllers/blog.controller.js';
 
 // Text post-specific handlers
 import { createTextPost, votePoll, checkPollVote } from '../controllers/textpost.controller.js';
@@ -53,6 +53,7 @@ router.post("/batch-isliked", verifyJWT, asyncHandler(batchIsLiked));
 router.post("/user-written-blogs", verifyJWT, asyncHandler(userWrittenPosts));
 router.post("/user-written-blogs-count", verifyJWT, asyncHandler(userWrittenPostsCount));
 router.post("/delete-blog", verifyJWT, validate(deleteBlogSchema), asyncHandler(deletePost));
+router.post("/bulk-delete-blogs", verifyJWT, asyncHandler(bulkDeleteBlogs));
 
 // ── Protected — text post polls ─────────────────────────────────────
 router.post("/vote-poll", verifyJWT, asyncHandler(votePoll));

@@ -21,7 +21,7 @@ const BlogStats = ({ stats }) => {
     )
 }
 
-export const ManagePublishedBlogsCard = ({ blog }) => {
+export const ManagePublishedBlogsCard = ({ blog, isSelected, onToggleSelect }) => {
 
     let { banner, blog_id, title, publishedAt, activity, type, text_content } = blog;
     const isTextPost = type === 'text_post';
@@ -36,7 +36,17 @@ export const ManagePublishedBlogsCard = ({ blog }) => {
 
     return (
         <>
-            <div className="flex gap-10 border-b mb-6 max-md:px-4 border-border pb-6 items-center">
+            <div className="flex gap-4 lg:gap-10 border-b mb-6 max-md:px-4 border-border pb-6 items-center">
+
+                {/* Checkbox for bulk select */}
+                {onToggleSelect && (
+                    <button
+                        onClick={onToggleSelect}
+                        className="flex-none text-dark-grey hover:text-black transition-colors"
+                    >
+                        <Icon name={isSelected ? "check_box" : "check_box_outline_blank"} className="text-[22px]" />
+                    </button>
+                )}
 
                 {!isTextPost && banner && (
                     <img src={banner} className="max-md:hidden lg:hidden xl:block w-28 h-28 flex-none bg-grey object-cover rounded-radius-md" alt={title} />

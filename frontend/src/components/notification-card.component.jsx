@@ -7,8 +7,9 @@ import { UserContext } from "../App";
 import api from "../common/api";
 import FollowButton from "./follow-button.component";
 import ConnectButton from "./connect-button.component";
+import Icon from "./Icon";
 
-const NotificationCard = ({ data, index, notificationState }) => {
+const NotificationCard = ({ data, index, notificationState, onDelete }) => {
 
     let [ isReplying, setReplying ] = useState(false);
 
@@ -71,7 +72,16 @@ const NotificationCard = ({ data, index, notificationState }) => {
     const isSocialNotification = ['follow', 'connect_request', 'connect_accepted', 'subscribe'].includes(type);
 
     return (
-        <div className={"p-6 border-b border-border " + (!seen ? "border-l-2 border-l-black" : "" )}>
+        <div className={"p-6 border-b border-border relative group " + (!seen ? "border-l-2 border-l-black" : "" )}>
+            {onDelete && (
+                <button
+                    className="absolute top-3 right-3 p-1.5 rounded-full text-dark-grey/50 hover:text-red hover:bg-red/10 opacity-0 group-hover:opacity-100 transition-all"
+                    onClick={() => onDelete(notification_id)}
+                    title="Dismiss notification"
+                >
+                    <Icon name="close" className="text-[18px]" />
+                </button>
+            )}
             <div className="flex gap-5 mb-3">
                 <Avatar src={profile_img} alt="User" size={56} />
                 <div className="w-full">

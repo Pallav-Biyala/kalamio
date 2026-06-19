@@ -1,6 +1,10 @@
 import Blog from '../Schema/Blog.js';
+import Post from '../Schema/Post.js';
 import User from '../Schema/User.js';
 import Publication from '../Schema/Publication.js';
+import Notification from '../Schema/Notification.js';
+import Comment from '../Schema/Comment.js';
+import Bookmark from '../Schema/Bookmark.js';
 import { nanoid } from 'nanoid';
 import sanitizeHtml from 'sanitize-html';
 
@@ -231,5 +235,44 @@ export const createBlog = (req, res) => {
         })
 
     }
+
+};
+
+// Bulk delete blogs (with ownership check and cascading cleanup)
+export const bulkDeleteBlogs = async (req, res) => {
+
+    let user_id = req.user;
+    let { blog_ids } = req.body;
+
+    if (!blog_ids || !Array.isArray(blog_ids) || blog_ids.length === 0) {
+        return res.status(400).json({ error: "blog_ids must be a non-empty array" });
+    }
+
+    // Find only posts owned by this user
+    const posts = await Post.find({ blog_id: { $in: blog_ids }, author: user_id }).select('_id');
+    const post_ids = posts.map(p => p._id);
+
+    if (post_ids.length === 0) {
+        return res.status(200).json({ deleted_count: 0 });
+    }
+
+    // Cascade delete all related data in parallel
+    await Promise.all([
+        Comment.deleteMany({ blog_id: { $in: post_ids } }),
+        Notification.deleteMany({ blog: { $in: post_ids } }),
+        Bookmark.deleteMany({ blog: { $in: post_ids } }),
+        Post.deleteMany({ _id: { $in: post_ids } })
+    ]);
+
+    // Update user: decrement total_posts and remove blog refs
+    await User.findOneAndUpdate(
+        { _id: user_id },
+        {
+            $inc: { "account_info.total_posts": -post_ids.length },
+            $pull: { blogs: { $in: post_ids } }
+        }
+    );
+
+    return res.status(200).json({ deleted_count: post_ids.length });
 
 };

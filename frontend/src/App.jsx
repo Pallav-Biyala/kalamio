@@ -27,6 +27,7 @@ const ManagePublicationsPage = lazy(() => import("./pages/manage-publications.pa
 const BookmarksPage = lazy(() => import("./pages/bookmarks.page"));
 const DraftsPage = lazy(() => import("./pages/drafts.page"));
 const YouPage = lazy(() => import("./pages/you.page"));
+const NotificationPreferences = lazy(() => import("./pages/notification-preferences.page"));
 const MessagesPage = lazy(() => import("./pages/messages.page"));
 const AuthCallback = lazy(() => import("./pages/auth-callback.page"));
 const VerifyOtp = lazy(() => import("./pages/verify-otp.page"));
@@ -115,6 +116,7 @@ const App = () => {
                             <Route path="dashboard/drafts" element={<DraftsPage />} />
                             <Route path="settings/edit-profile" element={<EditProfile />} />
                             <Route path="settings/change-password" element={<ChangePassword />} />
+                            <Route path="settings/notification-preferences" element={<NotificationPreferences />} />
                             <Route path="you" element={<YouPage />} />
                             <Route path="signin" element={<UserAuthForm type="sign-in"/>} />
                             <Route path="signup" element={<UserAuthForm type="sign-up" />} />

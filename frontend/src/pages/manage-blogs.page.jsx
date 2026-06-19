@@ -13,6 +13,13 @@ import { ManagePublishedBlogsCard, ManageDraftBlogPost } from "../components/man
 import LoadMoreDataBtn from "../components/load-more.component";
 import { useSearchParams } from "react-router-dom";
 
+const SORT_OPTIONS = [
+    { value: "newest", label: "Newest First" },
+    { value: "oldest", label: "Oldest First" },
+    { value: "most_liked", label: "Most Liked" },
+    { value: "most_read", label: "Most Read" },
+];
+
 const ManageBlogs = () => {
 
     usePageTitle('Manage Blogs');
@@ -20,6 +27,9 @@ const ManageBlogs = () => {
     const [ blogs, setBlogs ] = useState(null);
     const [ drafts, setDrafts ] = useState(null);
     const [ query, setQuery ] = useState("");
+    const [ sort, setSort ] = useState("newest");
+    const [ selectedBlogs, setSelectedBlogs ] = useState(new Set());
+    const [ deleting, setDeleting ] = useState(false);
 
     let activeTab = useSearchParams()[0].get("tab");
 
@@ -28,7 +38,8 @@ const ManageBlogs = () => {
     const getBlogs = ({ page, draft, deletedDocCount = 0 }) => {
 
         api.post("/user-written-blogs", {
-            page, draft, query, deletedDocCount
+            page, draft, query, deletedDocCount,
+            sort: draft ? "newest" : sort
         })
         .then( async ({ data }) => {
             let formatedData = await filterPaginationData({
@@ -39,8 +50,6 @@ const ManageBlogs = () => {
                 countRoute: "/user-written-blogs-count",
                 data_to_send: { draft, query }
             })
-
-
 
             if(draft){
                 setDrafts(formatedData);
@@ -65,6 +74,13 @@ const ManageBlogs = () => {
 
     }, [access_token, blogs, drafts, query])
 
+    // Re-fetch published blogs when sort changes
+    useEffect(() => {
+        if (access_token) {
+            setBlogs(null);
+        }
+    }, [sort]);
+
     const handleChange = (e) => {
         if(!e.target.value.length){
             setQuery("");
@@ -84,13 +100,59 @@ const ManageBlogs = () => {
         }
     }
 
+    const toggleSelectBlog = (blog_id) => {
+        setSelectedBlogs(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(blog_id)) {
+                newSet.delete(blog_id);
+            } else {
+                newSet.add(blog_id);
+            }
+            return newSet;
+        });
+    };
+
+    const selectAllPublished = () => {
+        if (!blogs?.results) return;
+        const allIds = blogs.results.map(b => b.blog_id);
+        const allSelected = allIds.every(id => selectedBlogs.has(id));
+        
+        if (allSelected) {
+            setSelectedBlogs(new Set());
+        } else {
+            setSelectedBlogs(new Set(allIds));
+        }
+    };
+
+    const handleBulkDelete = () => {
+        if (selectedBlogs.size === 0) return;
+
+        const confirmMsg = `Delete ${selectedBlogs.size} blog${selectedBlogs.size > 1 ? 's' : ''}? This cannot be undone.`;
+        if (!window.confirm(confirmMsg)) return;
+
+        setDeleting(true);
+
+        api.post("/bulk-delete-blogs", { blog_ids: Array.from(selectedBlogs) })
+        .then(({ data }) => {
+            toast.success(`Deleted ${data.deleted_count} blog${data.deleted_count > 1 ? 's' : ''}`);
+            setSelectedBlogs(new Set());
+            setBlogs(null);
+            setDrafts(null);
+            setDeleting(false);
+        })
+        .catch(() => {
+            toast.error("Failed to delete blogs");
+            setDeleting(false);
+        });
+    };
+
+    const isAllSelected = blogs?.results?.length > 0 && blogs.results.every(b => selectedBlogs.has(b.blog_id));
+
     return (
         <>
             <h1 className="max-md:hidden">Manage Blogs</h1>
 
-
-
-            <div className="relative max-md:mt-5 md:mt-8 mb-10">
+            <div className="relative max-md:mt-5 md:mt-8 mb-6">
                 <input 
                     type="search"
                     className="w-full bg-grey p-4 pl-12 pr-6 rounded-full placeholder:text-dark-grey"
@@ -102,6 +164,38 @@ const ManageBlogs = () => {
                 <Icon name="search" className="absolute right-[10%] md:pointer-events-none md:left-5 top-1/2 -translate-y-1/2 text-xl text-dark-grey" />
             </div>
 
+            {/* Sort + Bulk Actions Bar */}
+            <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+                <div className="flex items-center gap-3">
+                    <label className="text-sm text-dark-grey">Sort:</label>
+                    <select
+                        value={sort}
+                        onChange={(e) => setSort(e.target.value)}
+                        className="manage-blogs__sort-select"
+                    >
+                        {SORT_OPTIONS.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                    </select>
+                </div>
+
+                {selectedBlogs.size > 0 && (
+                    <div className="manage-blogs__bulk-bar">
+                        <span className="text-sm font-medium">
+                            {selectedBlogs.size} selected
+                        </span>
+                        <button
+                            className="manage-blogs__bulk-delete"
+                            onClick={handleBulkDelete}
+                            disabled={deleting}
+                        >
+                            <Icon name="delete" className="text-[18px]" />
+                            {deleting ? "Deleting..." : "Delete Selected"}
+                        </button>
+                    </div>
+                )}
+            </div>
+
             <InPageNavigation routes={["Published Blogs", "Draft Blogs"]} defaultActiveIndex={ activeTab != 'draft' ? 0 : 1 }>
 
                 {// Published blogs
@@ -110,11 +204,27 @@ const ManageBlogs = () => {
                     blogs.results.length ? 
                         
                         <>
+
+                        {/* Select All */}
+                        <div className="flex items-center gap-3 mb-4 pb-3 border-b border-border">
+                            <button
+                                onClick={selectAllPublished}
+                                className="flex items-center gap-2 text-sm text-dark-grey hover:text-black transition-colors"
+                            >
+                                <Icon name={isAllSelected ? "check_box" : "check_box_outline_blank"} className="text-[20px]" />
+                                Select All
+                            </button>
+                        </div>
+
                         {
                             blogs.results.map((blog, i) => {
                                 return <AnimationWrapper key={i} transition={{ delay: i * 0.04 }}>
                                     
-                                    <ManagePublishedBlogsCard blog={{...blog, index: i, setStateFun: setBlogs }} />
+                                    <ManagePublishedBlogsCard
+                                        blog={{...blog, index: i, setStateFun: setBlogs }}
+                                        isSelected={selectedBlogs.has(blog.blog_id)}
+                                        onToggleSelect={() => toggleSelectBlog(blog.blog_id)}
+                                    />
 
                                 </AnimationWrapper>
                             })

@@ -33,6 +33,7 @@ const dashboardItems = [
 const settingsItems = [
     { to: "/settings/edit-profile", icon: "person", label: "Edit Profile" },
     { to: "/settings/change-password", icon: "lock", label: "Change Password" },
+    { to: "/settings/notification-preferences", icon: "notifications_active", label: "Notification Prefs" },
 ];
 
 const LeftSidebar = () => {
