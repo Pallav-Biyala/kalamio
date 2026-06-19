@@ -664,6 +664,8 @@
         right: 0;
         height: 57px;
         background: rgb(var(--c-white));
+        transition: transform 0.25s cubic-bezier(0.25, 0.1, 0.25, 1);
+        will-change: transform;
     }
 
     @media (min-width: 1024px) {
@@ -1795,6 +1797,8 @@
             right: 0;
             z-index: 30;
             padding: 0 14px 4px;
+            transition: transform 0.25s cubic-bezier(0.25, 0.1, 0.25, 1);
+            will-change: transform;
         }
     }
 

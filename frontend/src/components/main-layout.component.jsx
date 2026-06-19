@@ -96,14 +96,12 @@ const MainLayout = () => {
                     }
                 }
             } else if (delta < 0) {
-                // Scrolling UP
-                if (maxOffset > 0) {
-                    headerOffset = Math.max(headerOffset + delta, 0);
-                    applyTransform(headerOffset);
-                    if (headerOffset <= 0) {
-                        document.body.classList.remove('scroll-down');
-                        document.body.classList.add('scroll-up');
-                    }
+                // Scrolling UP — snap to revealed, CSS transition handles the smooth animation
+                if (maxOffset > 0 && headerOffset > 0) {
+                    headerOffset = 0;
+                    applyTransform(0);
+                    document.body.classList.remove('scroll-down');
+                    document.body.classList.add('scroll-up');
                 }
             }
 
