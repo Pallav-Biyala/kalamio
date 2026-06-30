@@ -124,7 +124,7 @@ const AccountManagementPage = () => {
                         <h2>Download Your Data</h2>
                     </div>
                     <p className="text-sm text-dark-grey mb-4">
-                        Export all your data including profile, posts, comments, bookmarks, followers, and connections as a JSON file.
+                        Export all your data including profile, posts, comments, bookmarks, and followers as a JSON file.
                     </p>
                     <button className="btn-light" onClick={handleExport} disabled={exporting}>
                         <Icon name="download" className="text-lg mr-1" />
@@ -165,7 +165,7 @@ const AccountManagementPage = () => {
                         </p>
                         <ul className="account-mgmt__list account-mgmt__list--danger">
                             <li>All posts, comments, and bookmarks will be removed</li>
-                            <li>Your followers and connections will be lost</li>
+                            <li>Your followers will be lost</li>
                             <li>This action becomes irreversible after 30 days</li>
                         </ul>
 

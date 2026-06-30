@@ -36,7 +36,6 @@ const Avatar = ({ src, alt = "avatar", className = "", size = 40 }) => {
                     userSelect: "none",
                     flexShrink: 0,
                 }}
-                title={alt}
             >
                 {initials}
             </div>

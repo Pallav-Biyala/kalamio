@@ -99,6 +99,31 @@ const EditProfile = () => {
 
     }
 
+    const handleImageRemove = (e) => {
+        e.preventDefault();
+
+        let loadingToast = toast.loading("Removing....");
+        e.target.setAttribute("disabled", true);
+
+        api.post("/update-profile-img", { url: "" })
+        .then(({ data }) => {
+            let newUserAuth = { ...userAuth, profile_img: data.profile_img }
+
+            storeInSession("user", JSON.stringify(newUserAuth));
+            setUserAuth(newUserAuth);
+
+            setUpdatedProfileImg(null);
+            toast.dismiss(loadingToast);
+            e.target.removeAttribute("disabled");
+            toast.success("Removed 👍");
+        })
+        .catch(({response}) => {
+            toast.dismiss(loadingToast);
+            e.target.removeAttribute("disabled");
+            toast.error(response?.data?.error || "Removal failed");
+        })
+    }
+
     const handleSubmit = (e) => {
         e.preventDefault();
 
@@ -175,7 +200,10 @@ const EditProfile = () => {
                             </label>
                             <input type="file" id="uploadImg" accept=".jpeg, .png, .jpg" hidden onChange={handleImagePreview} />
 
-                            <button className="btn-light mt-5 max-lg:center lg:w-full px-10" onClick={handleImageUpload}>Upload</button>
+                            <div className="flex gap-4 mt-5">
+                                <button className="btn-light max-lg:center lg:w-full px-10 flex-1" onClick={handleImageUpload}>Upload</button>
+                                <button className="btn-light max-lg:center lg:w-full px-10 flex-1 text-red" onClick={handleImageRemove}>Remove</button>
+                            </div>
                         </div>
 
                         <div className="w-full">

@@ -4,7 +4,7 @@ import User from '../Schema/User.js';
 import Publication from '../Schema/Publication.js';
 import Notification from '../Schema/Notification.js';
 import Comment from '../Schema/Comment.js';
-import Bookmark from '../Schema/Bookmark.js';
+import Collection from '../Schema/Collection.js';
 import { nanoid } from 'nanoid';
 import sanitizeHtml from 'sanitize-html';
 
@@ -260,7 +260,10 @@ export const bulkDeleteBlogs = async (req, res) => {
     await Promise.all([
         Comment.deleteMany({ blog_id: { $in: post_ids } }),
         Notification.deleteMany({ blog: { $in: post_ids } }),
-        Bookmark.deleteMany({ blog: { $in: post_ids } }),
+        Collection.updateMany(
+            { 'articles.blog': { $in: post_ids } },
+            { $pull: { articles: { blog: { $in: post_ids } } }, $inc: { total_articles: -1 } }
+        ),
         Post.deleteMany({ _id: { $in: post_ids } })
     ]);
 

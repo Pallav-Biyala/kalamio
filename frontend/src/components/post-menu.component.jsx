@@ -5,13 +5,22 @@ import { UserContext } from "../App";
 import toast from "react-hot-toast";
 import api from "../common/api";
 
-const PostMenu = ({ blogId, authorUsername, postType, onEdit }) => {
+const PostMenu = ({ blogId, authorUsername, postType, onEdit, onSaveToCollection }) => {
     const [open, setOpen] = useState(false);
+    const [isSaved, setIsSaved] = useState(false);
     const menuRef = useRef(null);
     const navigate = useNavigate();
     const { userAuth: { username, access_token } } = useContext(UserContext);
 
     const isOwner = username === authorUsername;
+
+    // Check saved status every time the menu is opened
+    useEffect(() => {
+        if (!access_token || !blogId || !open) return;
+        api.post("/collection/is-saved", { blog_id: blogId })
+            .then(({ data }) => setIsSaved(data.saved))
+            .catch(() => {});
+    }, [access_token, blogId, open]);
 
     // Close on outside click
     useEffect(() => {
@@ -80,6 +89,31 @@ const PostMenu = ({ blogId, authorUsername, postType, onEdit }) => {
         setOpen(false);
     };
 
+    const handleQuickSave = () => {
+        if (!access_token) {
+            toast.error("Please sign in to save");
+            setOpen(false);
+            return;
+        }
+        api.post("/collection/quick-save", { blog_id: blogId })
+            .then(({ data }) => {
+                setIsSaved(data.saved);
+                toast.success(data.saved ? "Saved to Read Later" : "Removed from Read Later");
+            })
+            .catch(() => toast.error("Failed to save"));
+        setOpen(false);
+    };
+
+    const handleSaveToCollection = () => {
+        if (!access_token) {
+            toast.error("Please sign in to save");
+            setOpen(false);
+            return;
+        }
+        setOpen(false);
+        if (onSaveToCollection) onSaveToCollection();
+    };
+
     return (
         <div className="post-menu" ref={menuRef}>
             <button
@@ -92,6 +126,20 @@ const PostMenu = ({ blogId, authorUsername, postType, onEdit }) => {
 
             {open && (
                 <div className="post-menu__dropdown">
+                    {/* Save to Read Later */}
+                    <button className="post-menu__item" onClick={handleQuickSave}>
+                        <Icon name="bookmark" filled={isSaved} />
+                        <span>{isSaved ? 'Saved to Read Later' : 'Save to Read Later'}</span>
+                    </button>
+
+                    {/* Save to collection */}
+                    <button className="post-menu__item" onClick={handleSaveToCollection}>
+                        <Icon name="playlist_add" />
+                        <span>Save to collection</span>
+                    </button>
+
+                    <div className="post-menu__divider" />
+
                     {/* Copy Link — always shown */}
                     <button className="post-menu__item" onClick={copyLink}>
                         <Icon name="link" />

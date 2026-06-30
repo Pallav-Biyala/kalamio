@@ -16,7 +16,7 @@ import PageNotFound from "./404.page";
 import Icon from "../components/Icon";
 import Avatar from "../components/Avatar";
 import FollowButton from "../components/follow-button.component";
-import ConnectButton from "../components/connect-button.component";
+
 import SubscribeButton from "../components/subscribe-button.component";
 import toast from "react-hot-toast";
 
@@ -40,6 +40,9 @@ export const profileDataStructure = {
 const ProfilePage = () => {
 
     let { id: profileId } = useParams();
+    let { userAuth: { username, access_token } } = useContext(UserContext);
+    profileId = profileId || username;
+
     const navigate = useNavigate();
 
     let [ profile, setProfile ] = useState(profileDataStructure);
@@ -49,16 +52,17 @@ const ProfilePage = () => {
     let [ followsYou, setFollowsYou ] = useState(false);
     let [ publications, setPublications ] = useState(null);
     let [ isBlocked, setIsBlocked ] = useState(false);
+    let [ profileCollections, setProfileCollections ] = useState([]);
 
     let { 
         personal_info: { fullname, username: profile_username, profile_img, bio }, 
-        account_info: { total_posts, total_reads, total_followers, total_following, total_connections },
+        account_info: { total_posts, total_reads, total_followers, total_following },
         social_links, joinedAt, _id: profileUserId
         } = profile;
 
     usePageTitle(profile_username ? `@${profile_username}` : 'Profile');
 
-    let { userAuth: { username, access_token } } = useContext(UserContext);
+
 
     const fetchUserProfile = () => {
         api.post("/get-profile", {username: profileId})
@@ -80,6 +84,10 @@ const ProfilePage = () => {
             setProfileLoaded(profileId);
             getBlogs({ user_id: user._id });
             fetchPublications(user._id);
+            // Fetch user's public collections (or all if own profile)
+            api.post("/collection/user-collections", { username: user.personal_info.username })
+                .then(({ data: colData }) => setProfileCollections(colData.collections))
+                .catch(() => {});
             setLoading(false);
         })
         .catch(err => {
@@ -159,7 +167,7 @@ const ProfilePage = () => {
         ) : (
             profile_username.length ? 
                 <section className="h-cover lg:flex flex-row-reverse items-start gap-5 min-[1100px]:gap-12 max-lg:pt-0">
-                    <div className="flex flex-col max-lg:items-center gap-5 min-w-[250px] lg:w-[50%] lg:pl-8 lg:border-l border-border lg:sticky lg:top-[100px] lg:py-10 ">
+                    <div className="flex flex-col max-lg:items-center gap-5 min-w-[250px] lg:max-w-[350px] w-full lg:pl-8 lg:border-l border-border lg:sticky lg:top-[100px] lg:py-10 ">
                         <div className="flex items-center gap-4 w-full lg:hidden mb-2 mt-4">
                             <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full hover:bg-grey flex items-center justify-center transition-colors -ml-2">
                                 <Icon name="arrow_back" className="text-xl" />
@@ -169,7 +177,7 @@ const ProfilePage = () => {
                     
                     {/* Avatar with gradient ring */}
                     <div className="relative">
-                        <div className="w-48 h-48 lg:w-32 lg:h-32 rounded-full p-[3px] flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgb(var(--c-brand)), rgb(var(--c-accent)))' }}>
+                        <div className="w-32 h-32 rounded-full p-[3px] flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgb(var(--c-brand)), rgb(var(--c-accent)))' }}>
                             <Avatar src={profile_img} alt={fullname} size={120} />
                         </div>
                     </div>
@@ -204,11 +212,7 @@ const ProfilePage = () => {
                             <span className="font-semibold">{total_following.toLocaleString()}</span>
                             <span className="text-dark-grey text-sm">Following</span>
                         </div>
-                        <div className="flex items-center gap-2 bg-grey rounded-full py-2 px-4">
-                            <Icon name="handshake" className="text-black text-xl" />
-                            <span className="font-semibold">{(total_connections || 0).toLocaleString()}</span>
-                            <span className="text-dark-grey text-sm">Connections</span>
-                        </div>
+
                     </div>
 
                     <div className="flex gap-4 mt-2">
@@ -227,10 +231,7 @@ const ProfilePage = () => {
                                 onFollowChange={handleFollowChange}
                                 size="md"
                             />
-                            <ConnectButton
-                                targetUserId={profileUserId}
-                                size="md"
-                            />
+
                             <button
                                 className={isBlocked ? "profile-block-btn profile-block-btn--active" : "profile-block-btn"}
                                 onClick={() => {
@@ -262,9 +263,9 @@ const ProfilePage = () => {
                     />
                     </div>
 
-                    <div className="max-lg:mt-12 w-full">
+                    <div className="max-lg:mt-12 w-full flex-1">
                     <InPageNavigation
-                        routes={["All Published", "Publications", "About"]}
+                        routes={["All Published", "Publications", "Collections", "About"]}
                         defaultHidden={["About"]}
                     >
 
@@ -327,6 +328,38 @@ const ProfilePage = () => {
                         ) : (
                             <NoDataMessage message="No publications yet" />
                         )}
+                        </>
+
+                        {/* Collections Tab */}
+                        <>
+                            {profileCollections.length > 0 ? (
+                                <div className="saved-page__grid">
+                                    {profileCollections.map(col => (
+                                        <Link key={col._id} to={`/collection/${col._id}`} className="saved-collection-card">
+                                            <div className="saved-collection-card__cover">
+                                                {col.cover_image
+                                                    ? <img src={col.cover_image} alt={col.title} />
+                                                    : <div className="saved-collection-card__cover-placeholder">
+                                                        <Icon name={col.is_default ? 'schedule' : 'collections_bookmark'} className="text-3xl" />
+                                                    </div>
+                                                }
+                                                <span className="saved-collection-card__count">
+                                                    {col.total_articles} {col.total_articles === 1 ? 'article' : 'articles'}
+                                                </span>
+                                            </div>
+                                            <div className="saved-collection-card__info">
+                                                <h3 className="saved-collection-card__title">{col.title}</h3>
+                                                <span className="saved-collection-card__visibility">
+                                                    <Icon name={col.visibility === 'public' ? 'public' : 'link'} className="text-xs" />
+                                                    {col.visibility}
+                                                </span>
+                                            </div>
+                                        </Link>
+                                    ))}
+                                </div>
+                            ) : (
+                                <NoDataMessage message="No public collections" />
+                            )}
                         </>
 
                         <AboutUser bio={bio} social_links={social_links} joinedAt={joinedAt} />

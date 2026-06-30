@@ -8,7 +8,7 @@ import FollowButton from "./follow-button.component";
 const WhoToFollow = () => {
 
     const [users, setUsers] = useState(null);
-    const [followStatus, setFollowStatus] = useState({ following: [], followers: [] });
+    const [followStatus, setFollowStatus] = useState(null);
     const { userAuth: { username: currentUser, access_token } } = useContext(UserContext);
 
     useEffect(() => {
@@ -48,8 +48,8 @@ const WhoToFollow = () => {
             <div className="who-to-follow__list">
                 {users.map((user, i) => {
                     const { fullname, username, profile_img } = user.personal_info;
-                    const isFollowing = followStatus.following.includes(user._id);
-                    const followsYou = followStatus.followers.includes(user._id);
+                    const isFollowing = followStatus ? followStatus.following.includes(user._id) : null;
+                    const followsYou = followStatus ? followStatus.followers.includes(user._id) : null;
                     return (
                         <div key={i} className="who-to-follow__item">
                             <Link to={`/user/${username}`} className="who-to-follow__user">

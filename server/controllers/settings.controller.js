@@ -266,7 +266,7 @@ export const getAccountStatus = async (req, res) => {
 
 import Post from '../Schema/Post.js';
 import Comment from '../Schema/Comment.js';
-import Bookmark from '../Schema/Bookmark.js';
+import Collection from '../Schema/Collection.js';
 import Follow from '../Schema/Follow.js';
 import Connection from '../Schema/Connection.js';
 
@@ -274,11 +274,11 @@ export const exportData = async (req, res) => {
     try {
         const user_id = req.user;
 
-        const [user, posts, comments, bookmarks, followers, following, connections] = await Promise.all([
+        const [user, posts, comments, collections, followers, following, connections] = await Promise.all([
             User.findById(user_id).select('personal_info social_links account_info notification_preferences privacy_settings joinedAt -_id'),
             Post.find({ author: user_id, draft: false }).select('blog_id title text_content type des tags content publishedAt activity -_id').lean(),
             Comment.find({ commented_by: user_id }).populate('blog_id', 'blog_id title -_id').select('comment commentedAt blog_id -_id').lean(),
-            Bookmark.find({ user: user_id }).populate('blog', 'blog_id title -_id').select('blog savedAt -_id').lean(),
+            Collection.find({ owner: user_id, type: 'user' }).select('title visibility total_articles createdAt -_id').lean(),
             Follow.find({ following: user_id }).populate('follower', 'personal_info.username -_id').select('follower followedAt -_id').lean(),
             Follow.find({ follower: user_id }).populate('following', 'personal_info.username -_id').select('following followedAt -_id').lean(),
             Connection.find({ $or: [{ requester: user_id }, { recipient: user_id }], status: 'accepted' })
@@ -292,7 +292,7 @@ export const exportData = async (req, res) => {
             profile: user?.toObject() || {},
             posts: posts || [],
             comments: comments || [],
-            bookmarks: bookmarks || [],
+            collections: collections || [],
             followers: followers || [],
             following: following || [],
             connections: connections || []

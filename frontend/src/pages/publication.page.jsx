@@ -27,6 +27,7 @@ const PublicationPage = () => {
     const [blogs, setBlogs] = useState(null);
     const [articles, setArticles] = useState(null);
     const [textPosts, setTextPosts] = useState(null);
+    const [pubCollections, setPubCollections] = useState([]);
     const [loading, setLoading] = useState(true);
     const [notFound, setNotFound] = useState(false);
 
@@ -45,6 +46,10 @@ const PublicationPage = () => {
             fetchBlogs({ publication_id: data.publication._id });
             fetchArticles({ publication_id: data.publication._id });
             fetchTextPosts({ publication_id: data.publication._id });
+            // Fetch publication collections
+            api.post("/collection/publication-collections", { publication_id: data.publication._id })
+                .then(({ data: colData }) => setPubCollections(colData.collections))
+                .catch(() => {});
             setLoading(false);
         })
         .catch(() => {
@@ -259,7 +264,47 @@ const PublicationPage = () => {
 
                         {/* Collections Tab */}
                         <>
-                            <NoDataMessage message="No Collections" />
+                            {publication.owner?.personal_info?.username === username && (
+                                <button
+                                    className="btn-dark btn-sm mb-4"
+                                    onClick={() => {
+                                        const title = prompt('Collection name:');
+                                        if (!title?.trim()) return;
+                                        api.post('/collection/create', {
+                                            title: title.trim(),
+                                            publication_id: publication._id,
+                                            visibility: 'public'
+                                        }).then(({ data }) => {
+                                            setPubCollections(prev => [data.collection, ...prev]);
+                                        }).catch(() => {});
+                                    }}
+                                >
+                                    <Icon name="add" className="text-lg" /> New Collection
+                                </button>
+                            )}
+                            {pubCollections.length === 0
+                                ? <NoDataMessage message="No collections in this publication yet" />
+                                : <div className="saved-page__grid">
+                                    {pubCollections.map(col => (
+                                        <Link key={col._id} to={`/collection/${col._id}`} className="saved-collection-card">
+                                            <div className="saved-collection-card__cover">
+                                                {col.cover_image
+                                                    ? <img src={col.cover_image} alt={col.title} />
+                                                    : <div className="saved-collection-card__cover-placeholder">
+                                                        <Icon name="collections_bookmark" className="text-3xl" />
+                                                    </div>
+                                                }
+                                                <span className="saved-collection-card__count">
+                                                    {col.total_articles} {col.total_articles === 1 ? 'article' : 'articles'}
+                                                </span>
+                                            </div>
+                                            <div className="saved-collection-card__info">
+                                                <h3 className="saved-collection-card__title">{col.title}</h3>
+                                            </div>
+                                        </Link>
+                                    ))}
+                                </div>
+                            }
                         </>
 
                         {/* About Tab */}

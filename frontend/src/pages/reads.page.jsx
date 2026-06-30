@@ -9,6 +9,7 @@ import { filterPaginationData } from "../common/filter-pagination-data";
 import { UserContext } from "../App";
 import { getRelativeTime } from "../common/date";
 import toast from "react-hot-toast";
+import SaveModal from "../components/save-modal.component";
 
 /* ───────────────────────────────────────────────────
    Single Reel Card — one per screen
@@ -33,11 +34,16 @@ const ReelCard = ({ blog }) => {
     const [isLiked, setIsLiked] = useState(false);
     const [likesCount, setLikesCount] = useState(total_likes);
     const [showFullDes, setShowFullDes] = useState(false);
+    const [isSaved, setIsSaved] = useState(false);
+    const [showSaveModal, setShowSaveModal] = useState(false);
 
     useEffect(() => {
         if (access_token) {
             api.post("/isliked-by-user", { _id })
                 .then(({ data: { result } }) => setIsLiked(Boolean(result)))
+                .catch(() => {});
+            api.post("/collection/is-saved", { blog_id })
+                .then(({ data }) => setIsSaved(data.saved))
                 .catch(() => {});
         }
     }, [access_token, _id]);
@@ -98,9 +104,16 @@ const ReelCard = ({ blog }) => {
                         <span>{formatCount(total_comments)}</span>
                     </Link>
 
-                    <button className="reel-card__action-btn" aria-label="Bookmark">
-                        <Icon name="bookmark_border" />
-                        <span>Save</span>
+                    <button
+                        className={`reel-card__action-btn${isSaved ? ' reel-card__action-btn--saved' : ''}`}
+                        aria-label="Save"
+                        onClick={() => {
+                            if (!access_token) return toast.error("Please login to save");
+                            setShowSaveModal(true);
+                        }}
+                    >
+                        <Icon name={isSaved ? "bookmark" : "bookmark_border"} />
+                        <span>{isSaved ? 'Saved' : 'Save'}</span>
                     </button>
 
                     <button className="reel-card__action-btn" aria-label="Share">
@@ -157,6 +170,19 @@ const ReelCard = ({ blog }) => {
                     )}
                 </div>
             </div>
+
+            {showSaveModal && (
+                <SaveModal
+                    blogId={blog_id}
+                    isOpen={showSaveModal}
+                    onClose={() => {
+                        setShowSaveModal(false);
+                        api.post("/collection/is-saved", { blog_id })
+                            .then(({ data }) => setIsSaved(data.saved))
+                            .catch(() => {});
+                    }}
+                />
+            )}
         </div>
     );
 };

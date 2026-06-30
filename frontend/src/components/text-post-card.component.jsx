@@ -4,6 +4,7 @@ import Icon from "./Icon";
 import Avatar from "./Avatar";
 import PostMenu from "./post-menu.component";
 import CommentField from "./comment-field.component";
+import SaveModal from "./save-modal.component";
 import { useContext, useState, useEffect, useRef } from "react";
 import { UserContext } from "../App";
 import toast from "react-hot-toast";
@@ -26,6 +27,7 @@ const TextPostCard = ({ content, author, onEdit }) => {
     const [needsTruncation, setNeedsTruncation] = useState(false);
     const [isReplying, setIsReplying] = useState(false);
     const [commentsCount, setCommentsCount] = useState(total_comments);
+    const [showSaveModal, setShowSaveModal] = useState(false);
     const textRef = useRef(null);
 
     useEffect(() => {
@@ -36,6 +38,8 @@ const TextPostCard = ({ content, author, onEdit }) => {
             }
         }
     }, [text_content, isExpanded]);
+
+
 
     useEffect(() => {
         setLikesCount(total_likes);
@@ -155,7 +159,7 @@ const TextPostCard = ({ content, author, onEdit }) => {
                         </span>
                     </div>
                 </Link>
-                <PostMenu blogId={id} authorUsername={username} postType="text_post" onEdit={onEdit} />
+                <PostMenu blogId={id} authorUsername={username} postType="text_post" onEdit={onEdit} onSaveToCollection={() => setShowSaveModal(true)} />
             </div>
 
             {/* Text Content */}
@@ -264,10 +268,6 @@ const TextPostCard = ({ content, author, onEdit }) => {
                     <Icon name="chat_bubble_outline" />
                     <span>{commentsCount > 0 ? commentsCount : "0"}</span>
                 </button>
-                <span className="feed-card__action">
-                    <Icon name="bookmark_border" />
-                    <span className="hidden sm:inline">Save</span>
-                </span>
                 <span className="feed-card__action feed-card__action--share">
                     <Icon name="ios_share" />
                     <span className="hidden sm:inline">Share</span>
@@ -282,6 +282,16 @@ const TextPostCard = ({ content, author, onEdit }) => {
                         onClose={() => setIsReplying(false)}
                         customBlogData={content}
                         onCommentPosted={() => setCommentsCount(prev => prev + 1)}
+                    />
+                </div>
+            )}
+            {/* Save Modal */}
+            {showSaveModal && (
+                <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                    <SaveModal
+                        blogId={id}
+                        isOpen={showSaveModal}
+                        onClose={() => setShowSaveModal(false)}
                     />
                 </div>
             )}

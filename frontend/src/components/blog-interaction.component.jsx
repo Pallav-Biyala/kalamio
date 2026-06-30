@@ -5,6 +5,7 @@ import { UserContext } from "../App";
 import toast from "react-hot-toast";
 import api from "../common/api";
 import Icon from "./Icon";
+import SaveModal from "./save-modal.component";
 
 
 const BlogInteraction = () => {
@@ -22,6 +23,7 @@ const BlogInteraction = () => {
     let { userAuth: { username, access_token } } = useContext(UserContext);
 
     const [isBookmarked, setIsBookmarked] = useState(false);
+    const [showSaveModal, setShowSaveModal] = useState(false);
 
     useEffect(() => {
 
@@ -34,10 +36,10 @@ const BlogInteraction = () => {
             .catch(err => {
             })
 
-            // check bookmark status
-            api.post("/is-bookmarked", { blog_id })
-            .then(({ data: { bookmarked } }) => {
-                setIsBookmarked(bookmarked);
+            // check saved status (collections)
+            api.post("/collection/is-saved", { blog_id })
+            .then(({ data: { saved } }) => {
+                setIsBookmarked(saved);
             })
             .catch(err => {
             })
@@ -65,24 +67,7 @@ const BlogInteraction = () => {
         }
     }
 
-    const handleBookmark = () => {
-        if (access_token) {
-            const newState = !isBookmarked;
-            setIsBookmarked(newState);
 
-            const endpoint = newState ? "/bookmark" : "/remove-bookmark";
-            api.post(endpoint, { blog_id })
-            .then(() => {
-                toast.success(newState ? "Bookmarked" : "Bookmark removed");
-            })
-            .catch(err => {
-                setIsBookmarked(!newState); // revert on error
-                toast.error("Failed to update bookmark");
-            });
-        } else {
-            toast.error("Please login to bookmark");
-        }
-    };
 
     const handleShare = async () => {
         try {
@@ -129,17 +114,20 @@ const BlogInteraction = () => {
                 <div className="flex gap-4 sm:gap-6 items-center">
 
                     <button
-                        onClick={handleBookmark}
-                        className={"text-dark-grey hover:text-black transition-colors flex items-center gap-1 text-sm font-medium " + (isBookmarked ? "text-black" : "")}
-                        aria-label={isBookmarked ? "Remove bookmark" : "Bookmark"}
+                        onClick={() => {
+                            if (!access_token) return toast.error("Please login to save");
+                            setShowSaveModal(true);
+                        }}
+                        className={"text-dark-grey hover:text-black transition-colors flex items-center gap-1 text-sm font-medium select-none " + (isBookmarked ? "text-black" : "")}
+                        aria-label="Save"
                     >
                         <Icon name="bookmark" filled={isBookmarked} className="text-lg" />
-                        {isBookmarked ? "Saved" : "Save"}
+                        Save
                     </button>
 
                     {
                         username == author_username ?
-                        <Link to={`/editor/${blog_id}`} className="text-dark-grey hover:text-black transition-colors flex items-center gap-1 text-sm font-medium">
+                        <Link to={`/editor/${blog_id}`} className="text-dark-grey hover:text-black transition-colors flex items-center gap-1 text-sm font-medium select-none">
                             <Icon name="edit" className="text-lg" />
                             Edit
                         </Link> : ""
@@ -147,7 +135,7 @@ const BlogInteraction = () => {
 
                     <button 
                         onClick={handleShare}
-                        className="text-dark-grey hover:text-black transition-colors flex items-center gap-1 text-sm font-medium"
+                        className="text-dark-grey hover:text-black transition-colors flex items-center gap-1 text-sm font-medium select-none"
                     >
                         <Icon name="link" className="text-lg" />
                         Share
@@ -156,6 +144,19 @@ const BlogInteraction = () => {
             </div>
 
             <hr className="border-border/50 my-2" />
+
+            {showSaveModal && (
+                <SaveModal
+                    blogId={blog_id}
+                    isOpen={showSaveModal}
+                    onClose={() => {
+                        setShowSaveModal(false);
+                        api.post("/collection/is-saved", { blog_id })
+                            .then(({ data }) => setIsBookmarked(data.saved))
+                            .catch(() => {});
+                    }}
+                />
+            )}
         </>
     )
 }

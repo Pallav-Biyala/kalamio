@@ -1,5 +1,5 @@
 import { useContext, useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { ThemeContext, UserContext } from "../App";
 import lightLogo from "../imgs/logo-light.png";
 import darkLogo from "../imgs/logo-dark.png";
@@ -12,6 +12,32 @@ const MobileTopBar = () => {
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const navigate = useNavigate();
+    const location = useLocation();
+    
+    // Check if we are inside a section of the "You" hub (dashboard or settings)
+    const isSubPage = location.pathname.startsWith("/dashboard") || location.pathname.startsWith("/settings");
+
+    // Get the title for the current sub-page
+    const getPageTitle = () => {
+        const path = location.pathname;
+        if (path.includes("/dashboard/blogs")) return "My Blogs";
+        if (path.includes("/dashboard/drafts")) return "Drafts";
+        if (path.includes("/dashboard/bookmarks")) return "Collections";
+        if (path.includes("/dashboard/notifications")) return "Notifications";
+
+        if (path.includes("/dashboard/publications")) return "Publications";
+        if (path.includes("/dashboard/analytics")) return "Analytics";
+        
+        if (path.includes("/settings/profile")) return "Profile";
+        if (path.includes("/settings/edit-profile")) return "Edit Profile";
+        if (path.includes("/settings/change-password")) return "Change Password";
+        if (path.includes("/settings/notification-preferences")) return "Notification Prefs";
+        if (path.includes("/settings/blocked-users")) return "Blocked Users";
+        if (path.includes("/settings/privacy")) return "Privacy";
+        if (path.includes("/settings/account")) return "Account";
+        
+        return "Back";
+    };
 
     // Listen for search-open event from bottom tab bar
     useEffect(() => {
@@ -69,35 +95,44 @@ const MobileTopBar = () => {
                 </div>
             ) : (
                 <>
-                    {/* Left: Logo + Brand name */}
-                    <Link to="/" className="mobile-top-bar__brand flex items-center">
-                        <img
-                            src={theme === "light" ? darkLogo : lightLogo}
-                            alt="Kalamio logo"
-                            className="mobile-top-bar__brand-icon"
-                        />
-                        <span className="mobile-top-bar__brand-name">Kalamio</span>
-                        <span className="bg-[#FF6B00]/10 text-[#FF6B00] text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1 border border-[#FF6B00]/20 leading-none">BETA</span>
-                    </Link>
-
-                    {/* Right: Notification + Search */}
-                    <div className="mobile-top-bar__actions">
-                        <Link
-                            to={access_token ? "/dashboard/notifications" : "/signin"}
-                            className="mobile-top-bar__icon-btn relative"
-                        >
-                            <Icon name="notifications" className="text-2xl" />
-                            {access_token && new_notification_available && (
-                                <span className="notification-badge !w-2 !h-2"></span>
-                            )}
-                        </Link>
-                        <button
-                            className="mobile-top-bar__icon-btn"
-                            onClick={() => setSearchOpen(true)}
-                        >
-                            <Icon name="search" className="text-2xl" />
+                    {/* Left: Logo + Brand name OR Back button */}
+                    {isSubPage ? (
+                        <button onClick={() => navigate(-1)} className="flex items-center gap-1 -ml-1 py-1 pr-3 rounded-full hover:bg-grey transition-colors text-black">
+                            <Icon name="arrow_back" className="text-[22px]" />
+                            <span className="font-semibold text-[15px]">{getPageTitle()}</span>
                         </button>
-                    </div>
+                    ) : (
+                        <Link to="/" className="mobile-top-bar__brand flex items-center">
+                            <img
+                                src={theme === "light" ? darkLogo : lightLogo}
+                                alt="Kalamio logo"
+                                className="mobile-top-bar__brand-icon"
+                            />
+                            <span className="mobile-top-bar__brand-name">Kalamio</span>
+                            <span className="bg-[#FF6B00]/10 text-[#FF6B00] text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1 border border-[#FF6B00]/20 leading-none">BETA</span>
+                        </Link>
+                    )}
+
+                    {/* Right: Notification + Search (Hidden on sub-pages) */}
+                    {!isSubPage && (
+                        <div className="mobile-top-bar__actions">
+                            <Link
+                                to={access_token ? "/dashboard/notifications" : "/signin"}
+                                className="mobile-top-bar__icon-btn relative"
+                            >
+                                <Icon name="notifications" className="text-2xl" />
+                                {access_token && new_notification_available && (
+                                    <span className="notification-badge !w-2 !h-2"></span>
+                                )}
+                            </Link>
+                            <button
+                                className="mobile-top-bar__icon-btn"
+                                onClick={() => setSearchOpen(true)}
+                            >
+                                <Icon name="search" className="text-2xl" />
+                            </button>
+                        </div>
+                    )}
                 </>
             )}
         </header>

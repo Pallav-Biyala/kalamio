@@ -68,7 +68,7 @@ const YouPage = () => {
                 {/* Profile Card */}
                 <Link to={`/user/${username}`} className="you-hub__profile-card">
                     <div className="you-hub__avatar">
-                        <Avatar src={profile_img} alt={username} size={64} />
+                        <Avatar src={profile_img} alt={username} size={48} />
                     </div>
                     <div className="you-hub__profile-info">
                         <h2 className="you-hub__name">{fullname || username}</h2>
@@ -82,7 +82,7 @@ const YouPage = () => {
                     <div className="you-hub__menu">
                         <MenuLink to="/dashboard/blogs" icon="article" label="My Blogs" />
                         <MenuLink to="/dashboard/drafts" icon="draft" label="Drafts" />
-                        <MenuLink to="/dashboard/bookmarks" icon="bookmark" label="Bookmarks" />
+                        <MenuLink to="/dashboard/bookmarks" icon="collections_bookmark" label="Collections" />
                         <MenuLink
                             to="/dashboard/notifications"
                             icon="notifications"

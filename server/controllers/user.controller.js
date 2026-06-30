@@ -1,4 +1,4 @@
-import User from '../Schema/User.js';
+import User, { generateAvatar } from '../Schema/User.js';
 import Follow from '../Schema/Follow.js';
 import Connection from '../Schema/Connection.js';
 import { escapeRegex } from '../utils/helpers.js';
@@ -61,18 +61,20 @@ export const getProfile = (req, res) => {
 };
 
 // Update profile image
-export const updateProfileImg = (req, res) => {
+export const updateProfileImg = async (req, res) => {
+    try {
+        let { url } = req.body;
 
-    let {url} = req.body;
+        if (!url) {
+            const user = await User.findById(req.user);
+            url = generateAvatar(user.personal_info.fullname || user.personal_info.username);
+        }
 
-    User.findOneAndUpdate({ _id: req.user }, { "personal_info.profile_img": url })
-    .then(() => {
-        return res.status(200).json({ profile_img: url })
-    })
-    .catch(err => {
-        return res.status(500).json({ error: err.message })
-    })
-
+        await User.findOneAndUpdate({ _id: req.user }, { "personal_info.profile_img": url });
+        return res.status(200).json({ profile_img: url });
+    } catch(err) {
+        return res.status(500).json({ error: err.message });
+    }
 };
 
 // Update profile

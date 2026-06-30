@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import { useContext, useState, useEffect } from "react";
 import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
 import { ThemeContext, UserContext } from "../App";
 import { storeInSession, removeFromSession } from "../common/session";
@@ -15,6 +15,7 @@ const navItems = [
     { to: "/search/", icon: "explore", label: "Explore" },
     { to: "/subscriptions", icon: "subscriptions", label: "Subscriptions", authOnly: true },
     { to: "/dashboard/publications", icon: "import_contacts", label: "Publications", authOnly: true },
+    { to: "/collections", icon: "collections_bookmark", label: "Collections", authOnly: true },
     { to: "/dashboard/notifications", icon: "notifications", label: "Activity", authOnly: true },
     { to: "/messages", icon: "forum", label: "Chat", authOnly: true },
 ];
@@ -22,9 +23,9 @@ const navItems = [
 const dashboardItems = [
     { to: "/dashboard/blogs", icon: "article", label: "Blogs" },
     { to: "/dashboard/drafts", icon: "draft", label: "Drafts" },
-    { to: "/dashboard/bookmarks", icon: "bookmark", label: "Bookmarks" },
+    { to: "/dashboard/bookmarks", icon: "collections_bookmark", label: "Collections" },
     { to: "/dashboard/notifications", icon: "notifications", label: "Notifications", showBadge: true },
-    { to: "/dashboard/connections", icon: "handshake", label: "Connections" },
+
     { to: "/dashboard/publications", icon: "import_contacts", label: "Publications" },
     { to: "/dashboard/analytics", icon: "bar_chart", label: "Analytics" },
     { to: "/messages", icon: "chat", label: "Messages" },
@@ -32,7 +33,8 @@ const dashboardItems = [
 ];
 
 const settingsItems = [
-    { to: "/settings/edit-profile", icon: "person", label: "Edit Profile" },
+    { to: "/settings/profile", icon: "person", label: "Profile" },
+    { to: "/settings/edit-profile", icon: "edit", label: "Edit Profile" },
     { to: "/settings/change-password", icon: "lock", label: "Change Password" },
     { to: "/settings/notification-preferences", icon: "notifications_active", label: "Notification Prefs" },
     { to: "/settings/privacy", icon: "shield", label: "Privacy" },
@@ -40,7 +42,7 @@ const settingsItems = [
     { to: "/settings/account", icon: "manage_accounts", label: "Account" },
 ];
 
-const LeftSidebar = () => {
+const LeftSidebar = ({ isCollapsed, toggleSidebar }) => {
 
     const { userAuth: { access_token, profile_img, username, fullname, new_notification_available }, setUserAuth } = useContext(UserContext);
     const { theme, setTheme } = useContext(ThemeContext);
@@ -52,7 +54,25 @@ const LeftSidebar = () => {
     const [showProfileMenu, setShowProfileMenu] = useState(false);
 
     // Detect if we're in dashboard/settings mode
-    const isDashboardOrSettings = location.pathname.startsWith("/dashboard") || location.pathname.startsWith("/settings");
+    const [isDashboardOrSettings, setIsDashboardOrSettings] = useState(() => {
+        const path = location.pathname;
+        return (path.startsWith("/dashboard") && !path.startsWith("/dashboard/notifications") && !path.startsWith("/dashboard/publications")) || path.startsWith("/settings");
+    });
+
+    // Track previous path to update dashboard mode synchronously during render
+    const [prevPath, setPrevPath] = useState(location.pathname);
+
+    if (location.pathname !== prevPath) {
+        setPrevPath(location.pathname);
+        const path = location.pathname;
+        const isHybrid = path.startsWith("/dashboard/notifications") || 
+                         path.startsWith("/dashboard/publications") || 
+                         path.startsWith("/messages");
+                         
+        if (!isHybrid) {
+            setIsDashboardOrSettings(path.startsWith("/dashboard") || path.startsWith("/settings"));
+        }
+    }
 
     const signOutUser = () => {
         removeFromSession("user");
@@ -82,38 +102,54 @@ const LeftSidebar = () => {
 
     return (
         <>
-        <aside className="left-sidebar">
+        <aside className={`left-sidebar ${isCollapsed ? 'left-sidebar--collapsed' : ''}`}>
 
             {/* === DASHBOARD/SETTINGS MODE === */}
             {isDashboardOrSettings && access_token ? (
-                <>
-                    {/* Back to Home button (replaces logo) */}
-                    <Link to="/" className="left-sidebar__back-btn">
-                        <Icon name="arrow_back" className="text-[20px]" />
-                        <span>Back to Home</span>
-                    </Link>
+                <div key="dashboard-mode" className="left-sidebar__mode-content">
+                    <div className="left-sidebar__top-row flex items-center justify-between pb-4">
+                        {/* Back to Home button (replaces logo) */}
+                        <Link to="/" className="left-sidebar__back-btn">
+                            <Icon name="arrow_back" className="text-[20px]" />
+                            <span className="left-sidebar__label-text">Back to Home</span>
+                        </Link>
+                        <button onClick={toggleSidebar} className="left-sidebar__toggle-btn p-2 rounded-full hover:bg-grey/10 transition-colors" aria-label="Toggle sidebar">
+                            <Icon name={isCollapsed ? "menu" : "menu_open"} className="text-[20px]" />
+                        </button>
+                    </div>
 
                     {/* Dashboard nav section */}
                     <nav className="left-sidebar__nav left-sidebar__nav--sectioned">
                         <h3 className="left-sidebar__section-header">Dashboard</h3>
-                        {dashboardItems.map(({ to, icon, label, showBadge }) => (
-                            <NavLink
-                                key={to}
-                                to={to}
-                                end
-                                className={({ isActive }) =>
-                                    "left-sidebar__link" + (isActive ? " active" : "")
-                                }
-                            >
-                                <div className="relative">
-                                    <Icon name={icon} className="text-[22px]" />
-                                    {showBadge && new_notification_available && (
-                                        <span className="notification-badge !w-2 !h-2 !top-0 !right-0"></span>
-                                    )}
-                                </div>
-                                <span>{label}</span>
-                            </NavLink>
-                        ))}
+                        {dashboardItems.map(({ to, icon, label, showBadge }) => {
+                            const searchParams = new URLSearchParams(location.search);
+                            const currentTab = searchParams.get("tab");
+                            let isItemActive = false;
+                            
+                            if (to === "/dashboard/blogs") {
+                                isItemActive = location.pathname === "/dashboard/blogs" && currentTab !== "draft";
+                            } else if (to === "/dashboard/drafts") {
+                                isItemActive = location.pathname === "/dashboard/drafts" || (location.pathname === "/dashboard/blogs" && currentTab === "draft");
+                            } else {
+                                isItemActive = location.pathname === to || location.pathname.startsWith(to + "/");
+                            }
+
+                            return (
+                                <Link
+                                    key={to}
+                                    to={to}
+                                    className={"left-sidebar__link" + (isItemActive ? " active" : "")}
+                                >
+                                    <div className="relative">
+                                        <Icon name={icon} className="text-[22px]" filled={isItemActive} />
+                                        {showBadge && new_notification_available && (
+                                            <span className="notification-badge !w-2 !h-2 !top-0 !right-0"></span>
+                                        )}
+                                    </div>
+                                    <span className="left-sidebar__label-text">{label}</span>
+                                </Link>
+                            );
+                        })}
 
                         <h3 className="left-sidebar__section-header left-sidebar__section-header--spaced">Settings</h3>
                         {settingsItems.map(({ to, icon, label }) => (
@@ -125,36 +161,42 @@ const LeftSidebar = () => {
                                     "left-sidebar__link" + (isActive ? " active" : "")
                                 }
                             >
-                                <Icon name={icon} className="text-[22px]" />
-                                <span>{label}</span>
+                                {({ isActive }) => (
+                                    <>
+                                        <Icon name={icon} className="text-[22px]" filled={isActive} />
+                                        <span className="left-sidebar__label-text">{label}</span>
+                                    </>
+                                )}
                             </NavLink>
                         ))}
-                    </nav>
-
-                    {/* Theme toggle at bottom */}
-                    <div className="left-sidebar__bottom">
+                        
                         <button
                             className="left-sidebar__link"
                             onClick={changeTheme}
                             aria-label="Toggle theme"
                         >
                             <Icon name={theme === "light" ? "dark_mode" : "light_mode"} className="text-[22px]" />
-                            <span>{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
+                            <span className="left-sidebar__label-text">{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
                         </button>
-                    </div>
-                </>
+                    </nav>
+                </div>
             ) : (
                 /* === NORMAL MODE === */
-                <>
-                    {/* Logo */}
-                    <Link to="/" className="left-sidebar__logo flex items-center">
-                        <img
-                            src={theme === "light" ? darkLogo : lightLogo}
-                            alt="Kalamio logo"
-                        />
-                        <span className="left-sidebar__logo-text">Kalamio</span>
-                        <span className="bg-[#FF6B00]/10 text-[#FF6B00] text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-2 border border-[#FF6B00]/20 leading-none mt-1">BETA</span>
-                    </Link>
+                <div key="normal-mode" className="left-sidebar__mode-content">
+                    <div className="left-sidebar__top-row flex items-center justify-between pb-4">
+                        {/* Logo */}
+                        <Link to="/" className="left-sidebar__logo flex items-center">
+                            <img
+                                src={theme === "light" ? darkLogo : lightLogo}
+                                alt="Kalamio logo"
+                            />
+                            <span className="left-sidebar__logo-text left-sidebar__label-text">Kalamio</span>
+                            <span className="left-sidebar__beta-tag bg-[#FF6B00]/10 text-[#FF6B00] text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-2 border border-[#FF6B00]/20 leading-none mt-1">BETA</span>
+                        </Link>
+                        <button onClick={toggleSidebar} className="left-sidebar__toggle-btn p-2 rounded-full hover:bg-grey/10 transition-colors" aria-label="Toggle sidebar">
+                            <Icon name={isCollapsed ? "menu" : "menu_open"} className="text-[20px]" />
+                        </button>
+                    </div>
 
                     {/* Navigation */}
                     <nav className="left-sidebar__nav">
@@ -170,13 +212,17 @@ const LeftSidebar = () => {
                                         "left-sidebar__link" + (isActive ? " active" : "")
                                     }
                                 >
-                                    <div className="relative">
-                                        <Icon name={icon} className="text-[22px]" />
-                                        {icon === "notifications" && new_notification_available && (
-                                            <span className="notification-badge !w-2 !h-2 !top-0 !right-0"></span>
-                                        )}
-                                    </div>
-                                    <span>{label}</span>
+                                    {({ isActive }) => (
+                                        <>
+                                            <div className="relative">
+                                                <Icon name={icon} className="text-[22px]" filled={isActive} />
+                                                {icon === "notifications" && new_notification_available && (
+                                                    <span className="notification-badge !w-2 !h-2 !top-0 !right-0"></span>
+                                                )}
+                                            </div>
+                                            <span className="left-sidebar__label-text">{label}</span>
+                                        </>
+                                    )}
                                 </NavLink>
                             );
                         })}
@@ -190,7 +236,7 @@ const LeftSidebar = () => {
                                 onClick={() => setShowCreateMenu(prev => !prev)}
                             >
                                 <Icon name="add" className="text-xl" />
-                                <span>Create</span>
+                                <span className="left-sidebar__label-text">Create</span>
                             </button>
 
                             {showCreateMenu && (
@@ -221,7 +267,7 @@ const LeftSidebar = () => {
                         </div>
                     ) : (
                         <Link to="/signin" className="left-sidebar__write-btn">
-                            <span>Sign In</span>
+                            <span className="left-sidebar__label-text">Sign In</span>
                         </Link>
                     )}
 
@@ -253,7 +299,7 @@ const LeftSidebar = () => {
                                 aria-label="Toggle theme"
                             >
                                 <Icon name={theme === "light" ? "dark_mode" : "light_mode"} className="text-[22px]" />
-                                <span>{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
+                                <span className="left-sidebar__label-text">{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
                             </button>
                         )}
 
@@ -270,7 +316,7 @@ const LeftSidebar = () => {
                                             <Icon name="person" className="text-[24px]" />
                                         )}
                                     </div>
-                                    <div className="flex flex-col min-w-0 flex-1 justify-center text-left gap-0">
+                                    <div className="flex flex-col min-w-0 flex-1 justify-center text-left gap-0 left-sidebar__profile-text">
                                         <span className="font-semibold text-black text-[13px] leading-[1.2] truncate">
                                             {fullname || username}
                                         </span>
@@ -278,16 +324,16 @@ const LeftSidebar = () => {
                                             @{username}
                                         </span>
                                     </div>
-                                    <Icon name="unfold_more" className="text-dark-grey text-[16px] shrink-0" />
+                                    <Icon name="unfold_more" className="text-dark-grey text-[16px] shrink-0 left-sidebar__profile-unfold" />
                                 </button>
 
                                 {showProfileMenu && (
                                     <>
                                         <div className="left-sidebar__profile-backdrop" onClick={() => setShowProfileMenu(false)} />
                                         <div className="left-sidebar__profile-dropdown">
-                                            <Link to="/settings/edit-profile" className="left-sidebar__profile-dropdown-item" onClick={() => setShowProfileMenu(false)}>
-                                                <Icon name="settings" className="text-[20px]" />
-                                                <span>Settings</span>
+                                            <Link to={`/user/${username}`} className="left-sidebar__profile-dropdown-item" onClick={() => setShowProfileMenu(false)}>
+                                                <Icon name="person" className="text-[20px]" />
+                                                <span>Profile</span>
                                             </Link>
                                             <Link to="/dashboard/blogs" className="left-sidebar__profile-dropdown-item" onClick={() => setShowProfileMenu(false)}>
                                                 <Icon name="dashboard" className="text-[20px]" />
@@ -308,7 +354,7 @@ const LeftSidebar = () => {
                             </div>
                         )}
                     </div>
-                </>
+                </div>
             )}
         </aside>
 

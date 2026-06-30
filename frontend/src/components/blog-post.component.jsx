@@ -4,6 +4,7 @@ import Icon from "./Icon";
 import Avatar from "./Avatar";
 import PostMenu from "./post-menu.component";
 import CommentField from "./comment-field.component";
+import SaveModal from "./save-modal.component";
 import { useContext, useState, useEffect } from "react";
 import { UserContext } from "../App";
 import toast from "react-hot-toast";
@@ -22,10 +23,13 @@ const BlogPostCard = ({ content, author }) => {
    const [likesCount, setLikesCount] = useState(total_likes);
    const [commentsCount, setCommentsCount] = useState(total_comments);
    const [showCommentModal, setShowCommentModal] = useState(false);
+   const [showSaveModal, setShowSaveModal] = useState(false);
 
    useEffect(() => {
        setLikesCount(total_likes);
    }, [total_likes]);
+
+
 
    useEffect(() => {
        setCommentsCount(total_comments);
@@ -89,7 +93,7 @@ const BlogPostCard = ({ content, author }) => {
                         </span>
                     </div>
                 </Link>
-                <PostMenu blogId={id} authorUsername={username} postType={type || 'blog'} />
+                <PostMenu blogId={id} authorUsername={username} postType={type || 'blog'} onSaveToCollection={() => setShowSaveModal(true)} />
             </div>
 
             {/* ── Content: Title + Description + Tags (left) | Thumbnail (right) ── */}
@@ -133,10 +137,6 @@ const BlogPostCard = ({ content, author }) => {
                     <Icon name="chat_bubble_outline" />
                     <span>{commentsCount > 0 ? commentsCount : "0"}</span>
                 </button>
-                <span className="feed-card__action">
-                    <Icon name="bookmark_border" />
-                    <span className="hidden sm:inline">Save</span>
-                </span>
                 <span className="feed-card__action feed-card__action--share">
                     <Icon name="ios_share" />
                     <span className="hidden sm:inline">Share</span>
@@ -152,6 +152,16 @@ const BlogPostCard = ({ content, author }) => {
                         onClose={() => setShowCommentModal(false)}
                         customBlogData={content}
                         onCommentPosted={() => setCommentsCount(prev => prev + 1)}
+                    />
+                </div>
+            )}
+            {/* Save Modal */}
+            {showSaveModal && (
+                <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                    <SaveModal
+                        blogId={id}
+                        isOpen={showSaveModal}
+                        onClose={() => setShowSaveModal(false)}
                     />
                 </div>
             )}

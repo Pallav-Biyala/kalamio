@@ -24,3 +24,23 @@ export const verifyJWT = (req, res, next) => {
     })
 
 };
+
+/**
+ * Optional JWT — sets req.user if valid token present, but doesn't block.
+ * Used for endpoints that work for both authenticated and unauthenticated users
+ * but show different data (e.g., "is_owner" flag on collections).
+ */
+export const optionalJWT = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(" ")[1];
+
+    if (!token) {
+        req.user = null;
+        return next();
+    }
+
+    jwt.verify(token, process.env.JWT_ACCESS_SECRET, (err, user) => {
+        req.user = err ? null : user.id;
+        next();
+    });
+};

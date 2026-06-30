@@ -19,7 +19,7 @@ const ChangePassword = lazy(() => import("./pages/change-password.page"));
 const EditProfile = lazy(() => import("./pages/edit-profile.page"));
 const Notifications = lazy(() => import("./pages/notifications.page"));
 const ManageBlogs = lazy(() => import("./pages/manage-blogs.page"));
-const ConnectionsPage = lazy(() => import("./pages/connections.page"));
+
 const PublicationPage = lazy(() => import("./pages/publication.page"));
 const CreatePublicationPage = lazy(() => import("./pages/create-publication.page"));
 const EditPublicationPage = lazy(() => import("./pages/edit-publication.page"));
@@ -39,6 +39,7 @@ const ForgotPassword = lazy(() => import("./pages/forgot-password.page"));
 const ResetPassword = lazy(() => import("./pages/reset-password.page"));
 const SubscriptionsPage = lazy(() => import("./pages/subscriptions.page"));
 const CommentThreadPage = lazy(() => import("./pages/comment-thread.page"));
+const CollectionPage = lazy(() => import("./pages/collection.page"));
 
 export const UserContext = createContext({});
 export const ThemeContext = createContext({});
@@ -112,12 +113,14 @@ const App = () => {
                         <Route path="reads" element={<ReadsPage />} />
                             <Route path="dashboard/blogs" element={<ManageBlogs />} />
                             <Route path="dashboard/notifications" element={<Notifications />} />
-                            <Route path="dashboard/connections" element={<ConnectionsPage />} />
+
                             <Route path="dashboard/publications" element={<ManagePublicationsPage />} />
                             <Route path="dashboard/create-publication" element={<CreatePublicationPage />} />
                             <Route path="dashboard/edit-publication/:slug" element={<EditPublicationPage />} />
                             <Route path="dashboard/bookmarks" element={<BookmarksPage />} />
+                            <Route path="collections" element={<BookmarksPage />} />
                             <Route path="dashboard/drafts" element={<DraftsPage />} />
+                            <Route path="settings/profile" element={<ProfilePage />} />
                             <Route path="settings/edit-profile" element={<EditProfile />} />
                             <Route path="settings/change-password" element={<ChangePassword />} />
                             <Route path="settings/notification-preferences" element={<NotificationPreferences />} />
@@ -138,6 +141,7 @@ const App = () => {
                             <Route path="messages" element={<MessagesPage />} />
                             <Route path="blog/:blog_id" element={<BlogPage />} />
                             <Route path="comment/:comment_id" element={<CommentThreadPage />} />
+                            <Route path="collection/:collectionId" element={<CollectionPage />} />
                             <Route path="auth/callback" element={<AuthCallback />} />
                             <Route path="*" element={<PageNotFound />} />
                         </Route>

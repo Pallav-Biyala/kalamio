@@ -25,7 +25,16 @@ const FollowButton = ({ targetUserId, initiallyFollowing = null, initialFollowsY
     // Don't render if viewing own profile
     if (currentUserId === targetUserId) return null;
 
-    // Fetch initial follow state if not provided
+    // Sync state when parent provides batch data after initial render
+    useEffect(() => {
+        if (initiallyFollowing !== null) setIsFollowing(initiallyFollowing);
+    }, [initiallyFollowing]);
+
+    useEffect(() => {
+        if (initialFollowsYou !== null) setFollowsYou(initialFollowsYou);
+    }, [initialFollowsYou]);
+
+    // Fetch initial follow state only if parent didn't provide it
     useEffect(() => {
         if (!access_token || !targetUserId) return;
 

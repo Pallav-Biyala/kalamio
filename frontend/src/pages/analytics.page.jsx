@@ -14,7 +14,6 @@ const STAT_CARDS = [
     { key: "total_likes", label: "Likes", icon: "favorite", color: "--c-red" },
     { key: "total_comments", label: "Comments", icon: "chat_bubble", color: "--c-green" },
     { key: "total_followers", label: "Followers", icon: "group", color: "--c-orange" },
-    { key: "total_connections", label: "Connections", icon: "handshake", color: "--c-teal" },
 ];
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
