@@ -395,19 +395,12 @@
             grid-template-columns: 240px 1fr;
             grid-template-rows: 1fr;
             grid-template-areas: "sidebar main";
-            transition: grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .app-layout--collapsed {
-            grid-template-columns: 80px 1fr;
         }
     }
 
     @media (min-width: 1280px) {
         .app-layout {
             grid-template-columns: 260px 1fr;
-        }
-        .app-layout--collapsed {
-            grid-template-columns: 80px 1fr;
         }
     }
 

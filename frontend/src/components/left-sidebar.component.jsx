@@ -42,7 +42,7 @@ const settingsItems = [
     { to: "/settings/account", icon: "manage_accounts", label: "Account" },
 ];
 
-const LeftSidebar = ({ isCollapsed, toggleSidebar }) => {
+const LeftSidebar = () => {
 
     const { userAuth: { access_token, profile_img, username, fullname, new_notification_available }, setUserAuth } = useContext(UserContext);
     const { theme, setTheme } = useContext(ThemeContext);
@@ -102,21 +102,16 @@ const LeftSidebar = ({ isCollapsed, toggleSidebar }) => {
 
     return (
         <>
-        <aside className={`left-sidebar ${isCollapsed ? 'left-sidebar--collapsed' : ''}`}>
+        <aside className="left-sidebar">
 
             {/* === DASHBOARD/SETTINGS MODE === */}
             {isDashboardOrSettings && access_token ? (
                 <div key="dashboard-mode" className="left-sidebar__mode-content">
-                    <div className="left-sidebar__top-row flex items-center justify-between pb-4">
-                        {/* Back to Home button (replaces logo) */}
-                        <Link to="/" className="left-sidebar__back-btn">
-                            <Icon name="arrow_back" className="text-[20px]" />
-                            <span className="left-sidebar__label-text">Back to Home</span>
-                        </Link>
-                        <button onClick={toggleSidebar} className="left-sidebar__toggle-btn p-2 rounded-full hover:bg-grey/10 transition-colors" aria-label="Toggle sidebar">
-                            <Icon name={isCollapsed ? "menu" : "menu_open"} className="text-[20px]" />
-                        </button>
-                    </div>
+                    {/* Back to Home button (replaces logo) */}
+                    <Link to="/" className="left-sidebar__back-btn">
+                        <Icon name="arrow_back" className="text-[20px]" />
+                        <span>Back to Home</span>
+                    </Link>
 
                     {/* Dashboard nav section */}
                     <nav className="left-sidebar__nav left-sidebar__nav--sectioned">
@@ -146,7 +141,7 @@ const LeftSidebar = ({ isCollapsed, toggleSidebar }) => {
                                             <span className="notification-badge !w-2 !h-2 !top-0 !right-0"></span>
                                         )}
                                     </div>
-                                    <span className="left-sidebar__label-text">{label}</span>
+                                    <span>{label}</span>
                                 </Link>
                             );
                         })}
@@ -164,7 +159,7 @@ const LeftSidebar = ({ isCollapsed, toggleSidebar }) => {
                                 {({ isActive }) => (
                                     <>
                                         <Icon name={icon} className="text-[22px]" filled={isActive} />
-                                        <span className="left-sidebar__label-text">{label}</span>
+                                        <span>{label}</span>
                                     </>
                                 )}
                             </NavLink>
@@ -176,27 +171,22 @@ const LeftSidebar = ({ isCollapsed, toggleSidebar }) => {
                             aria-label="Toggle theme"
                         >
                             <Icon name={theme === "light" ? "dark_mode" : "light_mode"} className="text-[22px]" />
-                            <span className="left-sidebar__label-text">{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
+                            <span>{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
                         </button>
                     </nav>
                 </div>
             ) : (
                 /* === NORMAL MODE === */
                 <div key="normal-mode" className="left-sidebar__mode-content">
-                    <div className="left-sidebar__top-row flex items-center justify-between pb-4">
-                        {/* Logo */}
-                        <Link to="/" className="left-sidebar__logo flex items-center">
-                            <img
-                                src={theme === "light" ? darkLogo : lightLogo}
-                                alt="Kalamio logo"
-                            />
-                            <span className="left-sidebar__logo-text left-sidebar__label-text">Kalamio</span>
-                            <span className="left-sidebar__beta-tag bg-[#FF6B00]/10 text-[#FF6B00] text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-2 border border-[#FF6B00]/20 leading-none mt-1">BETA</span>
-                        </Link>
-                        <button onClick={toggleSidebar} className="left-sidebar__toggle-btn p-2 rounded-full hover:bg-grey/10 transition-colors" aria-label="Toggle sidebar">
-                            <Icon name={isCollapsed ? "menu" : "menu_open"} className="text-[20px]" />
-                        </button>
-                    </div>
+                    {/* Logo */}
+                    <Link to="/" className="left-sidebar__logo flex items-center">
+                        <img
+                            src={theme === "light" ? darkLogo : lightLogo}
+                            alt="Kalamio logo"
+                        />
+                        <span className="left-sidebar__logo-text">Kalamio</span>
+                        <span className="bg-[#FF6B00]/10 text-[#FF6B00] text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-2 border border-[#FF6B00]/20 leading-none mt-1">BETA</span>
+                    </Link>
 
                     {/* Navigation */}
                     <nav className="left-sidebar__nav">
@@ -220,7 +210,7 @@ const LeftSidebar = ({ isCollapsed, toggleSidebar }) => {
                                                     <span className="notification-badge !w-2 !h-2 !top-0 !right-0"></span>
                                                 )}
                                             </div>
-                                            <span className="left-sidebar__label-text">{label}</span>
+                                            <span>{label}</span>
                                         </>
                                     )}
                                 </NavLink>
@@ -236,7 +226,7 @@ const LeftSidebar = ({ isCollapsed, toggleSidebar }) => {
                                 onClick={() => setShowCreateMenu(prev => !prev)}
                             >
                                 <Icon name="add" className="text-xl" />
-                                <span className="left-sidebar__label-text">Create</span>
+                                <span>Create</span>
                             </button>
 
                             {showCreateMenu && (
@@ -267,7 +257,7 @@ const LeftSidebar = ({ isCollapsed, toggleSidebar }) => {
                         </div>
                     ) : (
                         <Link to="/signin" className="left-sidebar__write-btn">
-                            <span className="left-sidebar__label-text">Sign In</span>
+                            <span>Sign In</span>
                         </Link>
                     )}
 
@@ -299,7 +289,7 @@ const LeftSidebar = ({ isCollapsed, toggleSidebar }) => {
                                 aria-label="Toggle theme"
                             >
                                 <Icon name={theme === "light" ? "dark_mode" : "light_mode"} className="text-[22px]" />
-                                <span className="left-sidebar__label-text">{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
+                                <span>{theme === "light" ? "Dark Mode" : "Light Mode"}</span>
                             </button>
                         )}
 
@@ -316,7 +306,7 @@ const LeftSidebar = ({ isCollapsed, toggleSidebar }) => {
                                             <Icon name="person" className="text-[24px]" />
                                         )}
                                     </div>
-                                    <div className="flex flex-col min-w-0 flex-1 justify-center text-left gap-0 left-sidebar__profile-text">
+                                    <div className="flex flex-col min-w-0 flex-1 justify-center text-left gap-0">
                                         <span className="font-semibold text-black text-[13px] leading-[1.2] truncate">
                                             {fullname || username}
                                         </span>
@@ -324,7 +314,7 @@ const LeftSidebar = ({ isCollapsed, toggleSidebar }) => {
                                             @{username}
                                         </span>
                                     </div>
-                                    <Icon name="unfold_more" className="text-dark-grey text-[16px] shrink-0 left-sidebar__profile-unfold" />
+                                    <Icon name="unfold_more" className="text-dark-grey text-[16px] shrink-0" />
                                 </button>
 
                                 {showProfileMenu && (

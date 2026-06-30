@@ -15,18 +15,7 @@ const MainLayout = () => {
     const { userAuth: { access_token, profile_img }, setUserAuth } = useContext(UserContext);
     const [userNavPanel, setUserNavPanel] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
-        return sessionStorage.getItem("sidebarCollapsed") === "true";
-    });
     const navigate = useNavigate();
-
-    const toggleSidebar = () => {
-        setIsSidebarCollapsed(prev => {
-            const newVal = !prev;
-            sessionStorage.setItem("sidebarCollapsed", newVal);
-            return newVal;
-        });
-    };
     const location = useLocation();
     const isReadsPage = location.pathname === "/reads";
     const isDashboardOrSettings = location.pathname.startsWith("/dashboard") || location.pathname.startsWith("/settings");
@@ -175,9 +164,9 @@ const MainLayout = () => {
     };
 
     return (
-        <div className={`app-layout ${isSidebarCollapsed ? 'app-layout--collapsed' : ''}`}>
+        <div className="app-layout">
             {/* Desktop left sidebar — hidden on mobile */}
-            <LeftSidebar isCollapsed={isSidebarCollapsed} toggleSidebar={toggleSidebar} />
+            <LeftSidebar />
 
             {/* Mobile top bar — hidden on desktop and on reads page */}
             {location.pathname !== "/reads" && <MobileTopBar />}
