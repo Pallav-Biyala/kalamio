@@ -19,6 +19,7 @@ import FollowButton from "../components/follow-button.component";
 
 import SubscribeButton from "../components/subscribe-button.component";
 import toast from "react-hot-toast";
+import NetworkError from "../components/network-error.component";
 
 export const profileDataStructure = {
     personal_info: {
@@ -53,6 +54,7 @@ const ProfilePage = () => {
     let [ publications, setPublications ] = useState(null);
     let [ isBlocked, setIsBlocked ] = useState(false);
     let [ profileCollections, setProfileCollections ] = useState([]);
+    let [ fetchError, setFetchError ] = useState(false);
 
     let { 
         personal_info: { fullname, username: profile_username, profile_img, bio }, 
@@ -91,6 +93,7 @@ const ProfilePage = () => {
             setLoading(false);
         })
         .catch(err => {
+            setFetchError(true);
             setLoading(false);
         })
 
@@ -164,6 +167,8 @@ const ProfilePage = () => {
       <AnimationWrapper>
         {loading ? (
           <Loader />
+        ) : fetchError ? (
+          <NetworkError onRetry={() => { setFetchError(false); setLoading(true); fetchUserProfile(); }} />
         ) : (
             profile_username.length ? 
                 <section className="h-cover lg:flex flex-row-reverse items-start gap-5 min-[1100px]:gap-12 max-lg:pt-0">

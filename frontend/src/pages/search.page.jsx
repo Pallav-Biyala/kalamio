@@ -12,11 +12,13 @@ import usePageTitle from "../common/usePageTitle";
 import Icon from "../components/Icon";
 import api from "../common/api";
 import UserCard from "../components/usercard.component";
+import NetworkError from "../components/network-error.component";
 
 const SearchPage = () => {
   let { query } = useParams();
   let [ blogs, setBlogs ] = useState(null);
   let [ users, setUsers ] = useState(null);
+  let [ blogsError, setBlogsError ] = useState(false);
 
   usePageTitle(`Search: ${query}`);
 
@@ -37,7 +39,7 @@ const SearchPage = () => {
         setBlogs(formatedData);
     })
     .catch((err) => {
-        console.error('[Search] fetchUsers failed');
+        setBlogsError(true);
     });
 
   }
@@ -59,6 +61,7 @@ const SearchPage = () => {
 
   const resetState = () => {
     setBlogs(null);
+    setBlogsError(false);
     fetchUsers(null);
   }
 
@@ -88,7 +91,11 @@ const SearchPage = () => {
         >
           <>
             {blogs == null ? (
-              <Loader />
+              blogsError ? (
+                <NetworkError onRetry={() => { setBlogsError(false); setBlogs(null); searchBlogs({ page: 1, create_new_arr: true }); }} />
+              ) : (
+                <Loader />
+              )
             ) : blogs.results.length ? (
               blogs.results.map((blog, i) => {
                 return (

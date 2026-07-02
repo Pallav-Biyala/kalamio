@@ -16,6 +16,7 @@ import WhoToFollow from "../components/who-to-follow.component";
 import RightSidebar from "../components/right-sidebar.component";
 import Avatar from "../components/Avatar";
 import { UserContext } from "../App";
+import NetworkError from "../components/network-error.component";
 
 // ── Module-level cache — survives navigation ──────────────────
 const feedCache = {
@@ -36,6 +37,9 @@ const HomePage = () => {
   let [showComposer, setShowComposer] = useState(false);
   let [editingTextPostId, setEditingTextPostId] = useState(null);
   let [searchQuery, setSearchQuery] = useState("");
+  let [feedError, setFeedError] = useState(false);
+  let [followingError, setFollowingError] = useState(false);
+  let [trendingError, setTrendingError] = useState(false);
   const navigate = useNavigate();
 
   let { userAuth: { access_token, profile_img } } = useContext(UserContext);
@@ -99,6 +103,7 @@ const HomePage = () => {
         setBlogs(formatedData);
       })
       .catch((err) => {
+        setFeedError(true);
       });
   };
 
@@ -118,6 +123,7 @@ const HomePage = () => {
         setBlogs(formatedData);
       })
       .catch((err) => {
+        setFeedError(true);
       });
   };
 
@@ -128,6 +134,7 @@ const HomePage = () => {
         setTrendingBlogs(data.blogs);
       })
       .catch((err) => {
+        setTrendingError(true);
       });
   };
 
@@ -145,11 +152,13 @@ const HomePage = () => {
         });
         setFollowingBlogs(formatedData);
       })
-      .catch(() => {});
+      .catch(() => { setFollowingError(true); });
   };
 
   const loadBlogByCategory = (category) => {
     window.scrollTo(0, 0);
+    setFeedError(false);
+    setFollowingError(false);
 
     if (category === "For You") {
       if (pageState !== "home") {
@@ -299,7 +308,11 @@ const HomePage = () => {
               !access_token ? (
                 <NoDataMessage message="Sign in to see blogs from people you follow" />
               ) : followingBlogs == null ? (
-                <Loader />
+                followingError ? (
+                  <NetworkError onRetry={() => { setFollowingError(false); setFollowingBlogs(null); fetchFollowingBlogs({ page: 1 }); }} />
+                ) : (
+                  <Loader />
+                )
               ) : followingBlogs.results?.length ? (
                 <>
                   {followingBlogs.results.map((blog, i) => (
@@ -344,7 +357,13 @@ const HomePage = () => {
                     </button>
                   ))}
                 </div>
-                {trendingBlogs == null ? <Loader /> :
+                {trendingBlogs == null ? (
+                  trendingError ? (
+                    <NetworkError onRetry={() => { setTrendingError(false); setTrendingBlogs(null); fetchTrendingBlogs(); }} />
+                  ) : (
+                    <Loader />
+                  )
+                ) :
                   (() => {
                     const now = new Date();
                     const filtered = trendingBlogs.filter(b => {
@@ -378,7 +397,11 @@ const HomePage = () => {
                   })()}
               </>
             ) : blogs == null ? (
-              <Loader />
+              feedError ? (
+                <NetworkError onRetry={() => { setFeedError(false); setBlogs(null); feedCache.blogs = null; pageState === 'home' ? fetchLatestBlogs({ page: 1 }) : fetchBlogsByCategory({ page: 1 }); }} />
+              ) : (
+                <Loader />
+              )
             ) : (
               blogs.results.length ?
                   blogs.results.map((blog, i) => {

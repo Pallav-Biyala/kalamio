@@ -17,6 +17,7 @@ import SubscribeButton from "../components/subscribe-button.component";
 import RightSidebar from "../components/right-sidebar.component";
 import { UserContext } from "../App";
 import toast from "react-hot-toast";
+import NetworkError from "../components/network-error.component";
 
 // Inline poll component for the blog page detail view
 const TextPostPollView = ({ poll: initialPoll, blogId }) => {
@@ -131,6 +132,7 @@ const BlogPage = () => {
     const [ isLikedByUser, setLikedByUser ] = useState(false);
     const [ commentsWrapper, setCommentsWrapper ] = useState(false);
     const [ totalParentCommentsLoaded, setTotalParentCommentsLoaded ] = useState(0);
+    const [ fetchError, setFetchError ] = useState(false);
 
     let { title, content, banner, author: { personal_info: { fullname, username: author_username, profile_img, bio }, account_info: { total_posts: author_total_posts, total_reads: author_total_reads } = {} }, publishedAt, publication, type, text_content, images, poll: blogPoll } = blog;
 
@@ -173,6 +175,7 @@ const BlogPage = () => {
                     setLoading(false);
                 })
             } else {
+                setFetchError(true);
                 setLoading(false);
             }
         })
@@ -194,6 +197,7 @@ const BlogPage = () => {
         setBlog(blogStructure);
         setSimilarBlogs(null);
         setLoading(true);
+        setFetchError(false);
         setLikedByUser(false);
         setCommentsWrapper(false);
         setTotalParentCommentsLoaded(0);
@@ -224,6 +228,7 @@ const BlogPage = () => {
         <AnimationWrapper>
             {
                 loading ? <Loader />
+                : fetchError ? <NetworkError onRetry={() => { setFetchError(false); setLoading(true); fetchBlog(); }} />
                 :
                 <BlogContext.Provider value={{ blog, setBlog, isLikedByUser, setLikedByUser, commentsWrapper, setCommentsWrapper, totalParentCommentsLoaded, setTotalParentCommentsLoaded }}>
                     <div className={isTextPost ? "home-layout" : ""}>

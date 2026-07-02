@@ -72,7 +72,23 @@ const doRefresh = async () => {
     return data.access_token;
 };
 
+// ── Deduped toast helper ────────────────────────────────────────────
+// Prevents the same error toast from firing multiple times in a short window.
+// When the device goes offline several parallel requests fail at once —
+// this ensures only a single toast is shown per error category.
+const _toastCooldowns = {};
+const TOAST_COOLDOWN_MS = 3000;
+
+const showDedupedToast = (message, key) => {
+    if (_toastCooldowns[key]) return; // already showing — skip
+    toast.error(message);
+    _toastCooldowns[key] = setTimeout(() => {
+        delete _toastCooldowns[key];
+    }, TOAST_COOLDOWN_MS);
+};
+
 // ── Request interceptor — proactive token refresh ───────────────────
+
 // Checks token expiry BEFORE the request is sent. If expired, refreshes
 // first so the request goes out with a valid token (no 401 cascade).
 
@@ -177,10 +193,15 @@ api.interceptors.response.use(
         }
 
         // ── Non-401 error handling ─────────────────────────────────────
+        // Use a short cooldown so that when multiple requests fail at once
+        // (e.g. device goes offline), only ONE toast is shown — not one per request.
         if (status === 429) {
-            toast.error("Too many requests. Please slow down.");
+            showDedupedToast("Too many requests. Please slow down.", "rate-limit");
         } else if (status >= 500) {
-            toast.error("Server error. Please try again later.");
+            showDedupedToast("Server error. Please try again later.", "server-error");
+        } else if (!status) {
+            // Network error — no response at all (offline, DNS failure, etc.)
+            showDedupedToast("You're offline. Check your connection.", "network-offline");
         }
 
         return Promise.reject(error);

@@ -153,7 +153,7 @@ const CollectionPage = () => {
                         )}
                         <div className="collection-detail__meta">
                             <Link to={`/user/${collection.owner.personal_info.username}`} className="collection-detail__owner">
-                                <Avatar src={collection.owner.personal_info.profile_img} size="sm" />
+                                <Avatar src={collection.owner.personal_info.profile_img} size={24} />
                                 <span>{collection.owner.personal_info.fullname}</span>
                             </Link>
                             <span className="collection-detail__count">
