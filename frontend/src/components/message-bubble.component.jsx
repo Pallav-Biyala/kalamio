@@ -1,3 +1,5 @@
+import Avatar from "./Avatar";
+
 const MessageBubble = ({ message, isOwn, showAvatar = true }) => {
     const { content, sentAt, sender } = message;
 
@@ -6,9 +8,10 @@ const MessageBubble = ({ message, isOwn, showAvatar = true }) => {
     return (
         <div className={`msg-bubble ${isOwn ? 'msg-bubble--own' : 'msg-bubble--other'}`}>
             {!isOwn && showAvatar && (
-                <img
+                <Avatar
                     src={sender?.personal_info?.profile_img}
-                    alt=""
+                    alt={sender?.personal_info?.fullname}
+                    size={32}
                     className="msg-bubble__avatar"
                 />
             )}

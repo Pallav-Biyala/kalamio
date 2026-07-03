@@ -260,7 +260,12 @@ const BlogPage = () => {
                                 <div className="flex gap-5 items-start mb-6">
                                     <Avatar src={profile_img} alt={fullname} size={48} />
                                     <div>
-                                        <p className="capitalize font-semibold">{fullname}</p>
+                                        <div className="flex items-center gap-3">
+                                            <p className="capitalize font-semibold">{fullname}</p>
+                                            {!isDraft && blog.author._id && (
+                                                <FollowButton targetUserId={blog.author._id} size="sm" />
+                                            )}
+                                        </div>
                                         <div className="flex items-center gap-2 text-dark-grey text-sm">
                                             <Link to={`/user/${author_username}`} className="hover:text-black transition-colors">@{author_username}</Link>
                                             <span>·</span>
@@ -308,14 +313,19 @@ const BlogPage = () => {
                                 
 
                                 <div className="max-w-[700px] mx-auto mt-4 md:mt-8">
-                                    <h1 className="text-4xl md:text-5xl font-bold font-gelasio leading-tight md:leading-[1.1] text-black mb-8 tracking-tight">{title}</h1>
+                                    <h1 className="text-4xl md:text-5xl font-extrabold font-inter leading-tight md:leading-[1.1] text-black mb-8 tracking-tight">{title}</h1>
 
                                     <div className="flex items-center gap-4 mb-6">
                                         <Avatar src={profile_img} alt={fullname} size={48} />
                                         <div className="flex flex-col">
-                                            <p className="font-semibold text-black capitalize">
-                                                {fullname}
-                                            </p>
+                                            <div className="flex items-center gap-3">
+                                                <p className="font-semibold text-black capitalize">
+                                                    {fullname}
+                                                </p>
+                                                {!isDraft && blog.author._id && (
+                                                    <FollowButton targetUserId={blog.author._id} size="sm" />
+                                                )}
+                                            </div>
                                             <p className="text-dark-grey text-sm mt-0.5 flex items-center gap-1.5">
                                                 {isDraft ? "Draft" : getDay(publishedAt)}
                                                 {publication && (

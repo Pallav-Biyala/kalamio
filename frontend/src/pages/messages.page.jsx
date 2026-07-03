@@ -53,11 +53,19 @@ const MessagesPage = () => {
                 setActiveConv(data.conversation);
                 setShowSidebar(false);
             } else {
-                // No conversation yet — create one by sending the first message
-                // For now, just set a temporary conversation shell
-                api.post("/get-profile-by-id", { user_id: otherUserId })
-                .then(({ data: userData }) => {
-                    // User can type their first message to create the conversation
+                // No conversation yet — fetch user profile and create temp shell
+                api.post("/get-user-by-id", { user_id: otherUserId })
+                .then(({ data: targetUser }) => {
+                    if (targetUser) {
+                        setActiveConv({
+                            _id: null, // indicates new conversation
+                            _isNew: true,
+                            _recipientId: otherUserId,
+                            other_user: targetUser,
+                            participants: [],
+                        });
+                        setShowSidebar(false);
+                    }
                 })
                 .catch(() => {});
             }
@@ -90,6 +98,19 @@ const MessagesPage = () => {
 
     const handleConversationUpdate = () => {
         fetchConversations();
+    };
+
+    // When a new conversation is created from first message, load the real conversation
+    const handleConversationCreated = (convId) => {
+        api.post("/conversations", { filter: 'dms' })
+        .then(({ data }) => {
+            setConversations(data.conversations);
+            const realConv = data.conversations.find(c => c._id === convId);
+            if (realConv) {
+                setActiveConv(realConv);
+            }
+        })
+        .catch(() => {});
     };
 
     return (
@@ -144,6 +165,7 @@ const MessagesPage = () => {
                 <ChatView
                     conversation={activeConv}
                     onConversationUpdate={handleConversationUpdate}
+                    onConversationCreated={handleConversationCreated}
                 />
             </div>
         </div>

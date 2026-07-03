@@ -52,7 +52,19 @@ const App = () => {
     useEffect(() => {
 
         let userInSession = lookInSession("user");
-        userInSession ? setUserAuth(JSON.parse(userInSession)) : setUserAuth({ access_token: null });
+        if (userInSession) {
+            const parsed = JSON.parse(userInSession);
+            // Extract _id from JWT if not stored in session (backward compat)
+            if (!parsed._id && parsed.access_token) {
+                try {
+                    const payload = JSON.parse(atob(parsed.access_token.split('.')[1]));
+                    parsed._id = payload.id;
+                } catch {}
+            }
+            setUserAuth(parsed);
+        } else {
+            setUserAuth({ access_token: null });
+        }
 
         // Restore saved theme (dark = default/no attr, light = explicit)
         let savedTheme = lookInSession("theme") || "dark";

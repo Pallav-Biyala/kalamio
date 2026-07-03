@@ -192,7 +192,7 @@ const EditProfile = () => {
                                     Upload Image
                                 </div>
                                 {updatedProfileImg ? 
-                                    <img ref={profileImgEle} src={profile_img} alt="Profile" className="w-full h-full object-cover" />
+                                    <img ref={profileImgEle} src={profile_img} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                     : <div ref={profileImgEle} className="w-full h-full flex items-center justify-center">
                                         <Avatar src={profile_img} alt="Profile" size={192} />
                                     </div>

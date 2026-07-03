@@ -48,6 +48,7 @@ const Avatar = ({ src, alt = "avatar", className = "", size = 40 }) => {
             src={src}
             alt={alt}
             className={className}
+            referrerPolicy="no-referrer"
             style={{
                 width: size,
                 height: size,

@@ -1,9 +1,11 @@
-import { useContext, useState } from "react";
+import { useContext, useState, useEffect } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { UserContext } from "../App";
 import Icon from "./Icon";
 import Avatar from "./Avatar";
 import TextPostComposer from "./text-post-composer.component";
+import api from "../common/api";
+import { getSocket } from "../common/socket";
 
 const BottomTabBar = () => {
 
@@ -13,6 +15,27 @@ const BottomTabBar = () => {
 
     const [showFabMenu, setShowFabMenu] = useState(false);
     const [showComposer, setShowComposer] = useState(false);
+    const [unreadMessages, setUnreadMessages] = useState(0);
+
+    // Fetch unread message count
+    useEffect(() => {
+        if (!access_token) return;
+
+        const fetchUnread = () => {
+            api.post("/messages/unread-total")
+                .then(({ data }) => setUnreadMessages(data.unread_total || 0))
+                .catch(() => {});
+        };
+
+        fetchUnread();
+
+        const socket = getSocket();
+        if (socket) {
+            const handleNewMessage = () => fetchUnread();
+            socket.on('new_message', handleNewMessage);
+            return () => socket.off('new_message', handleNewMessage);
+        }
+    }, [access_token]);
 
     const handleCreateTextPost = () => {
         setShowFabMenu(false);
@@ -57,7 +80,12 @@ const BottomTabBar = () => {
                 <NavLink to="/messages" className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>
                     {({ isActive }) => (
                         <>
-                            <Icon name="forum" className="text-2xl" filled={isActive} />
+                            <div className="relative">
+                                <Icon name="forum" className="text-2xl" filled={isActive} />
+                                {unreadMessages > 0 && (
+                                    <span className="notification-badge !w-2 !h-2 !top-0 !right-0"></span>
+                                )}
+                            </div>
                             <span>Chat</span>
                         </>
                     )}

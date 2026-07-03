@@ -60,6 +60,27 @@ export const getProfile = (req, res) => {
     })
 };
 
+// Get user basic info by ID (for messaging)
+export const getUserById = async (req, res) => {
+    try {
+        const { user_id } = req.body;
+        if (!user_id) {
+            return res.status(400).json({ error: "User ID is required" });
+        }
+
+        const user = await User.findById(user_id)
+            .select("personal_info.fullname personal_info.username personal_info.profile_img");
+
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        return res.status(200).json(user);
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+};
+
 // Update profile image
 export const updateProfileImg = async (req, res) => {
     try {

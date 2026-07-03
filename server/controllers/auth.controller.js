@@ -132,6 +132,7 @@ export const verifyEmail = async (req, res) => {
         await User.updateOne({ _id: user._id }, { refreshToken: hashedRefreshToken });
 
         return res.status(200).json({
+            _id: user._id,
             access_token: tokens.access_token,
             refresh_token: tokens.refresh_token,
             profile_img: user.personal_info.profile_img,
@@ -264,6 +265,7 @@ export const signin = async (req, res) => {
         await User.updateOne({ _id: user._id }, { refreshToken: hashedRefreshToken });
 
         return res.status(200).json({
+            _id: user._id,
             access_token: tokens.access_token,
             refresh_token: tokens.refresh_token,
             profile_img: user.personal_info.profile_img,
@@ -374,6 +376,7 @@ export const exchangeAuthCode = async (req, res) => {
         await User.updateOne({ _id: user._id }, { refreshToken: hashedRefreshToken });
 
         return res.status(200).json({
+            _id: user._id,
             access_token: tokens.access_token,
             refresh_token: tokens.refresh_token,
             profile_img: user.personal_info.profile_img,

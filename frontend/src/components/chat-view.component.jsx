@@ -8,7 +8,7 @@ import Avatar from "./Avatar";
 import Icon from "./Icon";
 import toast from "react-hot-toast";
 
-const ChatView = ({ conversation, onConversationUpdate }) => {
+const ChatView = ({ conversation, onConversationUpdate, onConversationCreated }) => {
 
     const { userAuth: { _id: currentUserId, access_token } } = useContext(UserContext);
 
@@ -26,12 +26,23 @@ const ChatView = ({ conversation, onConversationUpdate }) => {
 
     const other = conversation?.other_user;
     const convId = conversation?._id;
+    const isNewConv = conversation?._isNew;
+    const recipientId = conversation?._recipientId;
     const isRequest = conversation?.type === 'request' && conversation?.request_status === 'pending';
-    // Am I the recipient of the request (i.e. the one who needs to accept/decline)?
-    const isRequestRecipient = isRequest && conversation?.last_message?.sender?.toString() !== currentUserId;
+    // Reliably determine if I'm the recipient or sender of this request
+    const isRequestSender = isRequest && conversation?.request_initiator?.toString() === currentUserId;
+    const isRequestRecipient = isRequest && !isRequestSender;
 
     // Load messages
     useEffect(() => {
+        if (isNewConv) {
+            // New conversation — no messages to load
+            setMessages([]);
+            setLoading(false);
+            setTimeout(() => inputRef.current?.focus(), 200);
+            return;
+        }
+
         if (!convId) return;
 
         setMessages([]);
@@ -51,7 +62,7 @@ const ChatView = ({ conversation, onConversationUpdate }) => {
 
         // Focus input
         setTimeout(() => inputRef.current?.focus(), 200);
-    }, [convId]);
+    }, [convId, isNewConv]);
 
     // Socket.IO real-time messages
     useEffect(() => {
@@ -127,18 +138,26 @@ const ChatView = ({ conversation, onConversationUpdate }) => {
         setNewMessage("");
 
         try {
-            const { data } = await api.post("/message/send", {
-                conversation_id: convId,
-                content
-            });
+            // For new conversations, send with recipient_id instead of conversation_id
+            const payload = isNewConv
+                ? { recipient_id: recipientId, content }
+                : { conversation_id: convId, content };
+
+            const { data } = await api.post("/message/send", payload);
 
             setMessages(prev => [...prev, data.message]);
             scrollToBottom();
+
+            // If this was a new conversation, notify parent with the real conversation ID
+            if (isNewConv && data.conversation_id) {
+                onConversationCreated?.(data.conversation_id);
+            }
+
             onConversationUpdate?.();
 
             // Stop typing indicator
             const socket = getSocket();
-            if (socket) {
+            if (socket && convId) {
                 socket.emit('stop_typing', {
                     conversation_id: convId,
                     recipient_id: other._id
@@ -277,7 +296,7 @@ const ChatView = ({ conversation, onConversationUpdate }) => {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Request Accept/Decline bar */}
+            {/* Request Accept/Decline bar — only shown to recipient */}
             {isRequestRecipient && (
                 <div className="chat-request-bar">
                     <p><strong>{other?.personal_info?.fullname}</strong> wants to message you</p>
@@ -292,8 +311,18 @@ const ChatView = ({ conversation, onConversationUpdate }) => {
                 </div>
             )}
 
-            {/* Input area — hidden if request is pending for recipient */}
-            {(!isRequestRecipient || conversation?.request_status === 'accepted') && (
+            {/* Sender waiting notice */}
+            {isRequestSender && (
+                <div className="chat-request-bar" style={{ justifyContent: 'center', textAlign: 'center' }}>
+                    <p style={{ margin: 0, color: 'rgb(var(--c-dark-grey))' }}>
+                        <Icon name="schedule" className="text-sm" style={{ verticalAlign: 'middle', marginRight: '6px' }} />
+                        Waiting for <strong>{other?.personal_info?.fullname}</strong> to accept your request
+                    </p>
+                </div>
+            )}
+
+            {/* Input area — hidden if request is pending (for both sender and recipient) */}
+            {(isNewConv || (!isRequest)) && (
                 <div className="chat-input">
                     <textarea
                         ref={inputRef}

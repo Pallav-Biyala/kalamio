@@ -15,7 +15,13 @@ const conversationSchema = mongoose.Schema({
     // For requests: 'pending' → needs acceptance, 'accepted' → promoted to dm, 'declined' → rejected
     request_status: {
         type: String,
-        enum: ['pending', 'accepted', 'declined'],
+        enum: [null, 'pending', 'accepted', 'declined'],
+        default: null
+    },
+    // Who initiated the request (the sender of the first message)
+    request_initiator: {
+        type: Schema.Types.ObjectId,
+        ref: 'users',
         default: null
     },
     last_message: {

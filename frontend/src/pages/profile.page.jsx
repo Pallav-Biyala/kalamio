@@ -236,6 +236,13 @@ const ProfilePage = () => {
                                 onFollowChange={handleFollowChange}
                                 size="md"
                             />
+                            <Link
+                                to={`/messages?user=${profileUserId}`}
+                                className="btn-light rounded-radius-md flex items-center gap-2"
+                            >
+                                <Icon name="chat" className="text-xl" />
+                                Message
+                            </Link>
 
                             <button
                                 className={isBlocked ? "profile-block-btn profile-block-btn--active" : "profile-block-btn"}

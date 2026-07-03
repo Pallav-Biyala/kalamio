@@ -8,6 +8,8 @@ import Icon from "./Icon";
 import KeepReading from "./keep-reading.component";
 import TextPostComposer from "./text-post-composer.component";
 import Avatar from "./Avatar";
+import api from "../common/api";
+import { getSocket } from "../common/socket";
 
 const navItems = [
     { to: "/", icon: "home", label: "Home", end: true },
@@ -51,6 +53,28 @@ const LeftSidebar = () => {
 
     const [showCreateMenu, setShowCreateMenu] = useState(false);
     const [showComposer, setShowComposer] = useState(false);
+    const [unreadMessages, setUnreadMessages] = useState(0);
+
+    // Fetch unread message count
+    useEffect(() => {
+        if (!access_token) return;
+
+        const fetchUnread = () => {
+            api.post("/messages/unread-total")
+                .then(({ data }) => setUnreadMessages(data.unread_total || 0))
+                .catch(() => {});
+        };
+
+        fetchUnread();
+
+        // Listen for new messages via socket to update badge in real-time
+        const socket = getSocket();
+        if (socket) {
+            const handleNewMessage = () => fetchUnread();
+            socket.on('new_message', handleNewMessage);
+            return () => socket.off('new_message', handleNewMessage);
+        }
+    }, [access_token]);
     const [showProfileMenu, setShowProfileMenu] = useState(false);
 
     // Detect if we're in dashboard/settings mode
@@ -77,6 +101,7 @@ const LeftSidebar = () => {
     const signOutUser = () => {
         removeFromSession("user");
         setUserAuth({ access_token: null });
+        navigate("/");
     };
 
     const changeTheme = () => {
@@ -138,6 +163,9 @@ const LeftSidebar = () => {
                                     <div className="relative">
                                         <Icon name={icon} className="text-[22px]" filled={isItemActive} />
                                         {showBadge && new_notification_available && (
+                                            <span className="notification-badge !w-2 !h-2 !top-0 !right-0"></span>
+                                        )}
+                                        {icon === "chat" && unreadMessages > 0 && (
                                             <span className="notification-badge !w-2 !h-2 !top-0 !right-0"></span>
                                         )}
                                     </div>
@@ -207,6 +235,9 @@ const LeftSidebar = () => {
                                             <div className="relative">
                                                 <Icon name={icon} className="text-[22px]" filled={isActive} />
                                                 {icon === "notifications" && new_notification_available && (
+                                                    <span className="notification-badge !w-2 !h-2 !top-0 !right-0"></span>
+                                                )}
+                                                {icon === "forum" && unreadMessages > 0 && (
                                                     <span className="notification-badge !w-2 !h-2 !top-0 !right-0"></span>
                                                 )}
                                             </div>

@@ -37,7 +37,7 @@ export default {
               sans: ["'DM Sans'", "sans-serif"],
               display: ["'EB Garamond'", "serif"],
               headline: ["'Playfair Display'", "serif"],
-              inter: ["'DM Sans'", "sans-serif"],
+              inter: ["'Inter'", "sans-serif"],
               gelasio: ["'EB Garamond'", "serif"],
               merriweather: ["'Playfair Display'", "serif"],
             },

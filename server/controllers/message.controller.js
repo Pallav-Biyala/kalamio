@@ -1,21 +1,22 @@
 import Conversation from '../Schema/Conversation.js';
 import Message from '../Schema/Message.js';
-import Connection from '../Schema/Connection.js';
+import Follow from '../Schema/Follow.js';
 import User from '../Schema/User.js';
 import BlockedUser from '../Schema/BlockedUser.js';
 import sanitizeHtml from 'sanitize-html';
 
 /**
- * Helper: check if two users are connected (accepted connection).
+ * Helper: check if two users mutually follow each other (Instagram-style).
+ * Both must follow the other for DM access.
  */
 const areConnected = async (userId1, userId2) => {
-    const conn = await Connection.findOne({
+    const mutualCount = await Follow.countDocuments({
         $or: [
-            { requester: userId1, recipient: userId2, status: 'accepted' },
-            { requester: userId2, recipient: userId1, status: 'accepted' }
+            { follower: userId1, following: userId2 },
+            { follower: userId2, following: userId1 }
         ]
     });
-    return !!conn;
+    return mutualCount === 2; // Both directions must exist
 };
 
 /**
@@ -33,12 +34,17 @@ const findOrCreateConversation = async (senderId, recipientId) => {
     // Check connection status to determine type
     const connected = await areConnected(senderId, recipientId);
 
-    conversation = await new Conversation({
+    const convData = {
         participants: [senderId, recipientId],
         type: connected ? 'dm' : 'request',
-        request_status: connected ? null : 'pending',
         unread_counts: new Map([[senderId.toString(), 0], [recipientId.toString(), 0]])
-    }).save();
+    };
+    if (!connected) {
+        convData.request_status = 'pending';
+        convData.request_initiator = senderId;
+    }
+
+    conversation = await new Conversation(convData).save();
 
     return conversation;
 };
@@ -86,13 +92,15 @@ export const sendMessage = async (req, res) => {
             // Don't allow sending if it's a pending request and the sender is the requester
             // (only the requester's first message is allowed, they can't spam)
             if (conversation.request_status === 'pending' && conversation.type === 'request') {
-                const existingMessages = await Message.countDocuments({
-                    conversation: conversation_id,
-                    sender: sender_id
-                });
-                // Requester already sent the initial message, can't send more until accepted
-                if (existingMessages > 0 && conversation.participants[0].toString() === sender_id) {
-                    return res.status(403).json({ error: "Waiting for the recipient to accept your request" });
+                const isInitiator = conversation.request_initiator?.toString() === sender_id;
+                if (isInitiator) {
+                    const existingMessages = await Message.countDocuments({
+                        conversation: conversation_id,
+                        sender: sender_id
+                    });
+                    if (existingMessages > 0) {
+                        return res.status(403).json({ error: "Waiting for the recipient to accept your request" });
+                    }
                 }
             }
         } else if (recipient_id) {
@@ -211,11 +219,13 @@ export const getConversations = async (req, res) => {
         if (filter === 'dms') {
             query.$or = [
                 { type: 'dm' },
-                { type: 'request', request_status: 'accepted' }
+                { type: 'request', request_status: 'accepted' },
+                { type: 'request', request_status: 'pending', request_initiator: user_id } // Show my sent requests in chats
             ];
         } else if (filter === 'requests') {
             query.type = 'request';
             query.request_status = 'pending';
+            query.request_initiator = { $ne: user_id }; // Only show requests where I'm the recipient
         }
 
         const conversations = await Conversation.find(query)
@@ -471,20 +481,13 @@ export const getRequestCount = async (req, res) => {
     try {
         const user_id = req.user;
 
-        // Get requests where I'm the recipient (not the initiator)
-        const conversations = await Conversation.find({
+        // Count requests where I'm the recipient (not the initiator)
+        const count = await Conversation.countDocuments({
             participants: user_id,
             type: 'request',
-            request_status: 'pending'
+            request_status: 'pending',
+            request_initiator: { $ne: user_id }
         });
-
-        // The first message's sender is the initiator — count only where I'm NOT the initiator
-        let count = 0;
-        for (const conv of conversations) {
-            if (conv.last_message?.sender?.toString() !== user_id) {
-                count++;
-            }
-        }
 
         return res.status(200).json({ totalDocs: count });
 
