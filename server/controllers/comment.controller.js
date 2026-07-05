@@ -134,8 +134,11 @@ export const getBlogComments = async (req, res) => {
             .sort({
                 'commentedAt': -1
             });
+
+        // Filter out comments whose author (commented_by) was deleted
+        const validComments = comment.filter(c => c.commented_by != null);
             
-        return res.status(200).json(comment);
+        return res.status(200).json(validComments);
     } catch (err) {
         console.error('[Comment] getBlogComments failed:', err.message);
         return res.status(500).json({ error: err.message });
@@ -166,7 +169,9 @@ export const getReplies = (req, res) => {
     })
     .select("children")
     .then(doc => {
-        return res.status(200).json({ replies: doc.children })
+        // Filter out replies whose author was deleted
+        const validReplies = (doc.children || []).filter(c => c.commented_by != null);
+        return res.status(200).json({ replies: validReplies })
     })
     .catch(err => {
         return res.status(500).json({ error: err.message });
@@ -264,7 +269,7 @@ export const getPreviewReplies = (req, res) => {
 
         // Check if author has replied
         let authorReply = null;
-        if (latestReply && latestReply.commented_by._id.toString() !== blog_author_id) {
+        if (latestReply && latestReply.commented_by && latestReply.commented_by._id.toString() !== blog_author_id) {
             // Latest reply is NOT by the author, so check if author has replied at all
             authorReply = await Comment.findOne({ parent: comment_id, commented_by: blog_author_id })
                 .sort({ commentedAt: -1 })
