@@ -1,3 +1,5 @@
+import Icon from "./Icon";
+
 /**
  * Avatar component — renders initials-based avatar or real image.
  * 
@@ -7,6 +9,24 @@
  * Otherwise, renders a normal <img> tag.
  */
 const Avatar = ({ src, alt = "avatar", className = "", size = 40 }) => {
+
+    if (!src) {
+        return (
+            <div
+                className={`flex items-center justify-center bg-grey text-dark-grey ${className}`}
+                style={{
+                    width: size,
+                    height: size,
+                    minWidth: size,
+                    minHeight: size,
+                    borderRadius: "50%",
+                    flexShrink: 0,
+                }}
+            >
+                <Icon name="person" style={{ fontSize: size * 0.6 }} />
+            </div>
+        );
+    }
 
     // Check if it's an initials avatar
     if (src && src.startsWith("avatar:")) {

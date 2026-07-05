@@ -113,7 +113,7 @@ export const blogStructure = {
     title: '',
     des: '',
     content: [],
-    author: { personal_info: { } },
+    author: { _id: null, personal_info: { }, account_info: { total_posts: 0, total_reads: 0 } },
     banner: '',
     publishedAt: ''
 }
@@ -399,7 +399,7 @@ const BlogPage = () => {
                                 </div>
                                 <div className="blog-cta-card__actions">
                                     <Link to={`/user/${author_username}`} className="blog-cta-card__btn">View Profile</Link>
-                                    <FollowButton targetUserId={blog.author._id} size="sm" />
+                                    {blog.author?._id && <FollowButton targetUserId={blog.author._id} size="sm" />}
                                 </div>
                             </div>
 
