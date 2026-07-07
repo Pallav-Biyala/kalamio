@@ -1,4 +1,5 @@
 import { useContext, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import usePageTitle from "../common/usePageTitle";
 import { UserContext } from "../App";
 import api from "../common/api";
@@ -10,24 +11,40 @@ import InputBox from "../components/input.component";
 import { uploadImage } from "../common/aws";
 import { storeInSession } from "../common/session";
 import Avatar from "../components/Avatar";
+import Icon from "../components/Icon";
+import ImageCropperModal from "../components/image-cropper.component";
+
+// ─── Helper: is this a real uploaded photo (not an avatar: initials string)?
+const isRealPhoto = (src) => src && !src.startsWith("avatar:");
 
 const EditProfile = () => {
 
     usePageTitle('Edit Profile');
 
+    const navigate = useNavigate();
+
     let { userAuth, userAuth: { access_token }, setUserAuth } = useContext(UserContext);
 
     let bioLimit = 150;
 
-    let profileImgEle = useRef();
     let editProfileForm = useRef();
+    let fileInputRef = useRef();
     
     const [ profile, setProfile ] = useState(profileDataStructure);
     const [ loading, setLoading ] = useState(true);
     const [ charactersLeft, setCharactersLeft ] = useState(bioLimit);
     const [ updatedProfileImg, setUpdatedProfileImg ] = useState(null);
+    const [ previewImgUrl, setPreviewImgUrl ] = useState(null);
+    const [ cropImageSrc, setCropImageSrc ] = useState(null);
+    const [ photoMenuOpen, setPhotoMenuOpen ] = useState(false);
+    const [ uploading, setUploading ] = useState(false);
 
     let { personal_info: { fullname, username: profile_username, profile_img, email, bio }, social_links } = profile;
+
+    // The currently visible photo: preview (pending crop) > server photo
+    const displayImgSrc = previewImgUrl || profile_img;
+    const hasRealPhoto = isRealPhoto(profile_img);
+    const hasPendingCrop = updatedProfileImg !== null;
 
     useEffect(() => {
 
@@ -43,67 +60,100 @@ const EditProfile = () => {
 
     }, [access_token])
 
+    // Close menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = () => setPhotoMenuOpen(false);
+        if (photoMenuOpen) {
+            document.addEventListener("click", handleClickOutside);
+            return () => document.removeEventListener("click", handleClickOutside);
+        }
+    }, [photoMenuOpen]);
+
     const handleCharacterChange = (e) => {
         setCharactersLeft(bioLimit - e.target.value.length)
     }
 
-    const handleImagePreview = (e) => {
+    // ── Photo workflow ──────────────────────────────────────────────
 
-        profileImgEle.current.innerHTML = '';
-        const img = document.createElement('img');
-        img.src = URL.createObjectURL(e.target.files[0]);
-        img.className = 'w-full h-full object-cover';
-        profileImgEle.current.appendChild(img);
+    const openFilePicker = () => {
+        fileInputRef.current.click();
+    };
 
-        setUpdatedProfileImg(e.target.files[0]);
-
-    }
-
-    const handleImageUpload = (e) => {
-
-        e.preventDefault();
-
-        if(updatedProfileImg){
-            
-            let loadingToast = toast.loading("Uploading....");
-            e.target.setAttribute("disabled", true);
-
-            uploadImage(updatedProfileImg)
-            .then(url => {
-                
-                if(url){
-                    api.post("/update-profile-img", { url })
-                    .then(({ data }) => {
-                        let newUserAuth = { ...userAuth, profile_img: data.profile_img }
-
-                        storeInSession("user", JSON.stringify(newUserAuth));
-                        setUserAuth(newUserAuth);
-
-                        setUpdatedProfileImg(null);
-                        toast.dismiss(loadingToast);
-                        e.target.removeAttribute("disabled");
-                        toast.success("Uploaded 👍");
-                    })
-                    .catch(({response}) => {
-                        toast.dismiss(loadingToast);
-                        e.target.removeAttribute("disabled");
-                        toast.error(response?.data?.error || "Upload failed");
-                    })
-                }
-
-            })
-            .catch(err => {
-            })
-
+    const handleFileSelected = (e) => {
+        let img = e.target.files[0];
+        if(img){
+            setCropImageSrc(URL.createObjectURL(img));
         }
+        e.target.value = null;
+    }
+
+    const handleEditCurrentPhoto = () => {
+        // Open cropper with the existing server photo
+        setCropImageSrc(profile_img);
+    };
+
+    const handleCropComplete = (croppedFile) => {
+        setUpdatedProfileImg(croppedFile);
+        setPreviewImgUrl(URL.createObjectURL(croppedFile));
+        setCropImageSrc(null);
+    };
+
+    const handleCropCancel = () => {
+        setCropImageSrc(null);
+    };
+
+    const handleSavePhoto = (e) => {
+        e.preventDefault();
+
+        if(!updatedProfileImg) return;
+        
+        setUploading(true);
+        let loadingToast = toast.loading("Saving photo…");
+
+        uploadImage(updatedProfileImg)
+        .then(url => {
+            
+            if(url){
+                api.post("/update-profile-img", { url })
+                .then(({ data }) => {
+                    let newUserAuth = { ...userAuth, profile_img: data.profile_img }
+
+                    storeInSession("user", JSON.stringify(newUserAuth));
+                    setUserAuth(newUserAuth);
+
+                    // Update local profile state so the page reflects the new image
+                    setProfile(prev => ({
+                        ...prev,
+                        personal_info: { ...prev.personal_info, profile_img: data.profile_img }
+                    }));
+
+                    setUpdatedProfileImg(null);
+                    setPreviewImgUrl(null);
+                    toast.dismiss(loadingToast);
+                    setUploading(false);
+                    toast.success("Photo saved");
+                })
+                .catch(({response}) => {
+                    toast.dismiss(loadingToast);
+                    setUploading(false);
+                    toast.error(response?.data?.error || "Upload failed");
+                })
+            }
+
+        })
+        .catch(err => {
+            toast.dismiss(loadingToast);
+            setUploading(false);
+            toast.error("Upload failed");
+        })
 
     }
 
-    const handleImageRemove = (e) => {
+    const handleRemovePhoto = (e) => {
         e.preventDefault();
 
-        let loadingToast = toast.loading("Removing....");
-        e.target.setAttribute("disabled", true);
+        let loadingToast = toast.loading("Removing photo…");
+        setUploading(true);
 
         api.post("/update-profile-img", { url: "" })
         .then(({ data }) => {
@@ -112,17 +162,31 @@ const EditProfile = () => {
             storeInSession("user", JSON.stringify(newUserAuth));
             setUserAuth(newUserAuth);
 
+            setProfile(prev => ({
+                ...prev,
+                personal_info: { ...prev.personal_info, profile_img: data.profile_img }
+            }));
+
             setUpdatedProfileImg(null);
+            setPreviewImgUrl(null);
             toast.dismiss(loadingToast);
-            e.target.removeAttribute("disabled");
-            toast.success("Removed 👍");
+            setUploading(false);
+            toast.success("Photo removed");
         })
         .catch(({response}) => {
             toast.dismiss(loadingToast);
-            e.target.removeAttribute("disabled");
+            setUploading(false);
             toast.error(response?.data?.error || "Removal failed");
         })
     }
+
+    const handleDiscardCrop = (e) => {
+        e.preventDefault();
+        setUpdatedProfileImg(null);
+        setPreviewImgUrl(null);
+    };
+
+    // ── Profile form submit ─────────────────────────────────────────
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -143,7 +207,7 @@ const EditProfile = () => {
             return toast.error(`Bio should not be more than ${bioLimit} characters`)
         }
 
-        let loadingToast = toast.loading("Updating.....");
+        let loadingToast = toast.loading("Updating…..");
         e.target.setAttribute("disabled", true);
 
         api.post("/update-profile", {
@@ -164,6 +228,11 @@ const EditProfile = () => {
             toast.dismiss(loadingToast);
             e.target.removeAttribute("disabled");
             toast.success("Profile Updated");
+            
+            // Redirect to the user's profile page
+            setTimeout(() => {
+                navigate(`/user/${data.username}`);
+            }, 1000); // Slight delay so they can see the success toast
 
         })
         .catch(({ response }) => {
@@ -176,6 +245,14 @@ const EditProfile = () => {
 
     return (
         <AnimationWrapper>
+            {/* ── Cropper modal ──────────────────────── */}
+            {cropImageSrc && (
+                <ImageCropperModal
+                    imageSrc={cropImageSrc}
+                    onComplete={handleCropComplete}
+                    onCancel={handleCropCancel}
+                />
+            )}
             {
                 loading ? <Loader /> : 
                 <form ref={editProfileForm}>
@@ -185,25 +262,103 @@ const EditProfile = () => {
 
                     <div className="flex flex-col lg:flex-row items-start py-10 gap-8 lg:gap-10">
                         
-                        <div className="max-lg:center mb-5">
-                            <label htmlFor="uploadImg" id="profileImgLable"
-                            className="relative block w-48 h-48 bg-grey rounded-full overflow-hidden">
-                                <div className="w-full h-full absolute top-0 left-0 flex items-center justify-center text-white bg-black/50 opacity-0 hover:opacity-100 cursor-pointer z-10">
-                                    Upload Image
-                                </div>
-                                {updatedProfileImg ? 
-                                    <img ref={profileImgEle} src={profile_img} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                    : <div ref={profileImgEle} className="w-full h-full flex items-center justify-center">
-                                        <Avatar src={profile_img} alt="Profile" size={192} />
-                                    </div>
-                                }
-                            </label>
-                            <input type="file" id="uploadImg" accept=".jpeg, .png, .jpg" hidden onChange={handleImagePreview} />
+                        {/* ── Photo section ──────────────────── */}
+                        <div className="max-lg:center mb-5 w-48 flex-shrink-0">
 
-                            <div className="flex gap-4 mt-5">
-                                <button className="btn-light max-lg:center lg:w-full px-10 flex-1" onClick={handleImageUpload}>Upload</button>
-                                <button className="btn-light max-lg:center lg:w-full px-10 flex-1 text-red" onClick={handleImageRemove}>Remove</button>
+                            {/* Avatar with overlay */}
+                            <div className="relative w-48 h-48 mx-auto" style={{ aspectRatio: '1/1' }}>
+                                <div className="w-full h-full rounded-full overflow-hidden bg-grey">
+                                    {previewImgUrl ? (
+                                        <img src={previewImgUrl} alt="Profile" className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center">
+                                            <Avatar src={profile_img} alt="Profile" size={192} />
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Pencil badge — opens context menu */}
+                                <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setPhotoMenuOpen(!photoMenuOpen); }}
+                                    className="absolute bottom-1 right-1 w-10 h-10 bg-black rounded-full flex items-center justify-center shadow-lg border-2 border-white cursor-pointer hover:bg-black/80 transition-colors z-10"
+                                >
+                                    <Icon name="edit" className="text-white text-lg" />
+                                </button>
+
+                                {/* ── Context menu ── */}
+                                {photoMenuOpen && (
+                                    <div
+                                        className="absolute left-1/2 -translate-x-1/2 top-full mt-2 bg-white rounded-xl shadow-xl border border-grey/40 py-1.5 z-30 min-w-[180px] overflow-hidden"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <button
+                                            type="button"
+                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-grey/50 transition-colors text-left"
+                                            onClick={() => { setPhotoMenuOpen(false); openFilePicker(); }}
+                                        >
+                                            <Icon name="upload" className="text-lg text-dark-grey" />
+                                            Upload new photo
+                                        </button>
+
+                                        {hasRealPhoto && (
+                                            <button
+                                                type="button"
+                                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-grey/50 transition-colors text-left"
+                                                onClick={() => { setPhotoMenuOpen(false); handleEditCurrentPhoto(); }}
+                                            >
+                                                <Icon name="crop" className="text-lg text-dark-grey" />
+                                                Edit current photo
+                                            </button>
+                                        )}
+
+                                        {hasRealPhoto && (
+                                            <>
+                                                <div className="border-t border-grey/40 my-1" />
+                                                <button
+                                                    type="button"
+                                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-red/5 transition-colors text-left text-red"
+                                                    onClick={(e) => { setPhotoMenuOpen(false); handleRemovePhoto(e); }}
+                                                >
+                                                    <Icon name="delete" className="text-lg" />
+                                                    Remove photo
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
                             </div>
+
+                            {/* Hidden file input */}
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                accept=".jpeg, .png, .jpg"
+                                hidden
+                                onChange={handleFileSelected}
+                            />
+
+                            {/* Pending-crop action bar */}
+                            {hasPendingCrop && (
+                                <div className="flex gap-3 mt-4 w-full">
+                                    <button
+                                        type="button"
+                                        className="btn-light flex-1 !py-2 !text-sm"
+                                        onClick={handleDiscardCrop}
+                                    >
+                                        Discard
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn-dark flex-1 !py-2 !text-sm"
+                                        onClick={handleSavePhoto}
+                                        disabled={uploading}
+                                    >
+                                        {uploading ? "Saving…" : "Save"}
+                                    </button>
+                                </div>
+                            )}
+
                         </div>
 
                         <div className="w-full">
@@ -252,6 +407,7 @@ const EditProfile = () => {
                     </div>
                 </form>
             }
+
         </AnimationWrapper>
     )
 }
