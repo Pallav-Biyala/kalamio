@@ -89,7 +89,7 @@ export const signup = async (req, res) => {
         });
 
     } catch (err) {
-        req.log.error({ err }, '[Signup Error]');
+        (req.log || console).error({ err }, '[Signup Error]');
 
         if (err.code === 11000) {
             return res.status(409).json({ error: ERRORS.EMAIL_EXISTS });
@@ -141,7 +141,7 @@ export const verifyEmail = async (req, res) => {
         });
 
     } catch (err) {
-        req.log.error({ err }, '[Verify Email Error]');
+        (req.log || console).error({ err }, '[Verify Email Error]');
         if (err.statusCode) {
             return res.status(err.statusCode).json({ error: err.message });
         }
@@ -179,7 +179,7 @@ export const resendOtp = async (req, res) => {
         });
 
     } catch (err) {
-        req.log.error({ err }, '[Resend OTP Error]');
+        (req.log || console).error({ err }, '[Resend OTP Error]');
         if (err.statusCode) {
             return res.status(err.statusCode).json({ error: err.message });
         }
@@ -274,7 +274,7 @@ export const signin = async (req, res) => {
         });
 
     } catch (err) {
-        req.log.error({ err }, '[Signin Error]');
+        (req.log || console).error({ err }, '[Signin Error]');
         return res.status(500).json({ error: ERRORS.SERVER_ERROR });
     }
 };
@@ -305,7 +305,7 @@ export const googleAuthCallback = (req, res, next) => {
         try {
             // Passport error (strategy threw)
             if (err) {
-                req.log.error({ err }, '[Google Auth Error]');
+                (req.log || console).error({ err }, '[Google Auth Error]');
                 return res.redirect(
                     `${frontendUrl}/auth/callback?error=${encodeURIComponent(ERRORS.GOOGLE_AUTH_FAILED)}`
                 );
@@ -333,7 +333,7 @@ export const googleAuthCallback = (req, res, next) => {
             return res.redirect(`${frontendUrl}/auth/callback?code=${code}`);
 
         } catch (error) {
-            req.log.error({ err: error }, '[Google Auth Callback Error]');
+            (req.log || console).error({ err: error }, '[Google Auth Callback Error]');
             return res.redirect(
                 `${frontendUrl}/auth/callback?error=${encodeURIComponent(ERRORS.GOOGLE_AUTH_FAILED)}`
             );
@@ -385,7 +385,7 @@ export const exchangeAuthCode = async (req, res) => {
         });
 
     } catch (err) {
-        req.log.error({ err }, '[Exchange Auth Code Error]');
+        (req.log || console).error({ err }, '[Exchange Auth Code Error]');
         return res.status(500).json({ error: ERRORS.SERVER_ERROR });
     }
 };
@@ -414,7 +414,7 @@ export const forgotPassword = async (req, res) => {
         return res.status(200).json({ message: ERRORS.PASSWORD_RESET_SENT });
 
     } catch (err) {
-        req.log.error({ err }, '[Forgot Password Error]');
+        (req.log || console).error({ err }, '[Forgot Password Error]');
         if (err.statusCode) {
             return res.status(err.statusCode).json({ error: err.message });
         }
@@ -440,12 +440,15 @@ export const resetPassword = async (req, res) => {
         // Verify the OTP
         await verifyOtp(email.toLowerCase(), otp);
 
-        // Hash and update the password
+        // Hash and update the password, invalidate all existing sessions
         const hashedPassword = await bcrypt.hash(newPassword, AUTH.SALT_ROUNDS);
 
         const user = await User.findOneAndUpdate(
             { "personal_info.email": email.toLowerCase() },
-            { "personal_info.password": hashedPassword }
+            {
+                "personal_info.password": hashedPassword,
+                $unset: { refreshToken: 1 },
+            }
         );
 
         if (!user) {
@@ -455,7 +458,7 @@ export const resetPassword = async (req, res) => {
         return res.status(200).json({ message: ERRORS.PASSWORD_RESET_SUCCESS });
 
     } catch (err) {
-        req.log.error({ err }, '[Reset Password Error]');
+        (req.log || console).error({ err }, '[Reset Password Error]');
         if (err.statusCode) {
             return res.status(err.statusCode).json({ error: err.message });
         }
@@ -470,45 +473,39 @@ export const refreshToken = async (req, res) => {
     try {
         const { refresh_token: token } = req.body;
 
-        console.log('[RefreshToken] Body keys:', Object.keys(req.body));
-        console.log('[RefreshToken] token received:', !!token, token?.substring(0, 20));
-
         if (!token) {
-            console.log('[RefreshToken] ❌ FAIL: no token in body');
             return res.status(401).json({ error: ERRORS.REFRESH_TOKEN_INVALID });
         }
 
         // Verify JWT signature
         const decoded = verifyRefreshToken(token);
-        console.log('[RefreshToken] JWT verify result:', !!decoded, decoded?.id);
         if (!decoded) {
-            console.log('[RefreshToken] ❌ FAIL: JWT signature invalid or expired');
             return res.status(401).json({ error: ERRORS.REFRESH_TOKEN_INVALID });
         }
 
         // Find user and verify stored refresh token matches
         const user = await User.findById(decoded.id).select('+refreshToken');
-        console.log('[RefreshToken] User found:', !!user, '| has stored hash:', !!user?.refreshToken);
         if (!user || !user.refreshToken) {
-            console.log('[RefreshToken] ❌ FAIL: user not found or no stored refreshToken');
             return res.status(401).json({ error: ERRORS.REFRESH_TOKEN_INVALID });
         }
 
         const isMatch = await bcrypt.compare(token, user.refreshToken);
-        console.log('[RefreshToken] bcrypt compare result:', isMatch);
         if (!isMatch) {
-            console.log('[RefreshToken] ❌ FAIL: bcrypt compare mismatch');
             return res.status(401).json({ error: ERRORS.REFRESH_TOKEN_INVALID });
         }
 
-        // Issue new access token only
-        const newAccessToken = generateAccessToken(user._id);
-        console.log('[RefreshToken] ✅ SUCCESS: new access_token issued');
+        // Rotate tokens — issue new pair and invalidate the old refresh token
+        const tokens = generateTokenPair(user._id);
+        const hashedRefreshToken = await bcrypt.hash(tokens.refresh_token, AUTH.SALT_ROUNDS);
+        await User.updateOne({ _id: user._id }, { refreshToken: hashedRefreshToken });
 
-        return res.status(200).json({ access_token: newAccessToken });
+        return res.status(200).json({
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token,
+        });
 
     } catch (err) {
-        req.log.error({ err }, '[Refresh Token Error]');
+        (req.log || console).error({ err }, '[Refresh Token Error]');
         return res.status(500).json({ error: ERRORS.SERVER_ERROR });
     }
 };
@@ -527,7 +524,7 @@ export const logout = async (req, res) => {
         return res.status(200).json({ message: "Logged out successfully" });
 
     } catch (err) {
-        req.log.error({ err }, '[Logout Error]');
+        (req.log || console).error({ err }, '[Logout Error]');
         return res.status(500).json({ error: ERRORS.SERVER_ERROR });
     }
 };
@@ -559,13 +556,30 @@ export const changePassword = async (req, res) => {
         }
 
         const hashedPassword = await bcrypt.hash(newPassword, AUTH.SALT_ROUNDS);
-        await User.updateOne({ _id: req.user }, { "personal_info.password": hashedPassword });
+        // Update password and invalidate all other sessions
+        await User.updateOne(
+            { _id: req.user },
+            {
+                "personal_info.password": hashedPassword,
+                $unset: { refreshToken: 1 },
+            }
+        );
 
         audit.log(req, 'PASSWORD_CHANGED', {});
-        return res.status(200).json({ message: "Password changed successfully" });
+
+        // Issue fresh tokens for the current session
+        const tokens = generateTokenPair(req.user);
+        const hashedRefreshToken = await bcrypt.hash(tokens.refresh_token, AUTH.SALT_ROUNDS);
+        await User.updateOne({ _id: req.user }, { refreshToken: hashedRefreshToken });
+
+        return res.status(200).json({
+            message: "Password changed successfully",
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token,
+        });
 
     } catch (err) {
-        req.log.error({ err }, '[Change Password Error]');
+        (req.log || console).error({ err }, '[Change Password Error]');
         return res.status(500).json({ error: ERRORS.SERVER_ERROR });
     }
 };

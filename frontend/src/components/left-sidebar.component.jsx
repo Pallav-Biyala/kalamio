@@ -14,7 +14,6 @@ import { getSocket } from "../common/socket";
 const navItems = [
     { to: "/", icon: "home", label: "Home", end: true },
     { to: "/reads", icon: "auto_stories", label: "Articles" },
-    { to: "/search/", icon: "explore", label: "Explore" },
     { to: "/subscriptions", icon: "subscriptions", label: "Subscriptions", authOnly: true },
     { to: "/dashboard/publications", icon: "import_contacts", label: "Publications", authOnly: true },
     { to: "/collections", icon: "collections_bookmark", label: "Collections", authOnly: true },

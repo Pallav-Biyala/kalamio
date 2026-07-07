@@ -2315,7 +2315,7 @@
             left: 0;
             right: 0;
             z-index: 30;
-            padding: 0 14px 4px;
+            padding: 8px 14px 6px;
         }
     }
 
@@ -8215,3 +8215,122 @@
     from { opacity: 0; transform: translateY(12px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* ── Feedback FAB ─────────────────────────────── */
+.feedback-fab {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 45;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+/* On mobile, position is controlled by JS drag logic */
+@media (max-width: 1023px) {
+    .feedback-fab {
+        bottom: auto;
+        right: auto;
+        left: 12px;
+        top: auto;
+        touch-action: none;
+        will-change: left, top;
+    }
+}
+
+.feedback-fab__button {
+    width: 52px;
+    height: 52px;
+    border-radius: var(--radius-full);
+    border: none;
+    background: linear-gradient(135deg, #4f8cff, #3b6de0);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(59, 109, 224, 0.35), var(--shadow-md);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.feedback-fab__button:hover {
+    background: linear-gradient(135deg, #6ba0ff, #4f8cff);
+    color: #fff;
+    box-shadow: 0 6px 24px rgba(59, 109, 224, 0.45), var(--shadow-lg);
+    transform: scale(1.08);
+}
+
+.feedback-fab__button:active {
+    transform: scale(0.95);
+}
+
+/* Subtle pulse to draw attention */
+.feedback-fab__button--pulse {
+    animation: feedbackPulse 2.5s ease-in-out 3;
+}
+
+@keyframes feedbackPulse {
+    0%, 100% { box-shadow: 0 4px 16px rgba(59, 109, 224, 0.35), var(--shadow-md); }
+    50% { box-shadow: 0 4px 16px rgba(59, 109, 224, 0.35), 0 0 0 8px rgba(79, 140, 255, 0.18); }
+}
+
+/* Tooltip */
+.feedback-fab__tooltip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: rgb(var(--c-black));
+    color: rgb(var(--c-white));
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: 'DM Sans', sans-serif;
+    white-space: nowrap;
+    box-shadow: var(--shadow-lg);
+    animation: feedbackTooltipIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: auto;
+    max-width: 300px;
+}
+
+.feedback-fab__tooltip span {
+    white-space: normal;
+    line-height: 1.4;
+}
+
+.feedback-fab__tooltip-close {
+    background: none;
+    border: none;
+    color: rgb(var(--c-white) / 0.6);
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: var(--radius-full);
+    transition: color 0.15s ease;
+}
+
+.feedback-fab__tooltip-close:hover {
+    color: rgb(var(--c-white));
+}
+
+@keyframes feedbackTooltipIn {
+    from { opacity: 0; transform: translateX(8px) scale(0.95); }
+    to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@media (max-width: 1023px) {
+    .feedback-fab__tooltip {
+        animation-name: feedbackTooltipInMobile;
+    }
+
+    @keyframes feedbackTooltipInMobile {
+        from { opacity: 0; transform: translateX(-8px) scale(0.95); }
+        to { opacity: 1; transform: translateX(0) scale(1); }
+    }
+}
+

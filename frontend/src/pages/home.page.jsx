@@ -3,7 +3,7 @@ import usePageTitle from "../common/usePageTitle";
 import Icon from "../components/Icon";
 import AnimationWrapper from "../common/page-animation";
 import { useContext, useEffect, useState, useRef, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Loader from "../components/loader.component";
 import BlogPostCard from "../components/blog-post.component";
 import TextPostCard from "../components/text-post-card.component";
@@ -268,16 +268,7 @@ const HomePage = () => {
 
             {/* Category tabs */}
             <div className="category-tabs" ref={tabsRef}>
-              <div className="flex items-center lg:hidden flex-shrink-0 py-2 -mr-2">
-                  <Link 
-                      to="/search/" 
-                      className="flex items-center justify-center bg-grey hover:bg-border transition-colors rounded-radius-sm text-black"
-                      style={{ width: "36px", height: "36px" }}
-                  >
-                      <Icon name="explore" className="text-xl" />
-                  </Link>
-                  <div className="h-6 w-[1px] bg-border ml-1"></div>
-              </div>
+
 
               {categories.map((category, i) => {
                 const isActive = 
