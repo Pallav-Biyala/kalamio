@@ -35,11 +35,13 @@ const FeedbackButton = () => {
 
 
 
-    // Show tooltip briefly on first load
+    // Show tooltip briefly on first load (Desktop only)
     useEffect(() => {
         if (dismissed) return;
         const hasSeen = sessionStorage.getItem("feedback_tooltip_seen");
-        if (!hasSeen) {
+        
+        // Only auto-show on desktop, it clutters mobile view too much
+        if (!hasSeen && window.innerWidth >= 1024) {
             const timer = setTimeout(() => {
                 setShowTooltip(true);
                 sessionStorage.setItem("feedback_tooltip_seen", "true");
@@ -53,6 +55,9 @@ const FeedbackButton = () => {
                 clearTimeout(timer);
                 clearTimeout(hideTimer);
             };
+        } else if (!hasSeen && window.innerWidth < 1024) {
+            // Still mark it as seen on mobile so it doesn't pop up later if they resize
+            sessionStorage.setItem("feedback_tooltip_seen", "true");
         }
     }, [dismissed]);
 
