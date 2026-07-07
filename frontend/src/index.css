@@ -8238,7 +8238,10 @@
         left: 12px;
         top: auto;
         touch-action: none;
-        will-change: left, top;
+        will-change: transform;
+        transform: translateZ(0);
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
     }
 }
 
