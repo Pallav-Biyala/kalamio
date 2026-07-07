@@ -74,6 +74,31 @@ const FeedbackButton = () => {
         fabRef.current.style.top = `${y}px`;
     }, [dismissed]);
 
+    // Compensate for mobile address bar show/hide so button doesn't shift
+    useEffect(() => {
+        if (!isMobile() || !window.visualViewport) return;
+
+        let lastHeight = window.visualViewport.height;
+
+        const onViewportResize = () => {
+            const el = fabRef.current;
+            if (!el || isDragging.current) return;
+
+            const newHeight = window.visualViewport.height;
+            const diff = newHeight - lastHeight;
+
+            // Only compensate for small changes (address bar ~56px), not keyboard (~300px+)
+            if (Math.abs(diff) > 0 && Math.abs(diff) < 150) {
+                currentPos.current.y += diff;
+                el.style.top = `${currentPos.current.y}px`;
+            }
+            lastHeight = newHeight;
+        };
+
+        window.visualViewport.addEventListener("resize", onViewportResize);
+        return () => window.visualViewport.removeEventListener("resize", onViewportResize);
+    }, [dismissed]);
+
     // Snap to nearest edge after drag
     const snapToEdge = useCallback((x, y) => {
         const el = fabRef.current;
