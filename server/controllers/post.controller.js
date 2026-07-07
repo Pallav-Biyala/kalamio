@@ -134,7 +134,6 @@ export const searchPostsCount = (req, res) => {
 // Get single post (works for both blogs and text posts)
 export const getPost = (req, res) => {
     let { blog_id, draft, mode } = req.body;
-    let incrementVal = mode != 'edit' ? 1 : 0;
 
     Post.findOne({ blog_id })
         .populate("author", "personal_info.fullname personal_info.username personal_info.profile_img personal_info.bio account_info.total_posts account_info.total_reads")
@@ -163,17 +162,9 @@ export const getPost = (req, res) => {
                 } catch (err) {
                     return res.status(401).json({ error: "Invalid access token" });
                 }
-            } else if (incrementVal > 0) {
-                // Increment reads only for published posts
-                Post.findByIdAndUpdate(blog._id, { $inc: { "activity.total_reads": incrementVal } }).catch(err => console.error(err));
-                User.findOneAndUpdate(
-                    { "personal_info.username": blog.author.personal_info.username },
-                    { $inc: { "account_info.total_reads": incrementVal } }
-                ).catch(err => console.error(err));
-                if (blog.publication) {
-                    Publication.findByIdAndUpdate(blog.publication._id || blog.publication, { $inc: { total_reads: incrementVal } }).catch(err => console.error(err));
-                }
             }
+            // Read tracking is handled by the dedicated /record-read endpoint
+            // which validates scroll depth, time spent, and deduplicates per user.
 
             return res.status(200).json({ blog });
         })
