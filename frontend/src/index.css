@@ -769,14 +769,29 @@
     .bottom-tab-bar {
         @apply flex items-center justify-around fixed bottom-0 left-0 right-0 z-40;
         grid-area: bottombar;
-        padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+        padding: 8px 0 max(8px, env(safe-area-inset-bottom));
         background: rgb(var(--c-white));
         border-top: 1px solid rgb(var(--c-border));
+    }
+
+    /* Fill the safe-area gap below the bar with matching background */
+    .bottom-tab-bar::after {
+        content: '';
+        position: fixed;
+        bottom: calc(-1 * env(safe-area-inset-bottom));
+        left: 0;
+        right: 0;
+        height: env(safe-area-inset-bottom);
+        background: rgb(var(--c-white));
+        z-index: 39;
     }
 
     @media (min-width: 1024px) {
         .bottom-tab-bar {
             @apply hidden;
+        }
+        .bottom-tab-bar::after {
+            display: none;
         }
     }
 

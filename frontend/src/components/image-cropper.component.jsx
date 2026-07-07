@@ -165,7 +165,7 @@ const ImageCropperModal = ({ imageSrc, onComplete, onCancel }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: '#0C0A0A' }}>
       <div
         className="bg-white rounded-2xl shadow-2xl w-full max-w-[480px] lg:max-w-[780px] overflow-hidden flex flex-col animate-fade-in"
         style={{ animation: 'cropperSlideUp 0.25s ease-out' }}
@@ -199,7 +199,6 @@ const ImageCropperModal = ({ imageSrc, onComplete, onCancel }) => {
                 onCropChange={handleCropChange}
                 onCropComplete={onCropComplete}
                 onZoomChange={setZoom}
-                onRotationChange={setRotation}
                 minZoom={1}
                 maxZoom={5}
                 zoomSpeed={0.3}
