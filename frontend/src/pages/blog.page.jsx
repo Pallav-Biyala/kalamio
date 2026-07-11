@@ -135,7 +135,7 @@ const BlogPage = () => {
     const [ totalParentCommentsLoaded, setTotalParentCommentsLoaded ] = useState(0);
     const [ fetchError, setFetchError ] = useState(false);
 
-    let { title, des, content, banner, author: { personal_info: { fullname, username: author_username, profile_img, bio }, account_info: { total_posts: author_total_posts, total_reads: author_total_reads } = {} }, publishedAt, publication, type, text_content, images, poll: blogPoll } = blog;
+    let { title, des, tags, content, banner, author: { personal_info: { fullname, username: author_username, profile_img, bio }, account_info: { total_posts: author_total_posts, total_reads: author_total_reads } = {} }, publishedAt, publication, type, text_content, images, poll: blogPoll } = blog;
 
     const isTextPost = type === 'text_post';
     usePageTitle(isTextPost ? (text_content ? text_content.substring(0, 60) : 'Text Post') : (title || 'Blog'));
@@ -329,6 +329,14 @@ const BlogPage = () => {
                                         <p className="text-xl md:text-2xl text-dark-grey leading-relaxed mb-8 font-inter">
                                             {des}
                                         </p>
+                                    )}
+
+                                    {tags && tags.length > 0 && (
+                                        <div className="flex flex-wrap gap-2 mb-8">
+                                            {tags.map((tag, i) => (
+                                                <span key={i} className="text-xs font-medium px-3 py-1 rounded-full text-dark-grey bg-grey hover:text-black transition-colors cursor-pointer" onClick={() => navigate(`/search/${tag}`)} role="link" tabIndex={0}>#{tag}</span>
+                                            ))}
+                                        </div>
                                     )}
 
                                     <div className="flex items-center gap-4 mb-6">

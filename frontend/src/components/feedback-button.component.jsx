@@ -291,10 +291,13 @@ const FeedbackButton = () => {
         if (hasMoved.current) return;
         setHasInteracted(true);
         setShowTooltip(false);
-        window.open("https://www.candiq.app/feedback/kwhVipb1", "_blank", "noopener,noreferrer");
+        window.open("https://www.candiq.app/feedback/907oynz-", "_blank", "noopener,noreferrer");
     };
 
     if (dismissed) return null;
+
+    // On mobile, feedback is in the You section — don't show floating button
+    if (window.innerWidth < 1024) return null;
 
     return (
         <div className="feedback-fab" ref={fabRef}>

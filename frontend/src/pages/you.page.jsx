@@ -89,7 +89,6 @@ const YouPage = () => {
                             label="Notifications"
                             badge={new_notification_available ? "New" : null}
                         />
-                        <MenuLink to="/dashboard/connections" icon="handshake" label="Connections" />
                         <MenuLink to="/dashboard/publications" icon="import_contacts" label="Publications" />
                         <MenuLink to="/dashboard/analytics" icon="bar_chart" label="Analytics" />
                         <MenuLink to="/editor" icon="edit_note" label="Write" />
@@ -110,6 +109,11 @@ const YouPage = () => {
                             icon={theme === "light" ? "dark_mode" : "light_mode"}
                             label={theme === "light" ? "Dark Mode" : "Light Mode"}
                             onClick={changeTheme}
+                        />
+                        <MenuLink
+                            icon="feedback"
+                            label="Send Feedback"
+                            onClick={() => window.open("https://www.candiq.app/feedback/907oynz-", "_blank", "noopener,noreferrer")}
                         />
                     </div>
                 </div>
