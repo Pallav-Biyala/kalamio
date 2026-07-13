@@ -40,12 +40,14 @@ steps:
         'us-central1',
         '--platform',
         'managed',
-        '--allow-unauthenticated',
-        # Cache + Cloudflare-origin-lock creds from Secret Manager. --update-secrets
-        # MERGES, so existing env/secrets on the service (DB, JWT, AWS…) are preserved.
-        # Prereq: create these secrets first (see repo README / deploy notes).
-        '--update-secrets',
-        'UPSTASH_REDIS_REST_URL=upstash-redis-rest-url:latest,UPSTASH_REDIS_REST_TOKEN=upstash-redis-rest-token:latest,CLOUDFLARE_ORIGIN_SECRET=cloudflare-origin-secret:latest'
+        '--allow-unauthenticated'
+        # UPSTASH_REDIS_REST_* and CLOUDFLARE_ORIGIN_SECRET are intentionally NOT
+        # wired here: they're opt-in in the app (caching + origin-lock no-op when
+        # unset), so the deploy must not hard-depend on the secrets existing. To turn
+        # them on, create the prod secrets in Secret Manager, then bind them ONCE:
+        #   gcloud run services update kalamio-api --region us-central1 \
+        #     --update-secrets UPSTASH_REDIS_REST_URL=upstash-redis-rest-url:latest,UPSTASH_REDIS_REST_TOKEN=upstash-redis-rest-token:latest,CLOUDFLARE_ORIGIN_SECRET=cloudflare-origin-secret:latest
+        # Later `run deploy` calls preserve the binding (a revision inherits prior config).
       ]
 
 images:
