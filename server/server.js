@@ -35,6 +35,7 @@ import analyticsRoutes from './routes/analytics.routes.js';
 import blockRoutes from './routes/block.routes.js';
 import collectionRoutes from './routes/collection.routes.js';
 import readRoutes from './routes/read.routes.js';
+import prerenderRoutes from './routes/prerender.routes.js';
 
 const server = express();
 const httpServer = createServer(server);
@@ -111,6 +112,7 @@ server.use('/api/v1', analyticsRoutes);
 server.use('/api/v1', blockRoutes);
 server.use('/api/v1', collectionRoutes);
 server.use('/api/v1', readRoutes);
+server.use('/api/v1', prerenderRoutes);
 
 // Backward compat: /api/* → /api/v1/* redirect (remove once all clients updated)
 server.use('/api', (req, res, next) => {

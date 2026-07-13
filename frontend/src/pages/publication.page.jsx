@@ -1,4 +1,4 @@
-import usePageTitle from "../common/usePageTitle";
+import { useSeo, PRODUCTION_ORIGIN } from "../common/useSeo";
 import { useContext, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
@@ -82,7 +82,19 @@ const PublicationPage = () => {
         setLocalSubs(publication.total_subscribers);
     }
 
-    usePageTitle(publication?.title || 'Publication');
+    const seoDescription = publication?.description
+        ? (publication.description.length > 160
+            ? publication.description.slice(0, 157).trimEnd() + '...'
+            : publication.description)
+        : undefined;
+
+    useSeo({
+        title: publication?.title || 'Publication',
+        description: seoDescription,
+        image: publication?.profile_photo || publication?.banner || undefined,
+        url: `${PRODUCTION_ORIGIN}/publication/${slug}`,
+        type: 'website',
+    });
 
     // 3 separate infinite queries for each tab
     const allFeedQuery = usePubFeed(pubId, null);

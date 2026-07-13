@@ -5,7 +5,7 @@ import AnimationWrapper from "../common/page-animation";
 import BlogPostCard from "../components/blog-post.component";
 import NoDataMessage from "../components/nodata.component";
 import LoadMoreDataBtn from "../components/load-more.component";
-import usePageTitle from "../common/usePageTitle";
+import { useSeo } from "../common/useSeo";
 import Icon from "../components/Icon";
 import UserCard from "../components/usercard.component";
 import NetworkError from "../components/network-error.component";
@@ -14,7 +14,7 @@ import { useSearchBlogs, useSearchUsers } from "../hooks/queries";
 const SearchPage = () => {
   let { query } = useParams();
 
-  usePageTitle(`Search: ${query}`);
+  useSeo({ title: `Search: ${query}`, noindex: true });
 
   // TanStack Query hooks — automatically refetch when query changes
   const blogsQuery = useSearchBlogs(query);

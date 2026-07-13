@@ -1,4 +1,4 @@
-import usePageTitle from "../common/usePageTitle";
+import { useSeo, buildArticleJsonLd, PRODUCTION_ORIGIN } from "../common/useSeo";
 import { createContext, useContext, useEffect, useState } from "react";
 import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
 import AnimationWrapper from "../common/page-animation";
@@ -179,7 +179,32 @@ const BlogPage = () => {
     // Similar blogs — only fetches when blog data is loaded and has tags
     const { data: similarBlogs } = useSimilarBlogs(blog_id, tags);
 
-    usePageTitle(isTextPost ? (text_content ? text_content.substring(0, 60) : 'Text Post') : (title || 'Blog'));
+    // ── SEO / social meta ───────────────────────────────────────
+    const seoTitle = isTextPost
+        ? (text_content ? text_content.substring(0, 60) : 'Text Post')
+        : (title || 'Blog');
+    const seoDescription = des || (text_content ? text_content.substring(0, 160) : undefined);
+    const canonicalUrl = `${PRODUCTION_ORIGIN}/blog/${blog_id}`;
+
+    useSeo({
+        title: seoTitle,
+        description: seoDescription,
+        image: banner || undefined,
+        url: canonicalUrl,
+        type: 'article',
+        noindex: isDraft, // never index unpublished drafts
+        jsonLd: (!isDraft && (title || text_content))
+            ? buildArticleJsonLd({
+                title: seoTitle,
+                description: seoDescription,
+                image: banner,
+                url: canonicalUrl,
+                publishedAt,
+                authorName: fullname,
+                authorUsername: author_username,
+            })
+            : null,
+    });
 
     // Production-grade read tracking: scroll depth + time spent + deduplication
     useReadTracker({

@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+
+# Keep private / app-only routes out of search indexes.
+Disallow: /settings/
+Disallow: /dashboard/
+Disallow: /messages
+Disallow: /signin
+Disallow: /signup
+Disallow: /verify-otp
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /auth/
+
+Sitemap: https://kalamio.com/sitemap.xml

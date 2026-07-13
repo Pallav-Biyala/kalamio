@@ -1,29 +1,17 @@
-import { useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useSeo } from "./useSeo";
 
-const PRODUCTION_ORIGIN = "https://kalamio.com";
-
-const usePageTitle = (title) => {
-    const { pathname } = useLocation();
-
-    useEffect(() => {
-        const baseTitle = "Kalamio";
-        document.title = title ? (title === baseTitle ? baseTitle : `${title} — ${baseTitle}`) : baseTitle;
-
-        // Update canonical URL to always point to production domain + current path
-        let canonical = document.querySelector('link[rel="canonical"]');
-        if (!canonical) {
-            canonical = document.createElement("link");
-            canonical.setAttribute("rel", "canonical");
-            document.head.appendChild(canonical);
-        }
-        canonical.setAttribute("href", PRODUCTION_ORIGIN + pathname);
-
-        // Reset on unmount
-        return () => {
-            document.title = baseTitle;
-        };
-    }, [title, pathname]);
+/**
+ * Backward-compatible wrapper around {@link useSeo}.
+ *
+ * Existing callers pass just a title; they now also get a canonical link plus
+ * Open Graph / Twitter Card defaults for free. Pass `{ noindex: true }` for
+ * private/app routes, or migrate to `useSeo` directly for rich per-page meta.
+ *
+ * @param {string} title
+ * @param {{ noindex?: boolean, description?: string }} [options]
+ */
+const usePageTitle = (title, options = {}) => {
+  useSeo({ title, ...options });
 };
 
 export default usePageTitle;

@@ -8,6 +8,9 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
+    // Production-like origin so useSeo's dev/localhost noindex guard is off by
+    // default (API calls use absolute URLs, so this doesn't affect MSW).
+    environmentOptions: { jsdom: { url: 'https://kalamio.com/' } },
     globals: true,
     setupFiles: ['./src/test/setup.js'],
     include: ['src/**/*.{test,spec}.{js,jsx}'],

@@ -1,4 +1,4 @@
-import usePageTitle from "../common/usePageTitle";
+import { useSeo, PRODUCTION_ORIGIN } from "../common/useSeo";
 import { useContext, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import AnimationWrapper from "../common/page-animation";
@@ -72,7 +72,31 @@ const ProfilePage = () => {
     // Block mutation
     const blockMutation = useBlockAction();
 
-    usePageTitle(profile_username ? `@${profile_username}` : 'Profile');
+    const seoTitle = fullname || (profile_username ? `@${profile_username}` : 'Profile');
+    const seoDescription = (bio && bio.trim())
+        ? (bio.length > 160 ? bio.slice(0, 157).trimEnd() + '…' : bio)
+        : (profile_username ? `@${profile_username} on Kalamio` : undefined);
+    const canonicalUrl = profile_username ? `${PRODUCTION_ORIGIN}/user/${profile_username}` : undefined;
+
+    useSeo({
+        title: seoTitle,
+        description: seoDescription,
+        image: profile_img || undefined,
+        url: canonicalUrl,
+        type: 'profile',
+        jsonLd: profile_username ? {
+            "@context": "https://schema.org",
+            "@type": "ProfilePage",
+            "mainEntity": {
+                "@type": "Person",
+                "name": fullname || profile_username,
+                "alternateName": `@${profile_username}`,
+                "url": canonicalUrl,
+                ...(profile_img ? { "image": profile_img } : {}),
+                ...(bio && bio.trim() ? { "description": bio } : {})
+            }
+        } : null
+    });
 
     // Track follower count locally for instant UI update
     const [localFollowerDelta, setLocalFollowerDelta] = useState(0);

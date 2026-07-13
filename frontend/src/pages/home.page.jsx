@@ -1,4 +1,4 @@
-import usePageTitle from "../common/usePageTitle";
+import { useSeo, SITE_NAME, PRODUCTION_ORIGIN } from "../common/useSeo";
 import Icon from "../components/Icon";
 import AnimationWrapper from "../common/page-animation";
 import { useContext, useEffect, useState, useRef } from "react";
@@ -27,7 +27,21 @@ const HomePage = () => {
 
   const { userAuth: { access_token, profile_img } } = useContext(UserContext);
 
-  usePageTitle(pageState === "home" ? "Kalamio" : `#${pageState}`);
+  useSeo({
+    title: pageState === "home" ? "Kalamio" : `#${pageState}`,
+    type: "website",
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: SITE_NAME,
+      url: PRODUCTION_ORIGIN,
+      potentialAction: {
+        "@type": "SearchAction",
+        target: `${PRODUCTION_ORIGIN}/search/{search_term_string}`,
+        "query-input": "required name=search_term_string",
+      },
+    },
+  });
 
   // Determine active category tag (null when home/following/trending)
   const activeTag = (pageState !== "home" && pageState !== "following" && pageState !== "trending")
