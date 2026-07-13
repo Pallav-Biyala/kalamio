@@ -1,6 +1,6 @@
 name: CI
 
-# Gate every PR into main (and post-merge pushes) on a green frontend build + tests.
+# Gate every PR into main (and post-merge pushes) on green frontend + server tests.
 on:
   pull_request:
     branches: [main]
@@ -38,3 +38,26 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  server:
+    name: Server · test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test

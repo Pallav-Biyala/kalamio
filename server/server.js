@@ -36,6 +36,7 @@ import blockRoutes from './routes/block.routes.js';
 import collectionRoutes from './routes/collection.routes.js';
 import readRoutes from './routes/read.routes.js';
 import prerenderRoutes from './routes/prerender.routes.js';
+import sitemapRoutes from './routes/sitemap.routes.js';
 
 const server = express();
 const httpServer = createServer(server);
@@ -113,6 +114,7 @@ server.use('/api/v1', blockRoutes);
 server.use('/api/v1', collectionRoutes);
 server.use('/api/v1', readRoutes);
 server.use('/api/v1', prerenderRoutes);
+server.use('/api/v1', sitemapRoutes);
 
 // Backward compat: /api/* → /api/v1/* redirect (remove once all clients updated)
 server.use('/api', (req, res, next) => {
