@@ -1,120 +1,73 @@
 import api from "../common/api";
 import usePageTitle from "../common/usePageTitle";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getDay } from "../common/date";
 import { UserContext } from "../App";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../common/queryKeys";
 import Loader from "../components/loader.component";
 import AnimationWrapper from "../common/page-animation";
 import NoDataMessage from "../components/nodata.component";
 import LoadMoreDataBtn from "../components/load-more.component";
-import { filterPaginationData } from "../common/filter-pagination-data";
 import Avatar from "../components/Avatar";
 import Icon from "../components/Icon";
 import ConnectButton from "../components/connect-button.component";
+
+// Helper — creates an infinite query for a connections endpoint
+const useConnectionsList = (endpoint, countEndpoint, enabled) => {
+    return useInfiniteQuery({
+        queryKey: [...queryKeys.connections.all(), endpoint],
+        queryFn: async ({ pageParam = 1 }) => {
+            const [usersRes, countRes] = await Promise.all([
+                api.post(endpoint, { page: pageParam }),
+                pageParam === 1
+                    ? api.post(countEndpoint)
+                    : Promise.resolve(null),
+            ]);
+
+            return {
+                users: usersRes.data.users,
+                totalDocs: countRes?.data?.totalDocs ?? undefined,
+                page: pageParam,
+            };
+        },
+        getNextPageParam: (lastPage, allPages) => {
+            const totalLoaded = allPages.reduce((sum, p) => sum + p.users.length, 0);
+            const totalDocs = allPages[0]?.totalDocs ?? 0;
+            if (totalLoaded < totalDocs) return lastPage.page + 1;
+            return undefined;
+        },
+        select: (data) => ({
+            users: data.pages.flatMap(p => p.users),
+            totalDocs: data.pages[0]?.totalDocs ?? 0,
+        }),
+        enabled,
+    });
+};
 
 const ConnectionsPage = () => {
 
     usePageTitle('Connections');
 
     let { userAuth: { access_token } } = useContext(UserContext);
+    const queryClient = useQueryClient();
 
     const [tab, setTab] = useState('connections'); // 'connections' | 'received' | 'sent'
-    const [connections, setConnections] = useState(null);
-    const [pending, setPending] = useState(null);
-    const [sent, setSent] = useState(null);
-    const [pendingCount, setPendingCount] = useState(0);
-    const [sentCount, setSentCount] = useState(0);
     const [searchQuery, setSearchQuery] = useState("");
     const navigate = useNavigate();
 
-    const fetchConnections = ({ page = 1 }) => {
-        api.post("/connections", { page })
-        .then(async ({ data }) => {
-            setConnections(prev => {
-                const currentState = page === 1 ? null : prev;
-                filterPaginationData({
-                    state: currentState,
-                    data: data.users,
-                    page,
-                    countRoute: "/connections-count",
-                }).then(formatedData => setConnections(formatedData));
-                return prev;
-            });
-        })
-        .catch(() => {});
-    };
+    // Three separate queries — only the active tab fetches
+    const connectionsQuery = useConnectionsList("/connections", "/connections-count", !!access_token);
+    const pendingQuery = useConnectionsList("/connect/pending", "/connect/pending-count", !!access_token);
+    const sentQuery = useConnectionsList("/connect/sent", "/connect/sent-count", !!access_token);
 
-    const fetchPending = ({ page = 1 }) => {
-        api.post("/connect/pending", { page })
-        .then(async ({ data }) => {
-            setPending(prev => {
-                const currentState = page === 1 ? null : prev;
-                filterPaginationData({
-                    state: currentState,
-                    data: data.users,
-                    page,
-                    countRoute: "/connect/pending-count",
-                }).then(formatedData => setPending(formatedData));
-                return prev;
-            });
-        })
-        .catch(() => {});
-    };
-
-    const fetchSent = ({ page = 1 }) => {
-        api.post("/connect/sent", { page })
-        .then(async ({ data }) => {
-            setSent(prev => {
-                const currentState = page === 1 ? null : prev;
-                filterPaginationData({
-                    state: currentState,
-                    data: data.users,
-                    page,
-                    countRoute: "/connect/sent-count",
-                }).then(formatedData => setSent(formatedData));
-                return prev;
-            });
-        })
-        .catch(() => {});
-    };
-
-    const fetchCounts = () => {
-        api.post("/connect/pending-count")
-        .then(({ data }) => setPendingCount(data.totalDocs))
-        .catch(() => {});
-
-        api.post("/connect/sent-count")
-        .then(({ data }) => setSentCount(data.totalDocs))
-        .catch(() => {});
-    };
-
-    useEffect(() => {
-        if (!access_token) return;
-
-        if (tab === 'connections') {
-            setConnections(null);
-            fetchConnections({ page: 1 });
-        } else if (tab === 'received') {
-            setPending(null);
-            fetchPending({ page: 1 });
-        } else {
-            setSent(null);
-            fetchSent({ page: 1 });
-        }
-
-        fetchCounts();
-    }, [access_token, tab]);
+    // Badge counts from the queries
+    const pendingCount = pendingQuery.data?.totalDocs ?? 0;
 
     const handleStatusChange = () => {
-        // Refresh all lists after accept/decline/withdraw
-        setConnections(null);
-        setPending(null);
-        setSent(null);
-        fetchConnections({ page: 1 });
-        fetchPending({ page: 1 });
-        fetchSent({ page: 1 });
-        fetchCounts();
+        // Invalidate all connection queries after accept/decline/withdraw
+        queryClient.invalidateQueries({ queryKey: queryKeys.connections.all() });
     };
 
     const ConnectionCard = ({ user, acceptedAt }) => {
@@ -168,8 +121,8 @@ const ConnectionsPage = () => {
         );
     };
 
-    const currentData = tab === 'connections' ? connections : tab === 'received' ? pending : sent;
-    const currentFetchFn = tab === 'connections' ? fetchConnections : tab === 'received' ? fetchPending : fetchSent;
+    const activeQuery = tab === 'connections' ? connectionsQuery : tab === 'received' ? pendingQuery : sentQuery;
+    const users = activeQuery.data?.users || [];
 
     return (
         <div>
@@ -216,17 +169,17 @@ const ConnectionsPage = () => {
                 </div>
             )}
 
-            {currentData == null ? <Loader /> :
+            {activeQuery.isLoading ? <Loader /> :
                 <>
                     {(() => {
                         const filtered = searchQuery.trim()
-                            ? currentData.results.filter(u => {
+                            ? users.filter(u => {
                                 const q = searchQuery.toLowerCase();
                                 const pi = u.personal_info || {};
                                 return (pi.fullname || '').toLowerCase().includes(q) ||
                                        (pi.username || '').toLowerCase().includes(q);
                             })
-                            : currentData.results;
+                            : users;
                         return filtered.length ?
                             filtered.map((user, i) => (
                                 <AnimationWrapper key={user._id || i} transition={{ delay: i * 0.06 }}>
@@ -244,8 +197,9 @@ const ConnectionsPage = () => {
                     })()}
 
                     <LoadMoreDataBtn
-                        state={currentData}
-                        fetchDataFun={currentFetchFn}
+                        fetchNextPage={activeQuery.fetchNextPage}
+                        hasNextPage={activeQuery.hasNextPage}
+                        isFetchingNextPage={activeQuery.isFetchingNextPage}
                     />
                 </>
             }

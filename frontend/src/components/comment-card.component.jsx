@@ -7,6 +7,8 @@ import api from "../common/api";
 import Icon from "./Icon";
 import Avatar from "./Avatar";
 import { Link, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../common/queryKeys";
 
 const CommentCard = ({ index, commentData, isTextPost = false }) => {
 
@@ -24,6 +26,7 @@ const CommentCard = ({ index, commentData, isTextPost = false }) => {
     const [ replyText, setReplyText ] = useState("");
     const replyTextareaRef = useRef(null);
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
 
     // ── Like state ──
     const [ isLiked, setIsLiked ] = useState(false);
@@ -105,10 +108,22 @@ const CommentCard = ({ index, commentData, isTextPost = false }) => {
         api.post("/delete-comment", { _id })
         .then(() => {
             const newArr = commentsArr.filter((c, i) => i !== index);
-            if (commentData.childrenLevel == 0) {
+            const isParent = commentData.childrenLevel == 0;
+            const removedCount = 1 + (commentData.children?.length || 0);
+            if (isParent) {
                 setTotalParentCommentsLoaded(preVal => preVal - 1)
             }
-            setBlog({ ...blog, comments: { results: newArr }, activity: { ...activity, total_parent_comments: total_parent_comments - (commentData.childrenLevel == 0 ? 1 : 0) } })
+            setBlog({
+                ...blog,
+                comments: { results: newArr },
+                activity: {
+                    ...activity,
+                    total_parent_comments: total_parent_comments - (isParent ? 1 : 0),
+                    total_comments: (activity.total_comments || 0) - removedCount,
+                }
+            });
+            // Invalidate feed queries so other tabs/views get updated count
+            queryClient.invalidateQueries({ queryKey: queryKeys.blogs.all() });
         })
         .catch(() => {})
     }
@@ -211,8 +226,13 @@ const CommentCard = ({ index, commentData, isTextPost = false }) => {
         setLoadingInlineReplies(true);
         api.post("/get-replies", { _id, skip: inlineRepliesLoaded })
         .then(({ data }) => {
-            setInlineReplies(prev => [...prev, ...(data.replies || [])]);
-            setInlineRepliesLoaded(prev => prev + (data.replies?.length || 0));
+            const newReplies = (data.replies || []);
+            setInlineReplies(prev => {
+                const existingIds = new Set(prev.map(r => r._id));
+                const deduped = newReplies.filter(r => !existingIds.has(r._id));
+                return [...prev, ...deduped];
+            });
+            setInlineRepliesLoaded(prev => prev + (newReplies.length || 0));
             setShowInlineReplies(true);
             setLoadingInlineReplies(false);
         })

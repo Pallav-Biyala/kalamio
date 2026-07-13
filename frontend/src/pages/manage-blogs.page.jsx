@@ -1,10 +1,7 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useState } from "react";
 import usePageTitle from "../common/usePageTitle";
 import Icon from "../components/Icon";
 import { UserContext } from "../App";
-import { filterPaginationData } from "../common/filter-pagination-data";
-import api from "../common/api";
-import toast from "react-hot-toast";
 import InPageNavigation from "../components/inpage-navigation.component";
 import Loader from "../components/loader.component";
 import NoDataMessage from "../components/nodata.component";
@@ -12,6 +9,8 @@ import AnimationWrapper from "../common/page-animation";
 import { ManagePublishedBlogsCard, ManageDraftBlogPost } from "../components/manage-blogcard.component";
 import LoadMoreDataBtn from "../components/load-more.component";
 import { useSearchParams } from "react-router-dom";
+import { useUserBlogs } from "../hooks/queries";
+import { useBulkDeleteBlogs } from "../hooks/mutations";
 
 const SORT_OPTIONS = [
     { value: "newest", label: "Newest First" },
@@ -24,79 +23,34 @@ const ManageBlogs = () => {
 
     usePageTitle('Manage Blogs');
 
-    const [ blogs, setBlogs ] = useState(null);
-    const [ drafts, setDrafts ] = useState(null);
     const [ query, setQuery ] = useState("");
     const [ sort, setSort ] = useState("newest");
     const [ selectedBlogs, setSelectedBlogs ] = useState(new Set());
-    const [ deleting, setDeleting ] = useState(false);
 
     let activeTab = useSearchParams()[0].get("tab");
 
     let { userAuth: { access_token } } = useContext(UserContext);
 
-    const getBlogs = ({ page, draft, deletedDocCount = 0 }) => {
+    // TanStack Query hooks — two separate infinite queries for published and drafts
+    const publishedQuery = useUserBlogs({ draft: false, query, sort });
+    const draftsQuery = useUserBlogs({ draft: true, query, sort: 'newest' });
 
-        api.post("/user-written-blogs", {
-            page, draft, query, deletedDocCount,
-            sort: draft ? "newest" : sort
-        })
-        .then( async ({ data }) => {
-            let formatedData = await filterPaginationData({
-                state: draft ? drafts : blogs,
-                data: data.blogs,
-                page,
-                user: access_token,
-                countRoute: "/user-written-blogs-count",
-                data_to_send: { draft, query }
-            })
+    const bulkDelete = useBulkDeleteBlogs();
 
-            if(draft){
-                setDrafts(formatedData);
-            } else {
-                setBlogs(formatedData);
-            }
-        })
-        .catch(err => {
-        })
-    }
-
-    useEffect(() => {
-
-        if(access_token){
-            if(blogs == null){
-                getBlogs({ page: 1, draft: false });
-            }
-            if(drafts == null){
-                getBlogs({ page: 1, draft: true });
-            }
-        }
-
-    }, [access_token, blogs, drafts, query])
-
-    // Re-fetch published blogs when sort changes
-    useEffect(() => {
-        if (access_token) {
-            setBlogs(null);
-        }
-    }, [sort]);
+    const publishedBlogs = publishedQuery.data?.blogs || [];
+    const draftBlogs = draftsQuery.data?.blogs || [];
 
     const handleChange = (e) => {
         if(!e.target.value.length){
             setQuery("");
-            setBlogs(null);
-            setDrafts(null);
         }
     }
 
     const handleSearch = (e) => {
         let searchQuery = e.target.value;
 
-        setQuery(searchQuery);
-
         if(e.keyCode == 13 && searchQuery.length){
-            setBlogs(null);
-            setDrafts(null);
+            setQuery(searchQuery);
         }
     }
 
@@ -113,8 +67,8 @@ const ManageBlogs = () => {
     };
 
     const selectAllPublished = () => {
-        if (!blogs?.results) return;
-        const allIds = blogs.results.map(b => b.blog_id);
+        if (!publishedBlogs.length) return;
+        const allIds = publishedBlogs.map(b => b.blog_id);
         const allSelected = allIds.every(id => selectedBlogs.has(id));
         
         if (allSelected) {
@@ -130,23 +84,13 @@ const ManageBlogs = () => {
         const confirmMsg = `Delete ${selectedBlogs.size} blog${selectedBlogs.size > 1 ? 's' : ''}? This cannot be undone.`;
         if (!window.confirm(confirmMsg)) return;
 
-        setDeleting(true);
-
-        api.post("/bulk-delete-blogs", { blog_ids: Array.from(selectedBlogs) })
-        .then(({ data }) => {
-            toast.success(`Deleted ${data.deleted_count} blog${data.deleted_count > 1 ? 's' : ''}`);
-            setSelectedBlogs(new Set());
-            setBlogs(null);
-            setDrafts(null);
-            setDeleting(false);
-        })
-        .catch(() => {
-            toast.error("Failed to delete blogs");
-            setDeleting(false);
-        });
+        bulkDelete.mutate(
+            { blog_ids: Array.from(selectedBlogs) },
+            { onSuccess: () => setSelectedBlogs(new Set()) }
+        );
     };
 
-    const isAllSelected = blogs?.results?.length > 0 && blogs.results.every(b => selectedBlogs.has(b.blog_id));
+    const isAllSelected = publishedBlogs.length > 0 && publishedBlogs.every(b => selectedBlogs.has(b.blog_id));
 
     return (
         <>
@@ -187,10 +131,10 @@ const ManageBlogs = () => {
                         <button
                             className="manage-blogs__bulk-delete"
                             onClick={handleBulkDelete}
-                            disabled={deleting}
+                            disabled={bulkDelete.isPending}
                         >
                             <Icon name="delete" className="text-[18px]" />
-                            {deleting ? "Deleting..." : "Delete Selected"}
+                            {bulkDelete.isPending ? "Deleting..." : "Delete Selected"}
                         </button>
                     </div>
                 )}
@@ -200,8 +144,8 @@ const ManageBlogs = () => {
 
                 {// Published blogs
 
-                    blogs == null ? <Loader /> : 
-                    blogs.results.length ? 
+                    publishedQuery.isLoading ? <Loader /> : 
+                    publishedBlogs.length ? 
                         
                         <>
 
@@ -217,11 +161,11 @@ const ManageBlogs = () => {
                         </div>
 
                         {
-                            blogs.results.map((blog, i) => {
-                                return <AnimationWrapper key={i} transition={{ delay: i * 0.04 }}>
+                            publishedBlogs.map((blog, i) => {
+                                return <AnimationWrapper key={blog.blog_id || i} transition={{ delay: i * 0.04 }}>
                                     
                                     <ManagePublishedBlogsCard
-                                        blog={{...blog, index: i, setStateFun: setBlogs }}
+                                        blog={{...blog, index: i }}
                                         isSelected={selectedBlogs.has(blog.blog_id)}
                                         onToggleSelect={() => toggleSelectBlog(blog.blog_id)}
                                     />
@@ -230,7 +174,11 @@ const ManageBlogs = () => {
                             })
                         }
 
-                        <LoadMoreDataBtn state={blogs} fetchDataFun={getBlogs} additionalParam={{ draft: false, deletedDocCount: blogs.deletedDocCount }} />
+                        <LoadMoreDataBtn
+                            fetchNextPage={publishedQuery.fetchNextPage}
+                            hasNextPage={publishedQuery.hasNextPage}
+                            isFetchingNextPage={publishedQuery.isFetchingNextPage}
+                        />
 
                         </>
                     
@@ -240,21 +188,25 @@ const ManageBlogs = () => {
                 
                 {// Draft blogs
 
-                    drafts == null ? <Loader /> : 
-                    drafts.results.length ? 
+                    draftsQuery.isLoading ? <Loader /> : 
+                    draftBlogs.length ? 
                         
                         <>
                         {
-                            drafts.results.map((blog, i) => {
-                                return <AnimationWrapper key={i} transition={{ delay: i * 0.04 }}>
+                            draftBlogs.map((blog, i) => {
+                                return <AnimationWrapper key={blog.blog_id || i} transition={{ delay: i * 0.04 }}>
                                     
-                                    <ManageDraftBlogPost blog={{...blog, index: i, setStateFun: setDrafts }} />
+                                    <ManageDraftBlogPost blog={{...blog, index: i }} />
 
                                 </AnimationWrapper>
                             })
                         }
 
-                        <LoadMoreDataBtn state={drafts} fetchDataFun={getBlogs} additionalParam={{ draft: true, deletedDocCount: drafts.deletedDocCount }} />
+                        <LoadMoreDataBtn
+                            fetchNextPage={draftsQuery.fetchNextPage}
+                            hasNextPage={draftsQuery.hasNextPage}
+                            isFetchingNextPage={draftsQuery.isFetchingNextPage}
+                        />
 
                         </>
                     

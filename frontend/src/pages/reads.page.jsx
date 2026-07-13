@@ -1,15 +1,18 @@
-import api from "../common/api";
 import usePageTitle from "../common/usePageTitle";
 import Icon from "../components/Icon";
 import Avatar from "../components/Avatar";
 import { useContext, useEffect, useState, useRef, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Loader from "../components/loader.component";
-import { filterPaginationData } from "../common/filter-pagination-data";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { queryKeys } from "../common/queryKeys";
+import api from "../common/api";
 import { UserContext } from "../App";
 import { getRelativeTime } from "../common/date";
 import toast from "react-hot-toast";
 import SaveModal from "../components/save-modal.component";
+import { useLikeStatus, useIsSaved } from "../hooks/queries";
+import { useLikeBlog } from "../hooks/mutations";
 
 /* ───────────────────────────────────────────────────
    Single Reel Card — one per screen
@@ -31,28 +34,19 @@ const ReelCard = ({ blog }) => {
         author: { personal_info: { fullname, profile_img, username } },
     } = blog;
 
-    const [isLiked, setIsLiked] = useState(false);
+    // TanStack Query hooks for like & save status
+    const { data: isLiked } = useLikeStatus(_id);
+    const { data: isSaved } = useIsSaved(blog_id);
+    const likeMutation = useLikeBlog(blog_id);
+
     const [likesCount, setLikesCount] = useState(total_likes);
     const [showFullDes, setShowFullDes] = useState(false);
-    const [isSaved, setIsSaved] = useState(false);
     const [showSaveModal, setShowSaveModal] = useState(false);
-
-    useEffect(() => {
-        if (access_token) {
-            api.post("/isliked-by-user", { _id })
-                .then(({ data: { result } }) => setIsLiked(Boolean(result)))
-                .catch(() => {});
-            api.post("/collection/is-saved", { blog_id })
-                .then(({ data }) => setIsSaved(data.saved))
-                .catch(() => {});
-        }
-    }, [access_token, _id]);
 
     const handleLike = () => {
         if (access_token) {
-            setIsLiked(prev => !prev);
             setLikesCount(prev => !isLiked ? prev + 1 : prev - 1);
-            api.post("/like-blog", { _id, isLikedByUser: isLiked }).catch(() => {});
+            likeMutation.mutate({ _id, isLikedByUser: isLiked });
         } else {
             toast.error("Please sign in to like");
         }
@@ -175,12 +169,7 @@ const ReelCard = ({ blog }) => {
                 <SaveModal
                     blogId={blog_id}
                     isOpen={showSaveModal}
-                    onClose={() => {
-                        setShowSaveModal(false);
-                        api.post("/collection/is-saved", { blog_id })
-                            .then(({ data }) => setIsSaved(data.saved))
-                            .catch(() => {});
-                    }}
+                    onClose={() => setShowSaveModal(false)}
                 />
             )}
         </div>
@@ -194,9 +183,7 @@ const ReelCard = ({ blog }) => {
 const HINT_KEY = "kalamio_reels_hint_seen";
 
 const ReadsPage = () => {
-    const [blogs, setBlogs] = useState(null);
     const scrollRef = useRef(null);
-    const { userAuth: { access_token } } = useContext(UserContext);
 
     // Show hint only if never seen before (like Instagram)
     const alreadySeen = sessionStorage.getItem(HINT_KEY);
@@ -204,24 +191,32 @@ const ReadsPage = () => {
 
     usePageTitle("Reads — Kalamio");
 
-    const fetchBlogs = useCallback(({ page = 1 }) => {
-        api.post("/latest-blogs", { page, exclude_type: "text_post" })
-            .then(async ({ data }) => {
-                let formatedData = await filterPaginationData({
-                    state: blogs,
-                    data: data.blogs,
-                    page,
-                    countRoute: "/all-latest-blogs-count",
-                    data_to_send: { exclude_type: "text_post" },
-                });
-                setBlogs(formatedData);
-            })
-            .catch(() => {});
-    }, [blogs]);
+    // Infinite query for reels feed (articles only)
+    const reelsQuery = useInfiniteQuery({
+        queryKey: [...queryKeys.blogs.latest(), 'reels'],
+        queryFn: async ({ pageParam = 1 }) => {
+            const [blogsRes, countRes] = await Promise.all([
+                api.post("/latest-blogs", { page: pageParam, exclude_type: "text_post" }),
+                pageParam === 1
+                    ? api.post("/all-latest-blogs-count", { exclude_type: "text_post" })
+                    : Promise.resolve(null),
+            ]);
+            return {
+                blogs: blogsRes.data.blogs,
+                totalDocs: countRes?.data?.totalDocs ?? undefined,
+                page: pageParam,
+            };
+        },
+        getNextPageParam: (lastPage, allPages) => {
+            const totalLoaded = allPages.reduce((sum, p) => sum + p.blogs.length, 0);
+            const totalDocs = allPages[0]?.totalDocs ?? 0;
+            if (totalLoaded < totalDocs) return lastPage.page + 1;
+            return undefined;
+        },
+        select: (data) => data.pages.flatMap(p => p.blogs),
+    });
 
-    useEffect(() => {
-        fetchBlogs({ page: 1 });
-    }, []);
+    const blogs = reelsQuery.data || [];
 
     // Swipe hint — dismiss on scroll OR auto-hide after 3s, then never show again
     useEffect(() => {
@@ -255,22 +250,22 @@ const ReadsPage = () => {
     // Infinite scroll — load more when near end
     useEffect(() => {
         const container = scrollRef.current;
-        if (!container || !blogs) return;
+        if (!container || !blogs.length) return;
 
         const handleScroll = () => {
             const { scrollTop, scrollHeight, clientHeight } = container;
             if (scrollHeight - scrollTop - clientHeight < clientHeight * 2) {
-                if (blogs.page < blogs.totalDocs / 5) {
-                    fetchBlogs({ page: blogs.page + 1 });
+                if (reelsQuery.hasNextPage && !reelsQuery.isFetchingNextPage) {
+                    reelsQuery.fetchNextPage();
                 }
             }
         };
 
         container.addEventListener("scroll", handleScroll, { passive: true });
         return () => container.removeEventListener("scroll", handleScroll);
-    }, [blogs, fetchBlogs]);
+    }, [blogs.length, reelsQuery.hasNextPage, reelsQuery.isFetchingNextPage]);
 
-    if (blogs === null) {
+    if (reelsQuery.isLoading) {
         return (
             <div className="reel-loader">
                 <Loader />
@@ -278,7 +273,7 @@ const ReadsPage = () => {
         );
     }
 
-    if (!blogs.results?.length) {
+    if (!blogs.length) {
         return (
             <div className="reel-loader">
                 <Icon name="auto_stories" className="text-5xl text-dark-grey" />
@@ -289,7 +284,7 @@ const ReadsPage = () => {
 
     return (
         <div className="reels-container" ref={scrollRef}>
-            {blogs.results.map((blog, i) => (
+            {blogs.map((blog, i) => (
                 <ReelCard key={blog.blog_id} blog={blog} />
             ))}
 

@@ -9,7 +9,7 @@ import FollowButton from "./follow-button.component";
 import ConnectButton from "./connect-button.component";
 import Icon from "./Icon";
 
-const NotificationCard = ({ data, index, notificationState, onDelete }) => {
+const NotificationCard = ({ data, index, onDelete }) => {
 
     let [ isReplying, setReplying ] = useState(false);
 
@@ -27,8 +27,6 @@ const NotificationCard = ({ data, index, notificationState, onDelete }) => {
 
     let { userAuth: { username: author_username, profile_img: author_profile_img, access_token } } = useContext(UserContext);
 
-    let { notifications, notifications: { results, totalDocs }, setNotifications } = notificationState;
-
     const handleReplyClick = () => {
         setReplying(preval => !preval)
     }
@@ -39,15 +37,13 @@ const NotificationCard = ({ data, index, notificationState, onDelete }) => {
 
         api.post("/delete-comment", { _id: comment_id })
         .then(() => {
-            if(type == 'comment'){
-                results.splice(index, 1);
-            }
-            else{
-                delete results[index].reply;
-            }
-
             target.removeAttribute("disabled");
-            setNotifications({ ...notifications, results, totalDocs: totalDocs - 1, deletedDocCount: notifications.deletedDocCount + 1 })
+            if (type === 'comment' && onDelete) {
+                onDelete(notification_id);
+            }
+        })
+        .catch(() => {
+            target.removeAttribute("disabled");
         })
 
     }
@@ -64,6 +60,7 @@ const NotificationCard = ({ data, index, notificationState, onDelete }) => {
             case 'connect_accepted': return 'accepted your connect request';
             case 'mention': return 'mentioned you in a post';
             case 'share': return 'shared your post';
+            case 'poll_vote': return 'voted on your poll';
             default: return 'interacted with you';
         }
     };
@@ -103,6 +100,20 @@ const NotificationCard = ({ data, index, notificationState, onDelete }) => {
                         <Link to={`/blog/${blog_id}`} className="font-medium text-dark-grey hover:underline line-clamp-1">
                             {`"${blog.text_content?.slice(0, 80)}${blog.text_content?.length > 80 ? '...' : ''}"`}
                         </Link>
+                        : type == 'poll_vote' ?
+                        <div>
+                            <Link to={`/blog/${blog_id}`} className="font-medium text-dark-grey hover:underline line-clamp-1">
+                                {blog.type === 'text_post' 
+                                    ? `"${blog.text_content?.slice(0, 80)}${blog.text_content?.length > 80 ? '...' : ''}"`
+                                    : `"${blog_title}"`}
+                            </Link>
+                            {data.option_index != null && blog.poll?.options?.[data.option_index] && (
+                                <div className="mt-2 flex items-center gap-2 text-sm text-dark-grey">
+                                    <Icon name="how_to_vote" className="text-[16px]" />
+                                    <span>Selected: <strong>{blog.poll.options[data.option_index].text}</strong></span>
+                                </div>
+                            )}
+                        </div>
                         : <Link to={`/blog/${blog_id}`} className="font-medium text-dark-grey hover:underline line-clamp-1">{`"${blog_title}"`}</Link>
                     )}
 
@@ -156,7 +167,7 @@ const NotificationCard = ({ data, index, notificationState, onDelete }) => {
 
                 isReplying ? 
                 <div className="mt-8">
-                    <NotificationCommentField _id={blog_oid} blog_author={user} index={index} replyingTo={comment._id} setReplying={setReplying} notification_id={notification_id} notificationData={notificationState} />
+                    <NotificationCommentField _id={blog_oid} blog_author={user} index={index} replyingTo={comment._id} setReplying={setReplying} notification_id={notification_id} />
                 </div> : ""
 
             }

@@ -1,18 +1,28 @@
 import { useContext, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { UserContext } from "../App";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../common/queryKeys";
 import api from "../common/api";
 import Icon from "./Icon";
 import toast from "react-hot-toast";
 
 const SaveModal = ({ blogId, isOpen, onClose }) => {
     const { userAuth: { access_token } } = useContext(UserContext);
+    const queryClient = useQueryClient();
     const [collections, setCollections] = useState([]);
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
     const [newTitle, setNewTitle] = useState("");
     const [newVisibility, setNewVisibility] = useState("private");
     const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
+
+    // Invalidate isSaved + collections caches when modal closes
+    const handleClose = () => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.collections.isSaved(blogId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.collections.all() });
+        onClose();
+    };
 
     useEffect(() => {
         if (!isOpen || !access_token || !blogId) return;
@@ -95,11 +105,11 @@ const SaveModal = ({ blogId, isOpen, onClose }) => {
 
     return createPortal(
         <div className="save-modal__portal" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-            <div className="save-modal__backdrop" onClick={onClose} />
+            <div className="save-modal__backdrop" onClick={handleClose} />
             <div className="save-modal">
                 <div className="save-modal__header">
                     <h3>Save to...</h3>
-                    <button className="save-modal__close" onClick={onClose}>
+                    <button className="save-modal__close" onClick={handleClose}>
                         <Icon name="close" />
                     </button>
                 </div>

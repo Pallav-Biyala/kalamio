@@ -2,31 +2,56 @@ import { useEffect, useRef, useState } from "react";
 import Loader from "./loader.component";
 
 /* ─── Infinite Scroll Trigger ─────────────────────────────────
-   Automatically loads more data when the sentinel enters viewport.
-   Shows a small spinner while loading. No button needed.
+   Supports two interfaces:
+
+   1. Legacy (old pages): { state, fetchDataFun, additionalParam }
+      - state = { results: [], totalDocs: N, page: N }
+      - fetchDataFun({ page }) triggers next page fetch
+
+   2. TanStack Query: { fetchNextPage, hasNextPage, isFetchingNextPage }
+      - fetchNextPage() triggers next page
+      - hasNextPage boolean controls visibility
+      - isFetchingNextPage boolean controls spinner
    ───────────────────────────────────────────────────────────── */
-const InfiniteScrollTrigger = ({ state, fetchDataFun, additionalParam }) => {
+const InfiniteScrollTrigger = ({
+    // TanStack Query interface
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    // Legacy interface
+    state,
+    fetchDataFun,
+    additionalParam,
+}) => {
     const sentinelRef = useRef(null);
-    const [loading, setLoading] = useState(false);
+    const [legacyLoading, setLegacyLoading] = useState(false);
+
+    // Determine which interface is active
+    const isTanStackMode = typeof fetchNextPage === 'function';
+
+    // Legacy refs
     const fetchRef = useRef(fetchDataFun);
     const paramRef = useRef(additionalParam);
     const stateRef = useRef(state);
 
-    // Keep refs updated without triggering observer re-creation
     fetchRef.current = fetchDataFun;
     paramRef.current = additionalParam;
     stateRef.current = state;
 
-    const hasMore = state != null && state.totalDocs > state.results.length;
+    const legacyHasMore = !isTanStackMode && state != null && state.totalDocs > state.results.length;
+    const shouldShow = isTanStackMode ? !!hasNextPage : legacyHasMore;
+    const isLoading = isTanStackMode ? isFetchingNextPage : legacyLoading;
 
-    // Reset loading when new data arrives
+    // Reset legacy loading when new data arrives
     useEffect(() => {
-        setLoading(false);
-    }, [state?.results?.length]);
+        if (!isTanStackMode) {
+            setLegacyLoading(false);
+        }
+    }, [state?.results?.length, isTanStackMode]);
 
-    // Single stable observer — only recreated when hasMore changes
+    // Single stable observer
     useEffect(() => {
-        if (!hasMore) return;
+        if (!shouldShow) return;
 
         const sentinel = sentinelRef.current;
         if (!sentinel) return;
@@ -34,14 +59,20 @@ const InfiniteScrollTrigger = ({ state, fetchDataFun, additionalParam }) => {
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting) {
-                    setLoading((prev) => {
-                        if (prev) return true; // already loading, skip
-                        const s = stateRef.current;
-                        if (s && s.totalDocs > s.results.length) {
-                            fetchRef.current({ ...paramRef.current, page: s.page + 1 });
-                        }
-                        return true;
-                    });
+                    if (isTanStackMode) {
+                        // TanStack Query mode — just call fetchNextPage
+                        fetchNextPage();
+                    } else {
+                        // Legacy mode — manage loading state manually
+                        setLegacyLoading((prev) => {
+                            if (prev) return true;
+                            const s = stateRef.current;
+                            if (s && s.totalDocs > s.results.length) {
+                                fetchRef.current({ ...paramRef.current, page: s.page + 1 });
+                            }
+                            return true;
+                        });
+                    }
                 }
             },
             { rootMargin: "300px" }
@@ -49,13 +80,13 @@ const InfiniteScrollTrigger = ({ state, fetchDataFun, additionalParam }) => {
 
         observer.observe(sentinel);
         return () => observer.disconnect();
-    }, [hasMore]);
+    }, [shouldShow, isTanStackMode, fetchNextPage]);
 
-    if (!hasMore) return null;
+    if (!shouldShow) return null;
 
     return (
         <div ref={sentinelRef} className="infinite-scroll-trigger">
-            {loading && (
+            {isLoading && (
                 <div className="infinite-scroll-loader">
                     <Loader />
                 </div>
@@ -64,15 +95,9 @@ const InfiniteScrollTrigger = ({ state, fetchDataFun, additionalParam }) => {
     );
 };
 
-/* ─── Legacy export (backward compat for all pages) ────────── */
-const LoadMoreDataBtn = ({ state, fetchDataFun, additionalParam }) => {
-    return (
-        <InfiniteScrollTrigger
-            state={state}
-            fetchDataFun={fetchDataFun}
-            additionalParam={additionalParam}
-        />
-    );
+/* ─── Default export — supports both interfaces ────────────── */
+const LoadMoreDataBtn = (props) => {
+    return <InfiniteScrollTrigger {...props} />;
 };
 
 export { InfiniteScrollTrigger };

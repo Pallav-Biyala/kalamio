@@ -1,4 +1,3 @@
-import api from "../common/api";
 import usePageTitle from "../common/usePageTitle";
 import { createContext, useContext, useEffect, useState } from "react";
 import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
@@ -19,35 +18,33 @@ import { UserContext } from "../App";
 import toast from "react-hot-toast";
 import NetworkError from "../components/network-error.component";
 import useReadTracker from "../hooks/useReadTracker";
+import { useBlogDetail, useSimilarBlogs, usePollVoteStatus } from "../hooks/queries";
+import { useVotePoll } from "../hooks/mutations";
+import PollVotersModal from "../components/poll-voters-modal.component";
 
 // Inline poll component for the blog page detail view
-const TextPostPollView = ({ poll: initialPoll, blogId }) => {
+const TextPostPollView = ({ poll: initialPoll, blogId, isCreator }) => {
     const { userAuth: { access_token } } = useContext(UserContext);
+    const [showVotersModal, setShowVotersModal] = useState(false);
+    const { data: voteStatus } = usePollVoteStatus(blogId);
+    const voteMutation = useVotePoll();
     const [poll, setPoll] = useState(initialPoll);
-    const [hasVoted, setHasVoted] = useState(false);
-    const [selectedOption, setSelectedOption] = useState(null);
 
+    const hasVoted = voteStatus?.hasVoted || false;
+    const selectedOption = voteStatus?.option_index ?? null;
+
+    // Sync poll data when initial data changes
     useEffect(() => {
-        if (access_token && initialPoll && initialPoll.options && initialPoll.options.length > 0) {
-            api.post("/check-poll-vote", { blog_id: blogId })
-            .then(({ data }) => {
-                if (data.hasVoted) {
-                    setHasVoted(true);
-                    setSelectedOption(data.option_index);
-                }
-            })
-            .catch(() => {});
-        }
-    }, [access_token, initialPoll, blogId]);
+        setPoll(initialPoll);
+    }, [initialPoll]);
 
     const handleVote = (optionIndex) => {
         if (hasVoted || !access_token) {
             if (!access_token) toast.error("Please login to vote");
             return;
         }
-        setSelectedOption(optionIndex);
-        setHasVoted(true);
 
+        // Optimistic local update for poll counts
         setPoll(prev => {
             const updated = { ...prev };
             updated.options = prev.options.map((opt, i) => ({
@@ -58,13 +55,14 @@ const TextPostPollView = ({ poll: initialPoll, blogId }) => {
             return updated;
         });
 
-        api.post("/vote-poll", { blog_id: blogId, option_index: optionIndex })
-        .then(({ data }) => setPoll(data.poll))
-        .catch(() => {
-            toast.error("Vote failed");
-            setPoll(initialPoll);
-            setHasVoted(false);
-            setSelectedOption(null);
+        voteMutation.mutate({ blogId, optionIndex }, {
+            onSuccess: (data) => {
+                if (data?.data?.poll) setPoll(data.data.poll);
+            },
+            onError: () => {
+                toast.error("Vote failed");
+                setPoll(initialPoll);
+            }
         });
     };
 
@@ -104,7 +102,25 @@ const TextPostPollView = ({ poll: initialPoll, blogId }) => {
             </div>
             <div className="feed-card__text-post-poll-footer">
                 <span>{poll.total_votes || 0} vote{(poll.total_votes || 0) !== 1 ? 's' : ''}</span>
+                {isCreator && (poll.total_votes || 0) > 0 && (
+                    <button
+                        className="poll-voters-btn"
+                        onClick={() => setShowVotersModal(true)}
+                    >
+                        <Icon name="visibility" className="text-sm" />
+                        See voters
+                    </button>
+                )}
             </div>
+
+            {showVotersModal && (
+                <PollVotersModal
+                    blogId={blogId}
+                    poll={poll}
+                    isOpen={showVotersModal}
+                    onClose={() => setShowVotersModal(false)}
+                />
+            )}
         </div>
     );
 };
@@ -114,9 +130,13 @@ export const blogStructure = {
     title: '',
     des: '',
     content: [],
+    tags: [],
+    blog_id: '',
     author: { _id: null, personal_info: { }, account_info: { total_posts: 0, total_reads: 0 } },
     banner: '',
-    publishedAt: ''
+    publishedAt: '',
+    activity: { total_likes: 0, total_comments: 0, total_reads: 0, total_parent_comments: 0 },
+    comments: { results: [] },
 }
 
 export const BlogContext = createContext({  })
@@ -126,18 +146,39 @@ const BlogPage = () => {
     let { blog_id } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
+    const { userAuth: { username: loggedInUsername } = {} } = useContext(UserContext);
 
-    const [ blog, setBlog ] = useState(blogStructure);
-    const [ similarBlogs, setSimilarBlogs ] = useState(null);
-    const [ loading, setLoading ] = useState(true);
-    const [ isLikedByUser, setLikedByUser ] = useState(false);
+    // UI-only state (not server data)
     const [ commentsWrapper, setCommentsWrapper ] = useState(false);
     const [ totalParentCommentsLoaded, setTotalParentCommentsLoaded ] = useState(0);
-    const [ fetchError, setFetchError ] = useState(false);
+
+    // ── Query hooks ─────────────────────────────────────────────
+    const blogQuery = useBlogDetail(blog_id);
+
+    // Local blog state: merges query data + comments (which come from a separate fetch)
+    const [blogWithComments, setBlogWithComments] = useState(blogStructure);
+
+    // Sync query data into local state when it arrives/changes
+    useEffect(() => {
+        if (blogQuery.data) {
+            setBlogWithComments(prev => ({
+                ...blogQuery.data,
+                comments: prev.comments || { results: [] },
+            }));
+        }
+    }, [blogQuery.data]);
+
+    const blog = blogWithComments;
+    const setBlog = setBlogWithComments;
 
     let { title, des, tags, content, banner, author: { personal_info: { fullname, username: author_username, profile_img, bio }, account_info: { total_posts: author_total_posts, total_reads: author_total_reads } = {} }, publishedAt, publication, type, text_content, images, poll: blogPoll } = blog;
 
     const isTextPost = type === 'text_post';
+    const isDraft = blog.draft;
+
+    // Similar blogs — only fetches when blog data is loaded and has tags
+    const { data: similarBlogs } = useSimilarBlogs(blog_id, tags);
+
     usePageTitle(isTextPost ? (text_content ? text_content.substring(0, 60) : 'Text Post') : (title || 'Blog'));
 
     // Production-grade read tracking: scroll depth + time spent + deduplication
@@ -149,71 +190,49 @@ const BlogPage = () => {
         isEditMode: false,
     });
 
-    const fetchBlog = () => {
-        api.post("/get-blog", { blog_id })
-        .then(async ({ data: { blog } }) => {
-            
-            if (!blog.draft) {
-                blog.comments = await fetchComments({ blog_id: blog._id, setParentCommentCountFun: setTotalParentCommentsLoaded })
-            }
-
-            setBlog(blog);
-
-            // Save for Keep Reading widget (only for published)
-            if (!blog.draft) {
-                saveReadingProgress(blog);
-
-                if (blog.tags && blog.tags.length > 0) {
-                    api.post("/search-blogs", { tag: blog.tags[0], limit: 6, eliminate_blog: blog_id })
-                    .then(({ data }) => {
-                        setSimilarBlogs(data.blogs);
-                    })
-                }
-            }
-
-            setLoading(false);
-        })
-        .catch(err => {
-            // If 403 because it's a draft, retry with draft flag
-            if (err.response?.status === 403 && err.response?.data?.error?.includes("draft")) {
-                api.post("/get-blog", { blog_id, draft: true, mode: 'edit' })
-                .then(async ({ data: { blog } }) => {
-                    setBlog(blog);
-                    setLoading(false);
-                })
-                .catch(() => {
-                    setLoading(false);
-                })
-            } else {
-                setFetchError(true);
-                setLoading(false);
-            }
-        })
-    }
-
+    // Load comments on initial load + refetch on tab visibility change (cross-tab sync)
     useEffect(() => {
+        const fetchAndSetComments = () => {
+            if (blogQuery.data && !blogQuery.data.draft && blogQuery.data._id) {
+                fetchComments({ blog_id: blogQuery.data._id, setParentCommentCountFun: setTotalParentCommentsLoaded })
+                    .then(comments => {
+                        setBlogWithComments(prev => ({
+                            ...prev,
+                            comments: comments,
+                        }));
+                    });
+            }
+        };
 
-        resetStates();
+        fetchAndSetComments();
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchAndSetComments();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [blogQuery.data?._id]);
+
+    // Save for Keep Reading widget when blog loads
+    useEffect(() => {
+        if (blogQuery.data && !blogQuery.data.draft) {
+            saveReadingProgress(blogQuery.data);
+        }
+    }, [blogQuery.data?._id]);
+
+    // Reset UI state and scroll on blog_id change
+    useEffect(() => {
         window.scrollTo(0, 0);
-        fetchBlog();
+        setCommentsWrapper(false);
+        setTotalParentCommentsLoaded(0);
 
         if (location.state?.openComments) {
             setCommentsWrapper(true);
         }
-
-    }, [blog_id])
-
-    const resetStates = () => {
-        setBlog(blogStructure);
-        setSimilarBlogs(null);
-        setLoading(true);
-        setFetchError(false);
-        setLikedByUser(false);
-        setCommentsWrapper(false);
-        setTotalParentCommentsLoaded(0);
-    }
-
-    let isDraft = blog.draft;
+    }, [blog_id]);
 
     // Render text with line breaks and mentions preserved
     const renderText = (text) => {
@@ -237,10 +256,10 @@ const BlogPage = () => {
     return (
         <AnimationWrapper>
             {
-                loading ? <Loader />
-                : fetchError ? <NetworkError onRetry={() => { setFetchError(false); setLoading(true); fetchBlog(); }} />
+                blogQuery.isLoading ? <Loader />
+                : blogQuery.isError ? <NetworkError onRetry={() => blogQuery.refetch()} />
                 :
-                <BlogContext.Provider value={{ blog, setBlog, isLikedByUser, setLikedByUser, commentsWrapper, setCommentsWrapper, totalParentCommentsLoaded, setTotalParentCommentsLoaded }}>
+                <BlogContext.Provider value={{ blog, setBlog, isLikedByUser: false, setLikedByUser: () => {}, commentsWrapper, setCommentsWrapper, totalParentCommentsLoaded, setTotalParentCommentsLoaded }}>
                     <div className={isTextPost ? "home-layout" : ""}>
                         <div className={isTextPost ? "home-feed max-lg:pt-0 lg:pt-10" : ""}>
                             <div className={`max-w-[900px] w-full center max-lg:px-[5vw] ${isTextPost ? 'max-lg:pt-0 max-lg:pb-6 lg:py-10' : 'max-lg:pt-0 max-lg:pb-10 lg:py-10'}`}>
@@ -306,7 +325,7 @@ const BlogPage = () => {
                                 )}
 
                                 {blogPoll && blogPoll.options && blogPoll.options.length > 0 && (
-                                    <TextPostPollView poll={blogPoll} blogId={blog_id} />
+                                    <TextPostPollView poll={blogPoll} blogId={blog_id} isCreator={author_username === loggedInUsername} />
                                 )}
 
                                 {!isDraft && <BlogInteraction />}

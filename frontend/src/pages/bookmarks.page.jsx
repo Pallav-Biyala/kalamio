@@ -1,13 +1,14 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useState } from "react";
 import usePageTitle from "../common/usePageTitle";
 import { UserContext } from "../App";
-import api from "../common/api";
 import AnimationWrapper from "../common/page-animation";
 import Loader from "../components/loader.component";
 import NoDataMessage from "../components/nodata.component";
 import { Link } from "react-router-dom";
 import Icon from "../components/Icon";
 import toast from "react-hot-toast";
+import { useUserCollections } from "../hooks/queries";
+import { useCreateCollection, useDeleteCollection } from "../hooks/mutations";
 
 const CollectionCard = ({ collection, onDelete }) => {
     const visibilityIcon = collection.visibility === 'public' ? 'public' : collection.visibility === 'unlisted' ? 'link' : 'lock';
@@ -59,42 +60,32 @@ const SavedPage = () => {
     usePageTitle('Saved');
 
     const { userAuth: { access_token, username } } = useContext(UserContext);
-    const [collections, setCollections] = useState(null);
     const [creating, setCreating] = useState(false);
     const [newTitle, setNewTitle] = useState("");
     const [newVisibility, setNewVisibility] = useState("private");
     const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
 
-    const fetchCollections = () => {
-        api.post("/collection/user-collections", { username })
-            .then(({ data }) => setCollections(data.collections))
-            .catch(() => setCollections([]));
-    };
-
-    useEffect(() => {
-        if (access_token && username) fetchCollections();
-    }, [access_token, username]);
+    // TanStack Query hooks
+    const { data: collections, isLoading } = useUserCollections(username);
+    const createCollection = useCreateCollection(username);
+    const deleteCollection = useDeleteCollection(username);
 
     const handleCreate = () => {
         if (!newTitle.trim()) return;
 
-        api.post("/collection/create", { title: newTitle.trim(), visibility: newVisibility })
-            .then(({ data }) => {
-                setCollections(prev => [...prev, data.collection]);
-                setNewTitle("");
-                setCreating(false);
-                toast.success(`Created "${data.collection.title}"`);
-            })
-            .catch(err => toast.error(err.response?.data?.error || "Failed to create"));
+        createCollection.mutate(
+            { title: newTitle.trim(), visibility: newVisibility },
+            {
+                onSuccess: () => {
+                    setNewTitle("");
+                    setCreating(false);
+                }
+            }
+        );
     };
 
     const handleDelete = (collectionId) => {
-        api.post("/collection/delete", { collection_id: collectionId })
-            .then(() => {
-                setCollections(prev => prev.filter(c => c._id !== collectionId));
-                toast.success("Collection deleted");
-            })
-            .catch(err => toast.error(err.response?.data?.error || "Failed to delete"));
+        deleteCollection.mutate({ collection_id: collectionId });
     };
 
     return (
@@ -158,7 +149,7 @@ const SavedPage = () => {
                             )}
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
-                            <button className="btn-dark btn-sm" onClick={handleCreate} disabled={!newTitle.trim()}>Create</button>
+                            <button className="btn-dark btn-sm" onClick={handleCreate} disabled={!newTitle.trim() || createCollection.isPending}>Create</button>
                             <button className="btn-light btn-sm" onClick={() => setCreating(false)}>Cancel</button>
                         </div>
                     </div>
@@ -166,9 +157,9 @@ const SavedPage = () => {
             )}
 
             <div className="saved-page__grid">
-                {collections === null ? (
+                {isLoading ? (
                     <Loader />
-                ) : collections.length === 0 ? (
+                ) : !collections?.length ? (
                     <NoDataMessage message="No collections yet. Save articles or create a collection!" />
                 ) : (
                     collections.map(col => (

@@ -1,10 +1,13 @@
 import { Route, Routes } from "react-router-dom";
 import MainLayout from "./components/main-layout.component";
 import { createContext, useEffect, useState, lazy, Suspense } from "react";
+import { useQueryClient } from '@tanstack/react-query';
 import { lookInSession } from "./common/session";
 import { Toaster } from 'react-hot-toast';
 import Loader from "./components/loader.component";
 import CustomTooltip from "./components/CustomTooltip";
+
+
 
 // Lazy load all pages — only downloaded when the user navigates to them
 const UserAuthForm = lazy(() => import("./pages/userAuthForm.page"));
@@ -46,6 +49,7 @@ export const ThemeContext = createContext({});
 
 const App = () => {
 
+    const queryClient = useQueryClient();
     const [userAuth, setUserAuth] = useState({});
     const [theme, setTheme] = useState("dark");
 
@@ -94,6 +98,13 @@ const App = () => {
         }
 
     }, [])
+
+    // Clear all cached query data when user logs out
+    useEffect(() => {
+        if (userAuth.access_token === null) {
+            queryClient.clear();
+        }
+    }, [userAuth.access_token, queryClient]);
 
     return (
         <ThemeContext.Provider value={{ theme, setTheme }}>
@@ -160,6 +171,7 @@ const App = () => {
                         
                     </Routes>
                 </Suspense>
+
             </UserContext.Provider>
         </ThemeContext.Provider>
     )

@@ -1,15 +1,16 @@
-import { useContext, useState, useEffect } from "react";
+import { useContext, useState } from "react";
 import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
 import { ThemeContext, UserContext } from "../App";
 import { storeInSession, removeFromSession } from "../common/session";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../common/queryKeys";
 import lightLogo from "../imgs/logo-light.png";
 import darkLogo from "../imgs/logo-dark.png";
 import Icon from "./Icon";
 import KeepReading from "./keep-reading.component";
 import TextPostComposer from "./text-post-composer.component";
 import Avatar from "./Avatar";
-import api from "../common/api";
-import { getSocket } from "../common/socket";
+import { useUnreadMessages, useNewNotification } from "../hooks/queries";
 
 const navItems = [
     { to: "/", icon: "home", label: "Home", end: true },
@@ -45,35 +46,20 @@ const settingsItems = [
 
 const LeftSidebar = () => {
 
-    const { userAuth: { access_token, profile_img, username, fullname, new_notification_available }, setUserAuth } = useContext(UserContext);
+    const { userAuth: { access_token, profile_img, username, fullname }, setUserAuth } = useContext(UserContext);
     const { theme, setTheme } = useContext(ThemeContext);
     const navigate = useNavigate();
     const location = useLocation();
 
     const [showCreateMenu, setShowCreateMenu] = useState(false);
     const [showComposer, setShowComposer] = useState(false);
-    const [unreadMessages, setUnreadMessages] = useState(0);
+    const queryClient = useQueryClient();
 
-    // Fetch unread message count
-    useEffect(() => {
-        if (!access_token) return;
+    // TanStack Query — socket-cache bridge handles real-time updates
+    const { data: unreadMessages = 0 } = useUnreadMessages();
+    const { data: notificationData } = useNewNotification();
+    const new_notification_available = notificationData?.new_notification_available;
 
-        const fetchUnread = () => {
-            api.post("/messages/unread-total")
-                .then(({ data }) => setUnreadMessages(data.unread_total || 0))
-                .catch(() => {});
-        };
-
-        fetchUnread();
-
-        // Listen for new messages via socket to update badge in real-time
-        const socket = getSocket();
-        if (socket) {
-            const handleNewMessage = () => fetchUnread();
-            socket.on('new_message', handleNewMessage);
-            return () => socket.off('new_message', handleNewMessage);
-        }
-    }, [access_token]);
     const [showProfileMenu, setShowProfileMenu] = useState(false);
 
     // Detect if we're in dashboard/settings mode
@@ -383,7 +369,8 @@ const LeftSidebar = () => {
             isOpen={showComposer}
             onClose={() => setShowComposer(false)}
             onPosted={() => {
-                window.location.reload();
+                queryClient.invalidateQueries({ queryKey: queryKeys.blogs.latest() });
+                queryClient.invalidateQueries({ queryKey: queryKeys.blogs.following() });
             }}
         />
         </>

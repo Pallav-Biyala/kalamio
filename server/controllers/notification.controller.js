@@ -44,13 +44,13 @@ export const getNotifications = (req, res) => {
     Notification.find(findQuery)
     .skip(skipDocs)
     .limit(maxLimit)
-    .populate("blog", "title blog_id text_content type")
+    .populate("blog", "title blog_id text_content type poll")
     .populate("user", "personal_info.fullname personal_info.username personal_info.profile_img")
     .populate("comment", "comment")
     .populate("replied_on_comment", "comment")
     .populate("reply", "comment")
     .sort({ createdAt: -1 })
-    .select("createdAt type seen reply")
+    .select("createdAt type seen reply option_index")
     .then(notifications => {
 
         // Mark fetched notifications as seen using their actual _ids

@@ -6,6 +6,10 @@ import NoDataMessage from "./nodata.component";
 import AnimationWrapper from "../common/page-animation";
 import CommentCard from "./comment-card.component";
 
+/**
+ * Fetch comments for a blog. Kept as a standalone export for backward
+ * compatibility with blog.page.jsx (initial comment load on mount).
+ */
 export const fetchComments = async ({ skip=0, blog_id, setParentCommentCountFun, comment_array = null }) => {
 
     let res;
@@ -34,16 +38,18 @@ export const fetchComments = async ({ skip=0, blog_id, setParentCommentCountFun,
 
 const CommentsContainer = () => {
 
-    let { blog, blog: { _id, title, type, comments: { results: commentsArr }, activity: { total_parent_comments } }, commentsWrapper, setCommentsWrapper, totalParentCommentsLoaded, setTotalParentCommentsLoaded, setBlog } = useContext(BlogContext);
+    let { blog, commentsWrapper, setCommentsWrapper, totalParentCommentsLoaded, setTotalParentCommentsLoaded, setBlog } = useContext(BlogContext);
+
+    const { _id, title, type, comments, activity: { total_parent_comments } = {} } = blog || {};
+    const commentsArr = comments?.results || [];
 
     const isTextPost = type === 'text_post';
 
     const loadMoreComments = async () => {
-
         let newCommentsArr = await fetchComments({ skip: totalParentCommentsLoaded, blog_id: _id, setParentCommentCountFun: setTotalParentCommentsLoaded, comment_array: commentsArr })
-
-        setBlog({ ...blog, comments: newCommentsArr })
-
+        if (setBlog) {
+            setBlog({ ...blog, comments: newCommentsArr })
+        }
     }
 
     return(

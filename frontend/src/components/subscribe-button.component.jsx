@@ -1,37 +1,25 @@
-import { useContext, useState, useEffect } from "react";
+import { useContext } from "react";
 import { UserContext } from "../App";
-import api from "../common/api";
 import { useNavigate } from "react-router-dom";
 import Icon from "./Icon";
+import { useSubscribeStatus } from "../hooks/queries";
+import { useSubscribeAction } from "../hooks/mutations";
 
 /**
  * SubscribeButton — handles subscribe/unsubscribe toggle for a publication.
- * 
- * Props:
- *   publicationId     — the _id of the publication
- *   initialSubscribed — optional boolean if already known
- *   onSubscribeChange — optional callback(isSubscribed)
- *   size              — "sm" | "md" (default "md")
- *   className         — additional CSS classes
+ * Uses TanStack Query for cached status + optimistic mutations.
  */
-const SubscribeButton = ({ publicationId, initialSubscribed = null, onSubscribeChange, size = "md", className = "" }) => {
+const SubscribeButton = ({ publicationId, initialSubscribed = undefined, onSubscribeChange, size = "md", className = "" }) => {
 
     const { userAuth: { access_token } } = useContext(UserContext);
     const navigate = useNavigate();
 
-    const [isSubscribed, setIsSubscribed] = useState(initialSubscribed);
-    const [loading, setLoading] = useState(false);
+    const { data: isSubscribed, isLoading } = useSubscribeStatus(publicationId, initialSubscribed);
+    const subscribeMutation = useSubscribeAction();
 
-    // Fetch initial subscribe state if not provided
-    useEffect(() => {
-        if (initialSubscribed !== null || !access_token || !publicationId) return;
+    if (isSubscribed === undefined && isLoading) return null;
 
-        api.post("/is-subscribed", { publication_id: publicationId })
-            .then(({ data }) => setIsSubscribed(data.subscribed))
-            .catch(() => setIsSubscribed(false));
-    }, [publicationId, access_token]);
-
-    const handleClick = async (e) => {
+    const handleClick = (e) => {
         e.preventDefault();
         e.stopPropagation();
 
@@ -40,24 +28,18 @@ const SubscribeButton = ({ publicationId, initialSubscribed = null, onSubscribeC
             return;
         }
 
-        if (loading) return;
-        setLoading(true);
+        if (subscribeMutation.isPending) return;
 
-        const newState = !isSubscribed;
-        setIsSubscribed(newState);
-
-        try {
-            const endpoint = newState ? "/subscribe" : "/unsubscribe";
-            await api.post(endpoint, { publication_id: publicationId });
-            onSubscribeChange?.(newState);
-        } catch (err) {
-            setIsSubscribed(!newState);
-        } finally {
-            setLoading(false);
-        }
+        const action = isSubscribed ? 'unsubscribe' : 'subscribe';
+        subscribeMutation.mutate(
+            { publicationId, action },
+            {
+                onSuccess: () => {
+                    onSubscribeChange?.(!isSubscribed);
+                }
+            }
+        );
     };
-
-    if (isSubscribed === null) return null;
 
     const sizeClasses = size === "sm" ? "subscribe-btn--sm" : "subscribe-btn--md";
 
@@ -77,7 +59,7 @@ const SubscribeButton = ({ publicationId, initialSubscribed = null, onSubscribeC
         <button
             className={`subscribe-btn ${sizeClasses} ${stateClass} ${className}`}
             onClick={handleClick}
-            disabled={loading}
+            disabled={subscribeMutation.isPending}
             aria-label={label}
         >
             <Icon name={icon} className="subscribe-btn__icon" />

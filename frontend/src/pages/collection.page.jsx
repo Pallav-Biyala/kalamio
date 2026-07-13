@@ -1,45 +1,41 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { UserContext } from "../App";
 import api from "../common/api";
+import { useQueryClient } from "@tanstack/react-query";
 import Icon from "../components/Icon";
 import Avatar from "../components/Avatar";
 import BlogPostCard from "../components/blog-post.component";
 import TextPostCard from "../components/text-post-card.component";
 import NoDataMessage from "../components/nodata.component";
 import toast from "react-hot-toast";
+import { useCollectionDetail } from "../hooks/queries";
+import { queryKeys } from "../common/queryKeys";
 
 const CollectionPage = () => {
     const { userAuth: { access_token, username: currentUser } } = useContext(UserContext);
     const { collectionId } = useParams();
+    const queryClient = useQueryClient();
 
-    const [collection, setCollection] = useState(null);
-    const [articles, setArticles] = useState([]);
-    const [page, setPage] = useState(1);
-    const [totalDocs, setTotalDocs] = useState(0);
-    const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState(false);
     const [editTitle, setEditTitle] = useState("");
     const [editDesc, setEditDesc] = useState("");
     const [editVisibility, setEditVisibility] = useState("private");
     const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
 
-    const fetchCollection = (p = 1) => {
-        setLoading(true);
-        api.post("/collection/get", { collection_id: collectionId, page: p })
-            .then(({ data }) => {
-                setCollection(data.collection);
-                setArticles(prev => p === 1 ? data.articles : [...prev, ...data.articles]);
-                setTotalDocs(data.totalDocs);
-                setEditTitle(data.collection.title);
-                setEditDesc(data.collection.description);
-                setEditVisibility(data.collection.visibility);
-                setLoading(false);
-            })
-            .catch(() => setLoading(false));
-    };
+    // TanStack Query hook for collection detail
+    const { data, isLoading } = useCollectionDetail(collectionId);
 
-    useEffect(() => { fetchCollection(); }, [collectionId]);
+    const collection = data?.collection;
+    const articles = data?.articles || [];
+    const totalDocs = data?.totalDocs || 0;
+
+    // Sync edit fields when collection data loads
+    if (collection && !editing && editTitle === "" && collection.title) {
+        setEditTitle(collection.title);
+        setEditDesc(collection.description || "");
+        setEditVisibility(collection.visibility || "private");
+    }
 
     const handleUpdate = () => {
         api.post("/collection/update", {
@@ -47,25 +43,23 @@ const CollectionPage = () => {
             title: editTitle,
             description: editDesc,
             visibility: editVisibility
-        }).then(({ data }) => {
-            setCollection(data.collection);
+        }).then(() => {
             setEditing(false);
             toast.success("Collection updated");
+            queryClient.invalidateQueries({ queryKey: queryKeys.collections.detail(collectionId) });
         }).catch(err => toast.error(err.response?.data?.error || "Update failed"));
     };
 
     const handleRemoveArticle = (blogId) => {
         api.post("/collection/remove-article", { collection_id: collectionId, blog_id: blogId })
             .then(() => {
-                setArticles(prev => prev.filter(a => a.blog.blog_id !== blogId));
-                setTotalDocs(prev => prev - 1);
-                setCollection(prev => ({ ...prev, total_articles: prev.total_articles - 1 }));
                 toast.success("Removed from collection");
+                queryClient.invalidateQueries({ queryKey: queryKeys.collections.detail(collectionId) });
             })
             .catch(() => toast.error("Failed to remove"));
     };
 
-    if (loading && !collection) {
+    if (isLoading && !collection) {
         return <div className="dashboard-page__loading"><div className="loader" /></div>;
     }
 
@@ -192,15 +186,6 @@ const CollectionPage = () => {
                     ))
                 )}
             </div>
-
-            {articles.length < totalDocs && (
-                <button
-                    className="btn-light collection-detail__load-more"
-                    onClick={() => { const next = page + 1; setPage(next); fetchCollection(next); }}
-                >
-                    Load More
-                </button>
-            )}
         </div>
     );
 };

@@ -1,50 +1,60 @@
-import api from "../common/api";
 import usePageTitle from "../common/usePageTitle";
 import Icon from "../components/Icon";
 import AnimationWrapper from "../common/page-animation";
-import { useContext, useEffect, useState, useRef, useCallback } from "react";
+import { useContext, useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../common/queryKeys";
 import Loader from "../components/loader.component";
 import BlogPostCard from "../components/blog-post.component";
 import TextPostCard from "../components/text-post-card.component";
 import TextPostComposer from "../components/text-post-composer.component";
-import MinimalBlogPost from "../components/nobanner-blog-post.component";
 import NoDataMessage from "../components/nodata.component";
-import { filterPaginationData } from "../common/filter-pagination-data";
 import LoadMoreDataBtn from "../components/load-more.component";
-import WhoToFollow from "../components/who-to-follow.component";
 import RightSidebar from "../components/right-sidebar.component";
 import Avatar from "../components/Avatar";
 import { UserContext } from "../App";
 import NetworkError from "../components/network-error.component";
-
-// ── Module-level cache — survives navigation ──────────────────
-const feedCache = {
-  blogs: null,
-  trendingBlogs: null,
-  followingBlogs: null,
-  pageState: "home",
-  scrollY: 0,
-};
+import { useLatestBlogs, useCategoryBlogs, useTrendingBlogs, useFollowingFeed, useBatchLikeStatus } from "../hooks/queries";
 
 const HomePage = () => {
-  let [blogs, setBlogs] = useState(feedCache.blogs);
-  let [trendingBlogs, setTrendingBlogs] = useState(feedCache.trendingBlogs);
-  let [pageState, setPageState] = useState(feedCache.pageState);
-  let [likedBlogs, setLikedBlogs] = useState([]);
-  let [trendingFilter, setTrendingFilter] = useState("all");
-  let [followingBlogs, setFollowingBlogs] = useState(feedCache.followingBlogs);
-  let [showComposer, setShowComposer] = useState(false);
-  let [editingTextPostId, setEditingTextPostId] = useState(null);
-  let [searchQuery, setSearchQuery] = useState("");
-  let [feedError, setFeedError] = useState(false);
-  let [followingError, setFollowingError] = useState(false);
-  let [trendingError, setTrendingError] = useState(false);
+  const [pageState, setPageState] = useState("home");
+  const [trendingFilter, setTrendingFilter] = useState("all");
+  const [showComposer, setShowComposer] = useState(false);
+  const [editingTextPostId, setEditingTextPostId] = useState(null);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  let { userAuth: { access_token, profile_img } } = useContext(UserContext);
+  const { userAuth: { access_token, profile_img } } = useContext(UserContext);
 
   usePageTitle(pageState === "home" ? "Kalamio" : `#${pageState}`);
+
+  // Determine active category tag (null when home/following/trending)
+  const activeTag = (pageState !== "home" && pageState !== "following" && pageState !== "trending")
+    ? pageState : null;
+
+  // ── Query hooks ─────────────────────────────────────────────
+  const latestQuery = useLatestBlogs();
+  const categoryQuery = useCategoryBlogs(activeTag);
+  const trendingQuery = useTrendingBlogs();
+  const followingQuery = useFollowingFeed();
+
+  // Pick the right feed query based on pageState
+  const activeFeedQuery = activeTag ? categoryQuery : latestQuery;
+  const activeFeedData = activeFeedQuery.data;
+
+  // Batch like status for visible blog IDs
+  const visibleBlogIds = (() => {
+    if (pageState === "following") {
+      return followingQuery.data?.blogs?.map(b => b._id).filter(Boolean) || [];
+    }
+    if (pageState === "trending") {
+      return trendingQuery.data?.map(b => b._id).filter(Boolean) || [];
+    }
+    return activeFeedData?.blogs?.map(b => b._id).filter(Boolean) || [];
+  })();
+
+  const { data: likedBlogs = [] } = useBatchLikeStatus(visibleBlogIds);
 
   let categories = [
     "For You",
@@ -77,7 +87,6 @@ const HomePage = () => {
     mql.addEventListener('change', updateSpacer);
     window.addEventListener('resize', updateSpacer);
     
-    // Also use ResizeObserver to catch any height changes of the tabs themselves
     const resizeObserver = new ResizeObserver(updateSpacer);
     if (tabsRef.current) resizeObserver.observe(tabsRef.current);
 
@@ -88,83 +97,11 @@ const HomePage = () => {
     };
   }, []);
 
-  const fetchLatestBlogs = ({page = 1}) => {
-    api
-      .post("/latest-blogs", { page })
-      .then( async ({ data }) => {
-
-        let formatedData = await filterPaginationData({
-            state: blogs,
-            data: data.blogs,
-            page,
-            countRoute: "/all-latest-blogs-count"
-        })
-
-        setBlogs(formatedData);
-      })
-      .catch((err) => {
-        setFeedError(true);
-      });
-  };
-
-  const fetchBlogsByCategory = ({ page = 1 }) => {
-    api
-      .post("/search-blogs", { tag: pageState, page })
-      .then( async ({ data }) => {
-
-       let formatedData = await filterPaginationData({
-            state: blogs,
-            data: data.blogs,
-            page,
-            countRoute: "/search-blogs-count",
-            data_to_send: { tag: pageState }
-        })
-
-        setBlogs(formatedData);
-      })
-      .catch((err) => {
-        setFeedError(true);
-      });
-  };
-
-  const fetchTrendingBlogs = () => {
-    api
-      .get("/trending-blogs")
-      .then(({ data }) => {
-        setTrendingBlogs(data.blogs);
-      })
-      .catch((err) => {
-        setTrendingError(true);
-      });
-  };
-
-  // Following feed — blogs from people you follow
-  const fetchFollowingBlogs = ({ page = 1 }) => {
-    if (!access_token) return;
-    
-    api.post("/follow-feed", { page })
-      .then(async ({ data }) => {
-        let formatedData = await filterPaginationData({
-          state: followingBlogs,
-          data: data.blogs,
-          page,
-          countRoute: "/follow-feed-count",
-        });
-        setFollowingBlogs(formatedData);
-      })
-      .catch(() => { setFollowingError(true); });
-  };
-
   const loadBlogByCategory = (category) => {
     window.scrollTo(0, 0);
-    setFeedError(false);
-    setFollowingError(false);
 
     if (category === "For You") {
-      if (pageState !== "home") {
-        setBlogs(null);
-        setPageState("home");
-      }
+      setPageState("home");
       return;
     }
 
@@ -180,60 +117,34 @@ const HomePage = () => {
 
     let tag = category.toLowerCase();
     if (pageState === tag) {
-      setBlogs(null);
       setPageState("home");
       return;
     }
 
-    setBlogs(null);
     setPageState(tag);
   };
 
-  // Sync state → cache whenever it changes
-  useEffect(() => { feedCache.blogs = blogs; }, [blogs]);
-  useEffect(() => { feedCache.trendingBlogs = trendingBlogs; }, [trendingBlogs]);
-  useEffect(() => { feedCache.followingBlogs = followingBlogs; }, [followingBlogs]);
-  useEffect(() => { feedCache.pageState = pageState; }, [pageState]);
-
-  // Restore scroll position on mount, save on unmount
-  useEffect(() => {
-    if (feedCache.scrollY > 0) {
-      window.scrollTo({ top: feedCache.scrollY, left: 0, behavior: 'instant' });
-    }
-    return () => { feedCache.scrollY = window.scrollY; };
-  }, []);
-
-  useEffect(() => {
-    if (pageState === "home") {
-      if (!blogs) fetchLatestBlogs({ page: 1 });
-    } else if (pageState === "following") {
-      if (!followingBlogs) {
-        fetchFollowingBlogs({ page: 1 });
-      }
-    } else if (pageState === "trending") {
-      // handled separately
-    } else {
-      if (!blogs) fetchBlogsByCategory({ page: 1 });
-    }
-
-    if (!trendingBlogs) {
-      fetchTrendingBlogs();
-    }
-  }, [pageState]);
-
-  // Fetch liked status for visible blogs
-  useEffect(() => {
-    if (blogs?.results?.length && access_token) {
-      let blogIds = blogs.results.map(b => b._id).filter(Boolean);
-      if (blogIds.length) {
-        api.post("/batch-isliked", { blog_ids: blogIds })
-          .then(({ data }) => setLikedBlogs(data.likedBlogs || []))
-          .catch(() => {});
-      }
-    } else {
-      setLikedBlogs([]);
-    }
-  }, [blogs, access_token]);
+  // Helper to render a blog card
+  const renderBlogCard = (blog, i) => (
+    <AnimationWrapper
+      key={blog.blog_id}
+      transition={{ duration: 0.4, delay: i * 0.04 }}
+    >
+      {blog.type === 'text_post' ? (
+        <TextPostCard
+          content={blog}
+          author={blog.author.personal_info}
+          onEdit={(blogId) => { setEditingTextPostId(blogId); setShowComposer(true); }}
+        />
+      ) : (
+        <BlogPostCard
+          content={blog}
+          author={blog.author.personal_info}
+          isLiked={likedBlogs.includes(blog._id)}
+        />
+      )}
+    </AnimationWrapper>
+  );
 
   return (
     <AnimationWrapper>
@@ -269,7 +180,6 @@ const HomePage = () => {
             {/* Category tabs */}
             <div className="category-tabs" ref={tabsRef}>
 
-
               {categories.map((category, i) => {
                 const isActive = 
                   (category === "For You" && pageState === "home") ||
@@ -298,35 +208,18 @@ const HomePage = () => {
               // Following feed
               !access_token ? (
                 <NoDataMessage message="Sign in to see blogs from people you follow" />
-              ) : followingBlogs == null ? (
-                followingError ? (
-                  <NetworkError onRetry={() => { setFollowingError(false); setFollowingBlogs(null); fetchFollowingBlogs({ page: 1 }); }} />
-                ) : (
-                  <Loader />
-                )
-              ) : followingBlogs.results?.length ? (
+              ) : followingQuery.isError ? (
+                <NetworkError onRetry={() => followingQuery.refetch()} />
+              ) : followingQuery.isLoading ? (
+                <Loader />
+              ) : followingQuery.data?.blogs?.length ? (
                 <>
-                  {followingBlogs.results.map((blog, i) => (
-                    <AnimationWrapper
-                      key={blog.blog_id}
-                      transition={{ duration: 0.4, delay: i * 0.04 }}
-                    >
-                      {blog.type === 'text_post' ? (
-                        <TextPostCard
-                          content={blog}
-                          author={blog.author.personal_info}
-                          onEdit={(blogId) => { setEditingTextPostId(blogId); setShowComposer(true); }}
-                        />
-                      ) : (
-                        <BlogPostCard
-                          content={blog}
-                          author={blog.author.personal_info}
-                          isLiked={likedBlogs.includes(blog._id)}
-                        />
-                      )}
-                    </AnimationWrapper>
-                  ))}
-                  <LoadMoreDataBtn state={followingBlogs} fetchDataFun={fetchFollowingBlogs} />
+                  {followingQuery.data.blogs.map((blog, i) => renderBlogCard(blog, i))}
+                  <LoadMoreDataBtn
+                    fetchNextPage={followingQuery.fetchNextPage}
+                    hasNextPage={followingQuery.hasNextPage}
+                    isFetchingNextPage={followingQuery.isFetchingNextPage}
+                  />
                 </>
               ) : (
                 <div className="following-empty">
@@ -348,16 +241,14 @@ const HomePage = () => {
                     </button>
                   ))}
                 </div>
-                {trendingBlogs == null ? (
-                  trendingError ? (
-                    <NetworkError onRetry={() => { setTrendingError(false); setTrendingBlogs(null); fetchTrendingBlogs(); }} />
-                  ) : (
-                    <Loader />
-                  )
+                {trendingQuery.isError ? (
+                  <NetworkError onRetry={() => trendingQuery.refetch()} />
+                ) : trendingQuery.isLoading ? (
+                  <Loader />
                 ) :
                   (() => {
                     const now = new Date();
-                    const filtered = trendingBlogs.filter(b => {
+                    const filtered = (trendingQuery.data || []).filter(b => {
                       if (trendingFilter === "all") return true;
                       const published = new Date(b.publishedAt);
                       const diffDays = (now - published) / (1000 * 60 * 60 * 24);
@@ -367,64 +258,31 @@ const HomePage = () => {
                       return true;
                     });
                     return filtered.length ?
-                      filtered.map((blog, i) => (
-                        <AnimationWrapper key={blog.blog_id} transition={{ duration: 0.4, delay: i * 0.04 }}>
-                          {blog.type === 'text_post' ? (
-                            <TextPostCard
-                              content={blog}
-                              author={blog.author.personal_info}
-                              onEdit={(blogId) => { setEditingTextPostId(blogId); setShowComposer(true); }}
-                            />
-                          ) : (
-                            <BlogPostCard
-                              content={blog}
-                              author={blog.author.personal_info}
-                              isLiked={likedBlogs.includes(blog._id)}
-                            />
-                          )}
-                        </AnimationWrapper>
-                      ))
+                      filtered.map((blog, i) => renderBlogCard(blog, i))
                     : <NoDataMessage message="No trending blogs for this period" />
                   })()}
               </>
-            ) : blogs == null ? (
-              feedError ? (
-                <NetworkError onRetry={() => { setFeedError(false); setBlogs(null); feedCache.blogs = null; pageState === 'home' ? fetchLatestBlogs({ page: 1 }) : fetchBlogsByCategory({ page: 1 }); }} />
-              ) : (
-                <Loader />
-              )
+            ) : activeFeedQuery.isError ? (
+              <NetworkError onRetry={() => activeFeedQuery.refetch()} />
+            ) : activeFeedQuery.isLoading ? (
+              <Loader />
             ) : (
-              blogs.results.length ?
-                  blogs.results.map((blog, i) => {
-                  return (
-                      <AnimationWrapper
-                      key={blog.blog_id}
-                      transition={{ duration: 0.4, delay: i * 0.04 }}
-                      >
-                      {blog.type === 'text_post' ? (
-                          <TextPostCard
-                              content={blog}
-                              author={blog.author.personal_info}
-                              onEdit={(blogId) => { setEditingTextPostId(blogId); setShowComposer(true); }}
-                          />
-                      ) : (
-                          <BlogPostCard
-                              content={blog}
-                              author={blog.author.personal_info}
-                              isLiked={likedBlogs.includes(blog._id)}
-                          />
-                      )}
-                      </AnimationWrapper>
-                  );
-                  })
+              activeFeedData?.blogs?.length ?
+                  activeFeedData.blogs.map((blog, i) => renderBlogCard(blog, i))
               : <NoDataMessage message="No blogs published"/>
             )}
-            {pageState !== "following" && pageState !== "trending" && <LoadMoreDataBtn state={blogs} fetchDataFun={( pageState === "home" ? fetchLatestBlogs : fetchBlogsByCategory )} />}
+            {pageState !== "following" && pageState !== "trending" && (
+              <LoadMoreDataBtn
+                fetchNextPage={activeFeedQuery.fetchNextPage}
+                hasNextPage={activeFeedQuery.hasNextPage}
+                isFetchingNextPage={activeFeedQuery.isFetchingNextPage}
+              />
+            )}
           </div>
         </div>
 
         {/* ── Right Sidebar Column (Desktop) ───── */}
-        <RightSidebar onTrendingClick={() => loadBlogByCategory("Trending")} trendingBlogs={trendingBlogs} />
+        <RightSidebar onTrendingClick={() => loadBlogByCategory("Trending")} />
 
       </div>
 
@@ -435,10 +293,9 @@ const HomePage = () => {
         onClose={() => { setShowComposer(false); setEditingTextPostId(null); }}
         editBlogId={editingTextPostId}
         onPosted={() => {
-            // Refresh feed after posting
-            setBlogs(null);
-            feedCache.blogs = null;
-            fetchLatestBlogs({ page: 1 });
+            // Invalidate feed queries — TanStack Query handles the refetch
+            queryClient.invalidateQueries({ queryKey: queryKeys.blogs.latest() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.blogs.following() });
         }}
       />
     </AnimationWrapper>

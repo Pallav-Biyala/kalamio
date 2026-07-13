@@ -15,6 +15,7 @@ const DEFAULTS = {
     connect_request:  { in_app: true,  email: true },
     subscribe:        { in_app: true,  email: false },
     mention:          { in_app: true,  email: true },
+    poll_vote:        { in_app: true,  email: false },
     mute_all: false
 };
 
@@ -26,6 +27,7 @@ const LABELS = {
     connect_request:  { label: "Connection Requests", desc: "When someone sends a connect request" },
     subscribe:        { label: "Subscriptions",       desc: "When someone subscribes to your publication" },
     mention:          { label: "Mentions",            desc: "When someone mentions you in a post" },
+    poll_vote:        { label: "Poll Votes",           desc: "When someone votes on your poll" },
 };
 
 const ToggleSwitch = ({ checked, onChange, disabled = false }) => {

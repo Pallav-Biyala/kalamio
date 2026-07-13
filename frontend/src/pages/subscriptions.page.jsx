@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { UserContext } from "../App";
 import api from "../common/api";
 import usePageTitle from "../common/usePageTitle";
-import { filterPaginationData } from "../common/filter-pagination-data";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { queryKeys } from "../common/queryKeys";
 import AnimationWrapper from "../common/page-animation";
 import Loader from "../components/loader.component";
 import NoDataMessage from "../components/nodata.component";
@@ -19,9 +20,7 @@ const SubscriptionsPage = () => {
     const { userAuth: { access_token } } = useContext(UserContext);
     const navigate = useNavigate();
 
-    const [publications, setPublications] = useState(null);
     const [selectedPub, setSelectedPub] = useState(null); // null = "All"
-    const [blogs, setBlogs] = useState(null);
     const pubsScrollRef = useRef(null);
 
     // Redirect to signin if not logged in
@@ -33,37 +32,50 @@ const SubscriptionsPage = () => {
     }, [access_token]);
 
     // Fetch subscribed publications
-    useEffect(() => {
-        if (!access_token) return;
-        api.post("/my-subscriptions")
-            .then(({ data }) => setPublications(data.publications))
-            .catch(() => setPublications([]));
-    }, [access_token]);
+    const { data: publications } = useQuery({
+        queryKey: queryKeys.subscribe.mySubscriptions(),
+        queryFn: async () => {
+            const { data } = await api.post("/my-subscriptions");
+            return data.publications;
+        },
+        enabled: !!access_token,
+        staleTime: 10 * 60 * 1000,
+    });
 
-    // Fetch feed when selectedPub changes
-    useEffect(() => {
-        if (!access_token) return;
-        setBlogs(null);
-        fetchFeed({ page: 1 });
-    }, [selectedPub, access_token]);
+    // Subscription feed — infinite query
+    const feedQuery = useInfiniteQuery({
+        queryKey: [...queryKeys.subscribe.feed(), selectedPub?._id || 'all'],
+        queryFn: async ({ pageParam = 1 }) => {
+            const body = { page: pageParam };
+            if (selectedPub) body.publication_id = selectedPub._id;
 
-    const fetchFeed = ({ page = 1 }) => {
-        const body = { page };
-        if (selectedPub) body.publication_id = selectedPub._id;
+            const [blogsRes, countRes] = await Promise.all([
+                api.post("/subscription-feed", body),
+                pageParam === 1
+                    ? api.post("/subscription-feed-count", selectedPub ? { publication_id: selectedPub._id } : {})
+                    : Promise.resolve(null),
+            ]);
 
-        api.post("/subscription-feed", body)
-            .then(async ({ data }) => {
-                const formatted = await filterPaginationData({
-                    state: page === 1 ? null : blogs,
-                    data: data.blogs,
-                    page,
-                    countRoute: "/subscription-feed-count",
-                    data_to_send: selectedPub ? { publication_id: selectedPub._id } : {}
-                });
-                setBlogs(formatted);
-            })
-            .catch(() => setBlogs({ results: [], totalDocs: 0, page: 1 }));
-    };
+            return {
+                blogs: blogsRes.data.blogs,
+                totalDocs: countRes?.data?.totalDocs ?? undefined,
+                page: pageParam,
+            };
+        },
+        getNextPageParam: (lastPage, allPages) => {
+            const totalLoaded = allPages.reduce((sum, p) => sum + p.blogs.length, 0);
+            const totalDocs = allPages[0]?.totalDocs ?? 0;
+            if (totalLoaded < totalDocs) return lastPage.page + 1;
+            return undefined;
+        },
+        select: (data) => {
+            const blogs = data.pages.flatMap(p => p.blogs);
+            return { blogs, totalDocs: data.pages[0]?.totalDocs ?? 0 };
+        },
+        enabled: !!access_token,
+    });
+
+    const blogs = feedQuery.data?.blogs || [];
 
     if (!access_token) return <Loader />;
 
@@ -73,7 +85,7 @@ const SubscriptionsPage = () => {
 
                 {/* ── Publication Avatars Row ──────────────── */}
                 <div className="subscriptions-page__pubs-row">
-                    {publications === null ? (
+                    {publications === undefined ? (
                         <div className="py-4 w-full flex justify-center"><Loader /></div>
                     ) : publications.length === 0 ? (
                         <div className="subscriptions-page__empty-pubs">
@@ -144,11 +156,11 @@ const SubscriptionsPage = () => {
 
                 {/* ── Feed ──────────────────────────────────── */}
                 <div className="subscriptions-page__feed">
-                    {blogs === null ? (
+                    {feedQuery.isLoading ? (
                         <Loader />
-                    ) : blogs.results.length ? (
+                    ) : blogs.length ? (
                         <>
-                            {blogs.results.map((blog, i) => (
+                            {blogs.map((blog, i) => (
                                 <AnimationWrapper
                                     key={blog.blog_id || blog._id}
                                     transition={{ duration: 0.4, delay: i * 0.04 }}
@@ -166,7 +178,11 @@ const SubscriptionsPage = () => {
                                     )}
                                 </AnimationWrapper>
                             ))}
-                            <LoadMoreDataBtn state={blogs} fetchDataFun={fetchFeed} />
+                            <LoadMoreDataBtn
+                                fetchNextPage={feedQuery.fetchNextPage}
+                                hasNextPage={feedQuery.hasNextPage}
+                                isFetchingNextPage={feedQuery.isFetchingNextPage}
+                            />
                         </>
                     ) : (
                         <div className="subscriptions-page__empty-feed">

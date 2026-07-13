@@ -25,7 +25,7 @@ import {
 import { createBlog, bulkDeleteBlogs } from '../controllers/blog.controller.js';
 
 // Text post-specific handlers
-import { createTextPost, votePoll, checkPollVote } from '../controllers/textpost.controller.js';
+import { createTextPost, votePoll, checkPollVote, getPollVoters } from '../controllers/textpost.controller.js';
 
 const router = Router();
 
@@ -58,5 +58,6 @@ router.post("/bulk-delete-blogs", verifyJWT, asyncHandler(bulkDeleteBlogs));
 // ── Protected — text post polls ─────────────────────────────────────
 router.post("/vote-poll", verifyJWT, asyncHandler(votePoll));
 router.post("/check-poll-vote", verifyJWT, asyncHandler(checkPollVote));
+router.post("/poll-voters", verifyJWT, asyncHandler(getPollVoters));
 
 export default router;

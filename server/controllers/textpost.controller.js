@@ -199,6 +199,35 @@ export const votePoll = (req, res) => {
                 new PollVote({ blog_id, user: user_id, option_index }).save()
             ])
             .then(([updated]) => {
+                // Create notification for poll creator (skip self-vote)
+                const authorId = post.author.toString();
+                if (authorId !== user_id) {
+                    Notification.findOne({ user: user_id, blog: post._id, type: "poll_vote" })
+                    .then(existing => {
+                        if (!existing) {
+                            new Notification({
+                                type: "poll_vote",
+                                blog: post._id,
+                                notification_for: post.author,
+                                user: user_id,
+                                option_index: option_index,
+                            }).save()
+                            .then(() => {
+                                // Emit real-time notification via socket
+                                const io = req.app.get('io');
+                                if (io) {
+                                    io.to(`user:${authorId}`).emit('new_notification', {
+                                        type: 'poll_vote',
+                                        blog_id,
+                                    });
+                                }
+                            })
+                            .catch(err => console.error('[PollVote] Notification error:', err.message));
+                        }
+                    })
+                    .catch(err => console.error('[PollVote] Notification lookup error:', err.message));
+                }
+
                 return res.status(200).json({ poll: updated.poll, voted_option: option_index });
             })
             .catch(err => res.status(500).json({ error: err.message }));
@@ -223,6 +252,43 @@ export const checkPollVote = (req, res) => {
             return res.status(200).json({ hasVoted: true, option_index: vote.option_index });
         }
         return res.status(200).json({ hasVoted: false });
+    })
+    .catch(err => res.status(500).json({ error: err.message }));
+};
+
+// Get poll voters (creator only)
+export const getPollVoters = (req, res) => {
+    const user_id = req.user;
+    const { blog_id } = req.body;
+
+    if (!blog_id) {
+        return res.status(400).json({ error: "blog_id is required" });
+    }
+
+    // Verify the requesting user is the poll creator
+    TextPost.findOne({ blog_id })
+    .then(post => {
+        if (!post) return res.status(404).json({ error: "Post not found" });
+        if (post.author.toString() !== user_id) {
+            return res.status(403).json({ error: "Only the poll creator can view voters" });
+        }
+        if (!post.poll || !post.poll.options || !post.poll.options.length) {
+            return res.status(400).json({ error: "This post has no poll" });
+        }
+
+        PollVote.find({ blog_id })
+        .populate("user", "personal_info.fullname personal_info.username personal_info.profile_img")
+        .sort({ createdAt: -1 })
+        .then(votes => {
+            const voters = votes.map(v => ({
+                user: v.user,
+                option_index: v.option_index,
+                option_text: post.poll.options[v.option_index]?.text || 'Unknown',
+                createdAt: v.createdAt,
+            }));
+            return res.status(200).json({ voters, poll: post.poll });
+        })
+        .catch(err => res.status(500).json({ error: err.message }));
     })
     .catch(err => res.status(500).json({ error: err.message }));
 };

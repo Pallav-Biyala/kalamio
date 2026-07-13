@@ -1,11 +1,12 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useState } from "react";
 import { BlogContext } from "../pages/blog.page";
 import { Link } from "react-router-dom";
 import { UserContext } from "../App";
 import toast from "react-hot-toast";
-import api from "../common/api";
 import Icon from "./Icon";
 import SaveModal from "./save-modal.component";
+import { useLikeStatus, useIsSaved } from "../hooks/queries";
+import { useLikeBlog } from "../hooks/mutations";
 
 
 const BlogInteraction = () => {
@@ -18,56 +19,25 @@ const BlogInteraction = () => {
                  personal_info: { username: author_username } 
             }
         },
-        setBlog, isLikedByUser, setLikedByUser, setCommentsWrapper } = useContext(BlogContext);
+        setCommentsWrapper } = useContext(BlogContext);
 
     let { userAuth: { username, access_token } } = useContext(UserContext);
 
-    const [isBookmarked, setIsBookmarked] = useState(false);
+    // TanStack Query hooks — cached + shared across all instances
+    const { data: isLikedByUser } = useLikeStatus(_id);
+    const { data: isBookmarked } = useIsSaved(blog_id);
+    const likeMutation = useLikeBlog(blog_id);
+
     const [showSaveModal, setShowSaveModal] = useState(false);
-
-    useEffect(() => {
-
-        if(access_token){
-            // make request to server to get liked information
-            api.post("/isliked-by-user", { _id })
-            .then(({ data: {result} }) => {
-                setLikedByUser(Boolean(result));
-            })
-            .catch(err => {
-            })
-
-            // check saved status (collections)
-            api.post("/collection/is-saved", { blog_id })
-            .then(({ data: { saved } }) => {
-                setIsBookmarked(saved);
-            })
-            .catch(err => {
-            })
-        }
-
-    }, [])
 
     const handleLike = () => {
         if(access_token){
-            // like the blog
-            setLikedByUser(preVal => !preVal);
-
-            const newLikes = !isLikedByUser ? total_likes + 1 : total_likes - 1;
-
-            setBlog({ ...blog, activity: { ...activity, total_likes: newLikes } })
-
-            api.post("/like-blog", { _id, isLikedByUser })
-            .catch(err => {
-            })
-
+            likeMutation.mutate({ _id, isLikedByUser });
         }
         else{
-            // user is not logged in and trying to like the blog
             toast.error("Please login to like this blog");
         }
     }
-
-
 
     const handleShare = async () => {
         try {
@@ -77,6 +47,11 @@ const BlogInteraction = () => {
             toast.error("Failed to copy link");
         }
     }
+
+    // Display like count — use optimistic count from mutation or original
+    const displayLikes = likeMutation.isPending
+        ? (isLikedByUser ? total_likes - 1 : total_likes + 1)
+        : total_likes;
 
     return (
         <>
@@ -92,7 +67,7 @@ const BlogInteraction = () => {
                     >
                         <Icon name="favorite" filled={isLikedByUser} className="text-[18px]" />
                     </button>
-                    <p className="text-base text-dark-grey">{total_likes}</p>
+                    <p className="text-base text-dark-grey">{displayLikes}</p>
 
 
                     <button 
@@ -149,12 +124,7 @@ const BlogInteraction = () => {
                 <SaveModal
                     blogId={blog_id}
                     isOpen={showSaveModal}
-                    onClose={() => {
-                        setShowSaveModal(false);
-                        api.post("/collection/is-saved", { blog_id })
-                            .then(({ data }) => setIsBookmarked(data.saved))
-                            .catch(() => {});
-                    }}
+                    onClose={() => setShowSaveModal(false)}
                 />
             )}
         </>

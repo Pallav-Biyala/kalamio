@@ -1,38 +1,32 @@
-import { useEffect, useState, useContext } from "react";
+import { useContext } from "react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import api from "../common/api";
+import { queryKeys } from "../common/queryKeys";
 import { UserContext } from "../App";
 import Avatar from "./Avatar";
 import FollowButton from "./follow-button.component";
+import { useBatchFollowStatus } from "../hooks/queries";
 
 const WhoToFollow = () => {
 
-    const [users, setUsers] = useState(null);
-    const [followStatus, setFollowStatus] = useState(null);
     const { userAuth: { username: currentUser, access_token } } = useContext(UserContext);
 
-    useEffect(() => {
-        api.post("/search-users", { query: "" })
-            .then(({ data }) => {
-                let filtered = data.users
-                    .filter(u => u.personal_info.username !== currentUser)
-                    .slice(0, 4);
-                setUsers(filtered);
-            })
-            .catch(() => setUsers([]));
-    }, [currentUser]);
+    // Fetch suggested users
+    const { data: users } = useQuery({
+        queryKey: queryKeys.users.suggestions(),
+        queryFn: async () => {
+            const { data } = await api.post("/search-users", { query: "" });
+            return data.users
+                .filter(u => u.personal_info.username !== currentUser)
+                .slice(0, 4);
+        },
+        staleTime: 10 * 60 * 1000,
+    });
 
-    // Batch-fetch follow status once users are loaded (single request instead of 8)
-    useEffect(() => {
-        if (!users?.length || !access_token) return;
-
-        const userIds = users.map(u => u._id).filter(Boolean);
-        if (!userIds.length) return;
-
-        api.post("/batch-follow-status", { user_ids: userIds })
-            .then(({ data }) => setFollowStatus(data))
-            .catch(() => {}); // Graceful fallback — FollowButtons will check individually
-    }, [users, access_token]);
+    // Batch follow status
+    const userIds = users?.map(u => u._id).filter(Boolean) || [];
+    const { data: followStatus } = useBatchFollowStatus(userIds);
 
     if (!users || users.length === 0) return null;
 
@@ -48,8 +42,8 @@ const WhoToFollow = () => {
             <div className="who-to-follow__list">
                 {users.map((user, i) => {
                     const { fullname, username, profile_img } = user.personal_info;
-                    const isFollowing = followStatus ? followStatus.following.includes(user._id) : null;
-                    const followsYou = followStatus ? followStatus.followers.includes(user._id) : null;
+                    const isFollowing = followStatus ? followStatus.following?.includes(user._id) : null;
+                    const followsYou = followStatus ? followStatus.followers?.includes(user._id) : null;
                     return (
                         <div key={i} className="who-to-follow__item">
                             <Link to={`/user/${username}`} className="who-to-follow__user">

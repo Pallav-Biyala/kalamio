@@ -9,19 +9,19 @@ import { useContext, useState, useEffect, useRef } from "react";
 import { UserContext } from "../App";
 import toast from "react-hot-toast";
 import api from "../common/api";
+import { useLikeStatus, usePollVoteStatus } from "../hooks/queries";
+import { useLikeBlog, useVotePoll } from "../hooks/mutations";
+import PollVotersModal from "./poll-voters-modal.component";
 
 const TextPostCard = ({ content, author, onEdit }) => {
 
     const navigate = useNavigate();
     const { _id, publishedAt, text_content, images, poll: initialPoll, activity: { total_likes, total_comments }, blog_id: id, edited, publication } = content;
     const { fullname, profile_img, username } = author;
-    const { userAuth: { access_token } } = useContext(UserContext);
+    const { userAuth: { access_token, username: loggedInUsername } } = useContext(UserContext);
 
-    const [isLiked, setIsLiked] = useState(false);
-    const [likesCount, setLikesCount] = useState(total_likes);
-    const [poll, setPoll] = useState(initialPoll);
-    const [hasVoted, setHasVoted] = useState(false);
-    const [selectedOption, setSelectedOption] = useState(null);
+    const isCreator = loggedInUsername === username;
+    const [showVotersModal, setShowVotersModal] = useState(false);
 
     const [isExpanded, setIsExpanded] = useState(false);
     const [needsTruncation, setNeedsTruncation] = useState(false);
@@ -30,42 +30,35 @@ const TextPostCard = ({ content, author, onEdit }) => {
     const [showSaveModal, setShowSaveModal] = useState(false);
     const textRef = useRef(null);
 
-    useEffect(() => {
-        if (textRef.current) {
-            // If the element's scroll height is greater than its visible height, it means the content is clamped
-            if (textRef.current.scrollHeight > textRef.current.clientHeight) {
-                setNeedsTruncation(true);
-            }
-        }
-    }, [text_content, isExpanded]);
+    // TanStack Query — like status + mutation
+    const { data: isLiked = false } = useLikeStatus(_id);
+    const likeMutation = useLikeBlog(id);
 
+    const [likesCount, setLikesCount] = useState(total_likes);
 
-
+    // Sync from server when prop changes (feed refetch / tab switch)
     useEffect(() => {
         setLikesCount(total_likes);
     }, [total_likes]);
 
     useEffect(() => {
-        if (access_token) {
-            api.post("/isliked-by-user", { _id })
-            .then(({ data: { result } }) => {
-                setIsLiked(Boolean(result));
-            })
-            .catch(() => {});
+        setCommentsCount(total_comments);
+    }, [total_comments]);
 
-            // Check if user already voted on this poll
-            if (initialPoll && initialPoll.options && initialPoll.options.length > 0) {
-                api.post("/check-poll-vote", { blog_id: id })
-                .then(({ data }) => {
-                    if (data.hasVoted) {
-                        setHasVoted(true);
-                        setSelectedOption(data.option_index);
-                    }
-                })
-                .catch(() => {});
+    // TanStack Query — poll vote status
+    const { data: voteData } = usePollVoteStatus(id);
+    const voteMutation = useVotePoll();
+    const [poll, setPoll] = useState(initialPoll);
+    const hasVoted = voteData?.hasVoted || false;
+    const selectedOption = voteData?.option_index ?? null;
+
+    useEffect(() => {
+        if (textRef.current) {
+            if (textRef.current.scrollHeight > textRef.current.clientHeight) {
+                setNeedsTruncation(true);
             }
         }
-    }, [access_token, _id]);
+    }, [text_content, isExpanded]);
 
     const formatCount = (n) => {
         if (n >= 1000) return (n / 1000).toFixed(1) + "K";
@@ -75,10 +68,8 @@ const TextPostCard = ({ content, author, onEdit }) => {
     const handleLike = (e) => {
         e.preventDefault();
         if (access_token) {
-            setIsLiked(prev => !prev);
-            setLikesCount(prev => !isLiked ? prev + 1 : prev - 1);
-            api.post("/like-blog", { _id, isLikedByUser: isLiked })
-            .catch(() => {});
+            setLikesCount(prev => isLiked ? prev - 1 : prev + 1);
+            likeMutation.mutate({ _id, isLikedByUser: isLiked });
         } else {
             toast.error("Please login to like this post");
         }
@@ -90,10 +81,7 @@ const TextPostCard = ({ content, author, onEdit }) => {
             return;
         }
 
-        setSelectedOption(optionIndex);
-        setHasVoted(true);
-
-        // Optimistic update
+        // Optimistic update for poll UI
         setPoll(prev => {
             const updated = { ...prev };
             updated.options = prev.options.map((opt, i) => ({
@@ -104,17 +92,18 @@ const TextPostCard = ({ content, author, onEdit }) => {
             return updated;
         });
 
-        api.post("/vote-poll", { blog_id: id, option_index: optionIndex })
-        .then(({ data }) => {
-            setPoll(data.poll);
-        })
-        .catch(() => {
-            toast.error("Vote failed");
-            // Revert optimistic update
-            setPoll(initialPoll);
-            setHasVoted(false);
-            setSelectedOption(null);
-        });
+        voteMutation.mutate(
+            { blogId: id, optionIndex },
+            {
+                onSuccess: (data) => {
+                    if (data?.poll) setPoll(data.poll);
+                },
+                onError: () => {
+                    toast.error("Vote failed");
+                    setPoll(initialPoll);
+                },
+            }
+        );
     };
 
     // Render text with line breaks preserved
@@ -244,10 +233,31 @@ const TextPostCard = ({ content, author, onEdit }) => {
                     </div>
 
                     <div className="feed-card__text-post-poll-footer">
-                        <Icon name="people_outline" className="text-sm" />
-                        <span>{poll.total_votes || 0} vote{(poll.total_votes || 0) !== 1 ? 's' : ''}</span>
+                        <div className="flex items-center gap-1">
+                            <Icon name="people_outline" className="text-sm" />
+                            <span>{poll.total_votes || 0} vote{(poll.total_votes || 0) !== 1 ? 's' : ''}</span>
+                        </div>
+                        {isCreator && (poll.total_votes || 0) > 0 && (
+                            <button
+                                className="poll-voters-btn"
+                                onClick={(e) => { e.stopPropagation(); setShowVotersModal(true); }}
+                            >
+                                <Icon name="visibility" className="text-sm" />
+                                See voters
+                            </button>
+                        )}
                     </div>
                 </div>
+            )}
+
+            {/* Poll Voters Modal */}
+            {showVotersModal && (
+                <PollVotersModal
+                    blogId={id}
+                    poll={poll}
+                    isOpen={showVotersModal}
+                    onClose={() => setShowVotersModal(false)}
+                />
             )}
 
             {/* Actions */}

@@ -1,12 +1,10 @@
-import api from "../common/api";
 import usePageTitle from "../common/usePageTitle";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import AnimationWrapper from "../common/page-animation";
 import Loader from "../components/loader.component";
 import { UserContext } from "../App";
 import AboutUser from "../components/about.component";
-import { filterPaginationData } from "../common/filter-pagination-data";
 import BlogPostCard from "../components/blog-post.component";
 import TextPostCard from "../components/text-post-card.component";
 import NoDataMessage from "../components/nodata.component";
@@ -16,10 +14,11 @@ import PageNotFound from "./404.page";
 import Icon from "../components/Icon";
 import Avatar from "../components/Avatar";
 import FollowButton from "../components/follow-button.component";
-
 import SubscribeButton from "../components/subscribe-button.component";
 import toast from "react-hot-toast";
 import NetworkError from "../components/network-error.component";
+import { useUserProfile, useUserBlogs, useUserPublications, useUserCollections, useFollowsBack, useBlockStatus } from "../hooks/queries";
+import { useBlockAction } from "../hooks/mutations";
 
 export const profileDataStructure = {
     personal_info: {
@@ -46,129 +45,53 @@ const ProfilePage = () => {
 
     const navigate = useNavigate();
 
-    let [ profile, setProfile ] = useState(profileDataStructure);
-    let [ loading, setLoading ] = useState(true);
-    let [ blogs, setBlogs ] = useState(null);
-    let [ profileLoaded, setProfileLoaded ] = useState("");
-    let [ followsYou, setFollowsYou ] = useState(false);
-    let [ publications, setPublications ] = useState(null);
-    let [ isBlocked, setIsBlocked ] = useState(false);
-    let [ profileCollections, setProfileCollections ] = useState([]);
-    let [ fetchError, setFetchError ] = useState(false);
+    // ── Query hooks ─────────────────────────────────────────────
+    const profileQuery = useUserProfile(profileId);
+    const profile = profileQuery.data || profileDataStructure;
 
     let { 
         personal_info: { fullname, username: profile_username, profile_img, bio }, 
         account_info: { total_posts, total_reads, total_followers, total_following },
         social_links, joinedAt, _id: profileUserId
-        } = profile;
+    } = profile;
+
+    // User's blogs (infinite query)
+    const blogsQuery = useUserBlogs({ userId: profileUserId });
+
+    // User's publications
+    const { data: publications } = useUserPublications(profileUserId);
+
+    // User's public collections
+    const { data: profileCollections = [] } = useUserCollections(profile?.personal_info?.username);
+
+    // Social status checks
+    const { data: followsYou } = useFollowsBack(profileUserId);
+    const { data: blockData } = useBlockStatus(profileUserId);
+    const isBlocked = blockData?.is_blocked && blockData?.direction === 'blocker';
+
+    // Block mutation
+    const blockMutation = useBlockAction();
 
     usePageTitle(profile_username ? `@${profile_username}` : 'Profile');
 
-
-
-    const fetchUserProfile = () => {
-        api.post("/get-profile", {username: profileId})
-        .then(({ data: user }) => {
-            if(user != null){
-                setProfile(user);
-
-                // Check if this user follows you back (for badge)
-                if(access_token && user._id !== username){
-                    api.post("/is-following-back", { user_id: user._id })
-                    .then(({ data: followData }) => setFollowsYou(followData.is_following_back))
-                    .catch(() => {});
-
-                    api.post("/is-blocked", { user_id: user._id })
-                    .then(({ data: blockData }) => setIsBlocked(blockData.is_blocked && blockData.direction === 'blocker'))
-                    .catch(() => {});
-                }
-            }
-            setProfileLoaded(profileId);
-            getBlogs({ user_id: user._id });
-            fetchPublications(user._id);
-            // Fetch user's public collections (or all if own profile)
-            api.post("/collection/user-collections", { username: user.personal_info.username })
-                .then(({ data: colData }) => setProfileCollections(colData.collections))
-                .catch(() => {});
-            setLoading(false);
-        })
-        .catch(err => {
-            setFetchError(true);
-            setLoading(false);
-        })
-
-    }
-
-    const getBlogs = ({ page = 1, user_id }) => {
-
-        user_id = user_id == undefined ? blogs.user_id : user_id;
-
-        api.post("/search-blogs", {
-            author: user_id,
-            page
-        })
-        .then(async ({ data }) => {
-
-            let formatedData = await filterPaginationData({
-                state: blogs,
-                data: data.blogs,
-                page,
-                countRoute: "/search-blogs-count",
-                data_to_send: { author: user_id }
-            })
-
-            formatedData.user_id = user_id;
-
-            setBlogs(formatedData);
-
-        })
-
-    }
-
-    useEffect(() => {
-
-        if(profileId != profileLoaded){
-            setBlogs(null);
-        }
-        if(blogs == null){
-            resetState();
-            fetchUserProfile();
-        }
-
-    }, [profileId, blogs])
-
-    const resetState = () => {
-        setProfile(profileDataStructure);
-        setLoading(true);
-        setProfileLoaded("");
-        setFollowsYou(false);
-        setPublications(null);
-    }
-
-    const fetchPublications = (userId) => {
-        api.post("/user-publications", { user_id: userId })
-        .then(({ data }) => setPublications(data.publications))
-        .catch(() => setPublications([]));
-    };
-
     // Track follower count locally for instant UI update
-    const [localFollowers, setLocalFollowers] = useState(null);
-    useEffect(() => {
-        setLocalFollowers(total_followers);
-    }, [total_followers]);
+    const [localFollowerDelta, setLocalFollowerDelta] = useState(0);
 
     const handleFollowChange = (isNowFollowing) => {
-        setLocalFollowers(prev => prev + (isNowFollowing ? 1 : -1));
+        setLocalFollowerDelta(prev => prev + (isNowFollowing ? 1 : -1));
     };
 
-    const displayFollowers = localFollowers ?? total_followers;
+    const displayFollowers = total_followers + localFollowerDelta;
+
+    // Flatten infinite query blogs
+    const blogs = blogsQuery.data?.blogs || [];
 
     return (
       <AnimationWrapper>
-        {loading ? (
+        {profileQuery.isLoading ? (
           <Loader />
-        ) : fetchError ? (
-          <NetworkError onRetry={() => { setFetchError(false); setLoading(true); fetchUserProfile(); }} />
+        ) : profileQuery.isError ? (
+          <NetworkError onRetry={() => profileQuery.refetch()} />
         ) : (
             profile_username.length ? 
                 <section className="h-cover lg:flex flex-row-reverse items-start gap-5 min-[1100px]:gap-12 max-lg:pt-0">
@@ -248,14 +171,10 @@ const ProfilePage = () => {
                                 className={isBlocked ? "profile-block-btn profile-block-btn--active" : "profile-block-btn"}
                                 onClick={() => {
                                     if (isBlocked) {
-                                        api.post("/unblock-user", { user_id: profileUserId })
-                                        .then(() => { setIsBlocked(false); toast.success("User unblocked"); })
-                                        .catch(() => toast.error("Failed to unblock"));
+                                        blockMutation.mutate({ userId: profileUserId, action: 'unblock' });
                                     } else {
                                         if (!window.confirm(`Block @${profile_username}? They won't be able to follow you or send messages.`)) return;
-                                        api.post("/block-user", { user_id: profileUserId })
-                                        .then(() => { setIsBlocked(true); toast.success("User blocked"); })
-                                        .catch(() => toast.error("Failed to block"));
+                                        blockMutation.mutate({ userId: profileUserId, action: 'block' });
                                     }
                                 }}
                                 title={isBlocked ? "Unblock user" : "Block user"}
@@ -282,13 +201,13 @@ const ProfilePage = () => {
                     >
 
                         <>
-                        {blogs == null ? (
+                        {blogsQuery.isLoading ? (
                             <Loader />
-                        ) : blogs.results.length ? (
-                            blogs.results.map((blog, i) => {
+                        ) : blogs.length ? (
+                            blogs.map((blog, i) => {
                             return (
                                 <AnimationWrapper
-                                key={i}
+                                key={blog.blog_id || i}
                                 transition={{ duration: 0.4, delay: i * 0.05 }}
                                 >
                                 {blog.type === 'text_post' ? (
@@ -309,8 +228,9 @@ const ProfilePage = () => {
                             <NoDataMessage message="No posts published" />
                         )}
                         <LoadMoreDataBtn
-                            state={blogs}
-                            fetchDataFun={getBlogs}
+                            fetchNextPage={blogsQuery.fetchNextPage}
+                            hasNextPage={blogsQuery.hasNextPage}
+                            isFetchingNextPage={blogsQuery.isFetchingNextPage}
                         />
                         </>
 

@@ -1,107 +1,41 @@
-import api from "../common/api";
 import usePageTitle from "../common/usePageTitle";
-import { useContext, useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { UserContext } from "../App";
-import { filterPaginationData } from "../common/filter-pagination-data";
 import Loader from "../components/loader.component";
 import AnimationWrapper from "../common/page-animation";
 import NoDataMessage from "../components/nodata.component";
 import NotificationCard from "../components/notification-card.component";
 import LoadMoreDataBtn from "../components/load-more.component";
 import Icon from "../components/Icon";
-import toast from "react-hot-toast";
+import { useNotifications } from "../hooks/queries";
+import { useDeleteNotification, useMarkNotificationsRead } from "../hooks/mutations";
 
 const Notifications = () => {
 
     usePageTitle('Notifications');
 
-    let { userAuth, userAuth: { access_token, new_notification_avilable }, setUserAuth } = useContext(UserContext);
-
     const [ filter, setFilter ] = useState('all');
-    const [ notifications, setNotifications ] = useState(null);
 
-    let filters = ['all', 'like', 'comment', 'reply', 'follow', 'connect_request', 'subscribe', 'mention'];
+    let filters = ['all', 'like', 'comment', 'reply', 'follow', 'connect_request', 'subscribe', 'mention', 'poll_vote'];
 
-    const fetchNotifications = ({ page, deletedDocCount=0 }) => {
-        
-        api.post("/notifications", { page, filter, deletedDocCount })
-        .then(async ({ data: { notifications: data } }) => {
+    // TanStack Query hooks
+    const notificationsQuery = useNotifications(filter);
+    const notifications = notificationsQuery.data?.notifications || [];
 
-            if(new_notification_avilable){
-                setUserAuth({ ...userAuth, new_notification_avilable: false })
-            }
-
-            let formatedData = await filterPaginationData({
-                state: notifications,
-                data, page,
-                countRoute: "/all-notifications-count",
-                data_to_send: { filter },
-                user: access_token
-            })
-
-            setNotifications(formatedData)
-
-        })
-        .catch(err => {
-        })
-
-    }
-
-    useEffect(() => {
-
-        if(access_token){
-            fetchNotifications({ page: 1 });
-        }
-
-    }, [access_token, filter])
+    const deleteNotification = useDeleteNotification();
+    const markAllRead = useMarkNotificationsRead();
 
     const handleFilter = (e) => {
         let btn = e.target;
         setFilter(btn.innerHTML);
-
-        setNotifications(null);
     }
 
     const handleMarkAllRead = () => {
-        api.post("/mark-all-notifications-read")
-        .then(({ data }) => {
-            if (data.modified_count > 0) {
-                toast.success(`Marked ${data.modified_count} notifications as read`);
-                // Update local state — set all notifications as seen
-                setNotifications(prev => {
-                    if (!prev) return prev;
-                    return {
-                        ...prev,
-                        results: prev.results.map(n => ({ ...n, seen: true }))
-                    };
-                });
-                setUserAuth({ ...userAuth, new_notification_avilable: false });
-            } else {
-                toast.success("All caught up!");
-            }
-        })
-        .catch(() => {
-            toast.error("Failed to mark notifications as read");
-        });
+        markAllRead.mutate();
     };
 
     const handleDeleteNotification = (notificationId) => {
-        api.post("/delete-notification", { _id: notificationId })
-        .then(() => {
-            setNotifications(prev => {
-                if (!prev) return prev;
-                const newResults = prev.results.filter(n => n._id !== notificationId);
-                return {
-                    ...prev,
-                    results: newResults,
-                    totalDocs: prev.totalDocs - 1
-                };
-            });
-        })
-        .catch(() => {
-            toast.error("Failed to delete notification");
-        });
+        deleteNotification.mutate({ _id: notificationId, filter });
     };
 
     return(
@@ -113,6 +47,7 @@ const Notifications = () => {
                     <button
                         onClick={handleMarkAllRead}
                         className="btn-light text-sm py-2 px-4 flex items-center gap-1.5"
+                        disabled={markAllRead.isPending}
                     >
                         <Icon name="done_all" className="text-[18px]" />
                         <span className="hidden sm:inline">Mark All Read</span>
@@ -140,16 +75,15 @@ const Notifications = () => {
             </div>
 
             {
-                notifications == null ? <Loader /> : 
+                notificationsQuery.isLoading ? <Loader /> : 
                 <>
                     {
-                        notifications.results.length ? 
-                            notifications.results.map((notification, i) => {
+                        notifications.length ? 
+                            notifications.map((notification, i) => {
                                 return <AnimationWrapper key={notification._id || i} transition={{ delay: i*0.08 }}>
                                     <NotificationCard
                                         data={notification}
                                         index={i}
-                                        notificationState={{ notifications, setNotifications }}
                                         onDelete={handleDeleteNotification}
                                     />
                                 </AnimationWrapper>
@@ -157,7 +91,11 @@ const Notifications = () => {
                         : <NoDataMessage message="Nothing available" />
                     }
 
-                    <LoadMoreDataBtn state={notifications} fetchDataFun={fetchNotifications} additionalParam={{ deletedDocCount: notifications.deletedDocCount }} />
+                    <LoadMoreDataBtn
+                        fetchNextPage={notificationsQuery.fetchNextPage}
+                        hasNextPage={notificationsQuery.hasNextPage}
+                        isFetchingNextPage={notificationsQuery.isFetchingNextPage}
+                    />
                 </>
             }
 

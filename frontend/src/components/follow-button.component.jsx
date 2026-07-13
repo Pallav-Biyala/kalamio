@@ -1,59 +1,33 @@
-import { useContext, useState, useEffect } from "react";
+import { useContext } from "react";
 import { UserContext } from "../App";
-import api from "../common/api";
 import { useNavigate } from "react-router-dom";
+import Icon from "./Icon";
+import { useFollowStatus, useFollowsBack } from "../hooks/queries";
+import { useFollowUser } from "../hooks/mutations";
 
 /**
- * FollowButton — handles follow/unfollow toggle with optimistic UI.
- * 
- * Props:
- *   targetUserId  — the _id of the user to follow/unfollow
- *   initiallyFollowing — optional boolean if already known
- *   onFollowChange — optional callback(isFollowing) after state changes
- *   size — "sm" | "md" (default "md")
- *   className — additional CSS classes
+ * FollowButton — handles follow/unfollow with TanStack Query.
+ * Multiple instances for the same user share cached status (single API call).
  */
-const FollowButton = ({ targetUserId, initiallyFollowing = null, initialFollowsYou = null, onFollowChange, size = "md", className = "" }) => {
+const FollowButton = ({ targetUserId, initiallyFollowing = undefined, initiallyFollowsYou = undefined, onFollowChange, size = "md", className = "" }) => {
 
     const { userAuth: { access_token, _id: currentUserId } } = useContext(UserContext);
     const navigate = useNavigate();
 
-    const [isFollowing, setIsFollowing] = useState(initiallyFollowing);
-    const [loading, setLoading] = useState(false);
-    const [followsYou, setFollowsYou] = useState(initialFollowsYou ?? false);
+    // Query hooks — these deduplicate across all FollowButton instances
+    const { data: isFollowing, isLoading: statusLoading } = useFollowStatus(targetUserId, initiallyFollowing);
+    const { data: followsYou } = useFollowsBack(targetUserId, initiallyFollowsYou);
 
-    // Don't render if viewing own profile
-    if (currentUserId === targetUserId) return null;
+    // Mutation
+    const followMutation = useFollowUser();
 
-    // Sync state when parent provides batch data after initial render
-    useEffect(() => {
-        if (initiallyFollowing !== null) setIsFollowing(initiallyFollowing);
-    }, [initiallyFollowing]);
+    // Don't render for own profile or if no target
+    if (!targetUserId || currentUserId === targetUserId) return null;
 
-    useEffect(() => {
-        if (initialFollowsYou !== null) setFollowsYou(initialFollowsYou);
-    }, [initialFollowsYou]);
+    // Don't render until we know the state
+    if (isFollowing === undefined && statusLoading) return null;
 
-    // Fetch initial follow state only if parent didn't provide it
-    useEffect(() => {
-        if (!access_token || !targetUserId) return;
-
-        // Check if current user follows the target
-        if (initiallyFollowing === null) {
-            api.post("/is-following", { user_id: targetUserId })
-                .then(({ data }) => setIsFollowing(data.following))
-                .catch(() => setIsFollowing(false));
-        }
-
-        // Check if target user follows the current user (skip if parent provided the data)
-        if (initialFollowsYou === null) {
-            api.post("/is-following-back", { user_id: targetUserId })
-                .then(({ data }) => setFollowsYou(data.follows_you))
-                .catch(() => setFollowsYou(false));
-        }
-    }, [targetUserId, access_token]);
-
-    const handleClick = async (e) => {
+    const handleClick = (e) => {
         e.preventDefault();
         e.stopPropagation();
 
@@ -62,48 +36,41 @@ const FollowButton = ({ targetUserId, initiallyFollowing = null, initialFollowsY
             return;
         }
 
-        if (loading) return;
+        if (followMutation.isPending) return;
 
-        setLoading(true);
-
-        // Optimistic update
-        const newState = !isFollowing;
-        setIsFollowing(newState);
-
-        try {
-            const endpoint = newState ? "/follow" : "/unfollow";
-            await api.post(endpoint, { user_id: targetUserId });
-            onFollowChange?.(newState);
-        } catch (err) {
-            // Revert on failure
-            setIsFollowing(!newState);
-        } finally {
-            setLoading(false);
-        }
+        const action = isFollowing ? 'unfollow' : 'follow';
+        followMutation.mutate(
+            { userId: targetUserId, action },
+            {
+                onSuccess: () => {
+                    onFollowChange?.(!isFollowing);
+                }
+            }
+        );
     };
 
-    // Don't render until we know the state
-    if (isFollowing === null) return null;
+    const sizeClasses = size === "sm" ? "follow-btn--sm" : "follow-btn--md";
 
-    const sizeClasses = size === "sm" 
-        ? "follow-btn--sm" 
-        : "follow-btn--md";
-
-    const stateClass = isFollowing 
+    const stateClass = isFollowing
         ? "follow-btn--following"
+        : followsYou
+        ? "follow-btn--follow-back"
         : "follow-btn--follow";
 
-    const label = isFollowing 
-        ? "Following" 
-        : (followsYou ? "Follow Back" : "Follow");
+    const label = isFollowing
+        ? "Following"
+        : followsYou
+        ? "Follow Back"
+        : "Follow";
 
     return (
         <button
             className={`follow-btn ${sizeClasses} ${stateClass} ${className}`}
             onClick={handleClick}
-            disabled={loading}
+            disabled={followMutation.isPending}
             aria-label={label}
         >
+            {!isFollowing && <Icon name={followsYou ? "person_add" : "add"} className="follow-btn__icon" />}
             {label}
         </button>
     );

@@ -2,8 +2,8 @@ import { Link } from "react-router-dom";
 import { getDay } from "../common/date";
 import { useContext, useState } from "react";
 import { UserContext } from "../App";
-import api from "../common/api";
 import Icon from "./Icon";
+import { useDeleteBlog } from "../hooks/mutations";
 
 const BlogStats = ({ stats }) => {
     return (
@@ -26,9 +26,10 @@ export const ManagePublishedBlogsCard = ({ blog, isSelected, onToggleSelect }) =
     let { banner, blog_id, title, publishedAt, activity, type, text_content } = blog;
     const isTextPost = type === 'text_post';
 
-    let { userAuth: { access_token } } = useContext(UserContext);
-
     let [ showStat, setShowStat ] = useState(false);
+
+    // TanStack Query mutation — invalidates blogs.all on success
+    const deleteMutation = useDeleteBlog();
 
     const displayTitle = isTextPost
         ? (text_content ? text_content.substring(0, 80) + (text_content.length > 80 ? '...' : '') : 'Text Post')
@@ -78,10 +79,11 @@ export const ManagePublishedBlogsCard = ({ blog, isSelected, onToggleSelect }) =
 
                         <button 
                             className="text-red hover:text-red/80 transition-colors flex items-center gap-1 text-sm font-medium" 
-                            onClick={(e) => deleteBlog(blog, access_token, e.target)}
+                            onClick={() => deleteMutation.mutate({ blog_id })}
+                            disabled={deleteMutation.isPending}
                         >
                             <Icon name="delete" className="text-xl" />
-                            Delete
+                            {deleteMutation.isPending ? "Deleting..." : "Delete"}
                         </button>
 
                     </div>
@@ -107,7 +109,7 @@ export const ManageDraftBlogPost = ({ blog }) => {
     let { title, des, blog_id, index, type, text_content } = blog;
     const isTextPost = type === 'text_post';
 
-    let { userAuth: { access_token } } = useContext(UserContext);
+    const deleteMutation = useDeleteBlog();
 
     const displayTitle = isTextPost
         ? (text_content ? text_content.substring(0, 80) + (text_content.length > 80 ? '...' : '') : 'Text Post')
@@ -138,10 +140,11 @@ export const ManageDraftBlogPost = ({ blog }) => {
 
                     <button 
                         className="text-red hover:text-red/80 transition-colors flex items-center gap-1 text-sm font-medium" 
-                        onClick={(e) => deleteBlog(blog, access_token, e.target)}
+                        onClick={() => deleteMutation.mutate({ blog_id })}
+                        disabled={deleteMutation.isPending}
                     >
                         <Icon name="delete" className="text-xl" />
-                        Delete
+                        {deleteMutation.isPending ? "Deleting..." : "Delete"}
                     </button>
 
                 </div>
@@ -149,40 +152,4 @@ export const ManageDraftBlogPost = ({ blog }) => {
             </div>
         </div>
     )
-}
-
-const deleteBlog = (blog, access_token, target) => {
-
-    let { index, blog_id, setStateFun } = blog;
-
-    target.setAttribute("disabled", true);
-
-    api.post("/delete-blog", { blog_id })
-    .then(({ data }) => {
-
-        target.removeAttribute("disabled");
-
-        setStateFun(preVal => {
-
-            let { deletedDocCount, totalDocs, results } = preVal;
-
-            results.splice(index, 1);
-
-            if(!deletedDocCount){
-                deletedDocCount = 0;
-            }
-
-            if(!results.length &&  totalDocs - 1 > 0){
-                return null
-            }
-
-            return { ...preVal, totalDocs: totalDocs - 1, deletedDocCount: deletedDocCount + 1 }
-
-        })
-
-    })
-    .catch(err => {
-        target.removeAttribute("disabled");
-    })
-
 }

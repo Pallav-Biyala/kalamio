@@ -3,7 +3,7 @@ import mongoose, { Schema } from "mongoose";
 const notificationSchema = mongoose.Schema({
     type: {
         type: String,
-        enum: ["like", "comment", "reply", "follow", "subscribe", "connect_request", "connect_accepted", "mention", "share", "comment_like"],
+        enum: ["like", "comment", "reply", "follow", "subscribe", "connect_request", "connect_accepted", "mention", "share", "comment_like", "poll_vote"],
         required: true
     },
     blog: {
@@ -32,6 +32,9 @@ const notificationSchema = mongoose.Schema({
     replied_on_comment:{
         type: Schema.Types.ObjectId,
         ref: 'comments'
+    },
+    option_index: {
+        type: Number,
     },
     seen: {
         type: Boolean,

@@ -2,14 +2,16 @@ import { useContext, useState } from "react";
 import toast from "react-hot-toast";
 import { UserContext } from "../App";
 import api from "../common/api";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../common/queryKeys";
 
-const NotificationCommentField = ({ _id, blog_author, index=undefined, replyingTo=undefined, setReplying, notification_id, notificationData }) => {
+const NotificationCommentField = ({ _id, blog_author, index=undefined, replyingTo=undefined, setReplying, notification_id }) => {
 
     let [ comment, setComment ] = useState('');
 
     let { _id: user_id } = blog_author;
     let { userAuth: { access_token }} = useContext(UserContext);
-    let { notifications, notifications: { results }, setNotifications } = notificationData;
+    const queryClient = useQueryClient();
 
     const handleComment = () => {
 
@@ -23,9 +25,8 @@ const NotificationCommentField = ({ _id, blog_author, index=undefined, replyingT
         .then(({ data }) => {
             
             setReplying(false);
-
-            results[index].reply = { comment, _id: data._id }
-            setNotifications({ ...notifications, results })
+            // Invalidate notifications so the reply shows up
+            queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all() });
 
         })
         .catch(err => {

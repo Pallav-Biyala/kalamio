@@ -6,10 +6,13 @@ import { BlogContext } from "../pages/blog.page";
 import { getDay } from "../common/date";
 import Avatar from "./Avatar";
 import Icon from "./Icon";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../common/queryKeys";
 
 const CommentField = ({ action, index = undefined, replyingTo = undefined, setReplying, defaultOpen = false, onClose, customBlogData, onCommentPosted }) => {
 
     let blogContext = useContext(BlogContext);
+    const queryClient = useQueryClient();
     
     // Fallback to custom data if used outside of blog details (e.g. in feed)
     let blogData = customBlogData || (blogContext ? blogContext.blog : null);
@@ -188,6 +191,8 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
                 }
             }
 
+            // Invalidate feed queries so count syncs across tabs
+            queryClient.invalidateQueries({ queryKey: queryKeys.blogs.all() });
         })
         .catch(err => {
             toast.error(err.message || "Failed to post comment");

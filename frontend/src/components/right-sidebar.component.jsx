@@ -1,37 +1,19 @@
-import { useContext, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import api from "../common/api";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Icon from "./Icon";
 import AnimationWrapper from "../common/page-animation";
 import Loader from "./loader.component";
 import NoDataMessage from "./nodata.component";
 import MinimalBlogPost from "./nobanner-blog-post.component";
 import WhoToFollow from "./who-to-follow.component";
-import { UserContext } from "../App";
+import { useTrendingBlogs } from "../hooks/queries";
 
-const RightSidebar = ({ onTrendingClick, trendingBlogs: trendingBlogsProp }) => {
+const RightSidebar = ({ onTrendingClick }) => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [trendingBlogs, setTrendingBlogs] = useState(trendingBlogsProp ?? null);
   const navigate = useNavigate();
 
-  // Sync prop → state when parent provides data
-  useEffect(() => {
-    if (trendingBlogsProp != null) {
-      setTrendingBlogs(trendingBlogsProp);
-    }
-  }, [trendingBlogsProp]);
-
-  // Only fetch independently if no prop was provided (e.g. used outside HomePage)
-  useEffect(() => {
-    if (trendingBlogsProp != null) return; // parent already provides data
-    api.get("/trending-blogs")
-      .then(({ data }) => {
-        setTrendingBlogs(data.blogs);
-      })
-      .catch((err) => {
-        console.error("Failed to fetch trending blogs", err);
-      });
-  }, []);
+  // TanStack Query — shared cache across all RightSidebar instances + HomePage
+  const { data: trendingBlogs, isLoading } = useTrendingBlogs();
 
   const handleTrendingClick = () => {
     if (onTrendingClick) {
@@ -73,10 +55,10 @@ const RightSidebar = ({ onTrendingClick, trendingBlogs: trendingBlogsProp }) => 
         </div>
 
         <div className="home-sidebar__list">
-          {trendingBlogs == null ? (
+          {isLoading ? (
             <Loader />
           ) : (
-            trendingBlogs.length ?
+            trendingBlogs?.length ?
                 trendingBlogs.slice(0, 5).map((blog, i) => {
                 return (
                     <AnimationWrapper

@@ -8,7 +8,8 @@ import SaveModal from "./save-modal.component";
 import { useContext, useState, useEffect } from "react";
 import { UserContext } from "../App";
 import toast from "react-hot-toast";
-import api from "../common/api";
+import { useLikeStatus } from "../hooks/queries";
+import { useLikeBlog } from "../hooks/mutations";
 
 const BlogPostCard = ({ content, author }) => {
 
@@ -19,32 +20,24 @@ const BlogPostCard = ({ content, author }) => {
 
    let { userAuth: { access_token } } = useContext(UserContext);
 
-   const [isLiked, setIsLiked] = useState(false);
-   const [likesCount, setLikesCount] = useState(total_likes);
-   const [commentsCount, setCommentsCount] = useState(total_comments);
+   // TanStack Query — like status + mutation
+   const { data: isLiked = false } = useLikeStatus(_id);
+   const likeMutation = useLikeBlog(id);
+
    const [showCommentModal, setShowCommentModal] = useState(false);
    const [showSaveModal, setShowSaveModal] = useState(false);
+   const [commentsCount, setCommentsCount] = useState(total_comments);
 
+   const [likesCount, setLikesCount] = useState(total_likes);
+
+   // Sync from server when prop changes (feed refetch / tab switch)
    useEffect(() => {
        setLikesCount(total_likes);
    }, [total_likes]);
 
-
-
    useEffect(() => {
        setCommentsCount(total_comments);
    }, [total_comments]);
-
-   useEffect(() => {
-        if(access_token){
-            api.post("/isliked-by-user", { _id })
-            .then(({ data: {result} }) => {
-                setIsLiked(Boolean(result));
-            })
-            .catch(err => {
-            })
-        }
-   }, [access_token, _id])
 
    const displayReadTime = readTime || 1;
 
@@ -56,13 +49,8 @@ const BlogPostCard = ({ content, author }) => {
    const handleLike = (e) => {
        e.preventDefault();
        if(access_token){
-           setIsLiked(preVal => !preVal);
-           setLikesCount(preVal => !isLiked ? preVal + 1 : preVal - 1);
-
-           api.post("/like-blog", { _id, isLikedByUser: isLiked })
-           .catch(err => {
-               // silently fail or revert
-           })
+           setLikesCount(prev => isLiked ? prev - 1 : prev + 1);
+           likeMutation.mutate({ _id, isLikedByUser: isLiked });
        }
        else{
            toast.error("Please login to like this blog");

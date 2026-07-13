@@ -1,8 +1,10 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { UserContext } from "../App";
 import { BlogContext } from "./blog.page";
 import api from "../common/api";
+import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "../common/queryKeys";
 import { getDay, getFullDay } from "../common/date";
 import Loader from "../components/loader.component";
 import AnimationWrapper from "../common/page-animation";
@@ -19,18 +21,41 @@ const CommentThreadPage = () => {
     const navigate = useNavigate();
     let { userAuth: { access_token, username, profile_img, fullname } } = useContext(UserContext);
 
-    const [loading, setLoading] = useState(true);
-    const [parentComment, setParentComment] = useState(null);
-    const [ancestors, setAncestors] = useState([]);
-    const [blogContext, setBlogContext] = useState(null);
     const [replies, setReplies] = useState([]);
     const [totalRepliesLoaded, setTotalRepliesLoaded] = useState(0);
     const [totalParentCommentsLoaded, setTotalParentCommentsLoaded] = useState(0);
 
+    // TanStack Query for the thread + initial replies
+    const { data: threadData, isLoading } = useQuery({
+        queryKey: queryKeys.comments.thread(comment_id),
+        queryFn: async () => {
+            const { data: { comment, ancestors, blog_context } } = await api.post("/get-comment-thread", { comment_id });
+            const { data: { replies: fetchedReplies } } = await api.post("/get-replies", { _id: comment_id, skip: 0 });
+            fetchedReplies.forEach(r => { r.childrenLevel = 0; });
+            return { comment, ancestors: ancestors || [], blogContext: blog_context, initialReplies: fetchedReplies };
+        },
+        onSuccess: (data) => {
+            setReplies(data.initialReplies);
+            setTotalRepliesLoaded(data.initialReplies.length);
+            setTotalParentCommentsLoaded(data.initialReplies.length);
+        },
+    });
+
+    // Sync replies on first load (for TanStack Query v5 which doesn't have onSuccess)
+    if (threadData && replies.length === 0 && threadData.initialReplies.length > 0) {
+        setReplies(threadData.initialReplies);
+        setTotalRepliesLoaded(threadData.initialReplies.length);
+        setTotalParentCommentsLoaded(threadData.initialReplies.length);
+    }
+
+    const parentComment = threadData?.comment;
+    const ancestors = threadData?.ancestors || [];
+    const blogContext = threadData?.blogContext;
+
     const buildBlogObj = (blogCtx, repliesArr, comment) => {
         if (!blogCtx || !comment) return null;
         return {
-            _id: blogCtx._id, // Must be the real Post ID for correct DB updates
+            _id: blogCtx._id,
             title: comment.comment || '',
             text_content: comment.comment || '',
             type: 'text_post',
@@ -47,31 +72,6 @@ const CommentThreadPage = () => {
         };
     };
 
-    const fetchThread = () => {
-        setLoading(true);
-        api.post("/get-comment-thread", { comment_id })
-        .then(({ data: { comment, ancestors: ancestorArr, blog_context } }) => {
-            setParentComment(comment);
-            setAncestors(ancestorArr || []);
-            setBlogContext(blog_context);
-
-            api.post("/get-replies", { _id: comment_id, skip: 0 })
-            .then(({ data: { replies: fetchedReplies } }) => {
-                fetchedReplies.forEach(r => { r.childrenLevel = 0; });
-                setReplies(fetchedReplies);
-                setTotalRepliesLoaded(fetchedReplies.length);
-                setTotalParentCommentsLoaded(fetchedReplies.length);
-                setLoading(false);
-            })
-            .catch(() => setLoading(false));
-        })
-        .catch(() => setLoading(false));
-    };
-
-    useEffect(() => {
-        fetchThread();
-    }, [comment_id]);
-
     const loadMoreReplies = () => {
         api.post("/get-replies", { _id: comment_id, skip: totalRepliesLoaded })
         .then(({ data: { replies: moreReplies } }) => {
@@ -84,7 +84,7 @@ const CommentThreadPage = () => {
         .catch(() => {});
     };
 
-    if (loading) return <Loader />;
+    if (isLoading) return <Loader />;
     if (!parentComment || !blogContext) return <NoDataMessage message="Comment not found" />;
 
     const blogObj = buildBlogObj(blogContext, replies, parentComment);

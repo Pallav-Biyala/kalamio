@@ -1,12 +1,10 @@
-import { useContext, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import usePageTitle from "../common/usePageTitle";
-import { UserContext } from "../App";
-import api from "../common/api";
 import AnimationWrapper from "../common/page-animation";
 import Loader from "../components/loader.component";
 import Icon from "../components/Icon";
 import { getDay } from "../common/date";
+import { useAnalytics } from "../hooks/queries";
 
 const STAT_CARDS = [
     { key: "total_posts", label: "Posts", icon: "article", color: "--c-purple" },
@@ -27,121 +25,86 @@ const AnalyticsPage = () => {
 
     usePageTitle("Analytics");
 
-    const { userAuth: { access_token } } = useContext(UserContext);
-    const [overview, setOverview] = useState(null);
-    const [topPosts, setTopPosts] = useState(null);
-    const [growth, setGrowth] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const { data, isLoading } = useAnalytics();
 
-    useEffect(() => {
-        if (!access_token) return;
+    if (isLoading) return <Loader />;
 
-        Promise.all([
-            api.post("/analytics/overview"),
-            api.post("/analytics/top-posts"),
-            api.post("/analytics/follower-growth"),
-        ])
-        .then(([overviewRes, postsRes, growthRes]) => {
-            setOverview(overviewRes.data);
-            setTopPosts(postsRes.data.posts);
-            setGrowth(growthRes.data.growth);
-            setLoading(false);
-        })
-        .catch(() => setLoading(false));
-    }, [access_token]);
-
-    if (loading) return <Loader />;
-
+    const { overview, topPosts, growth } = data || {};
     const maxGrowth = growth?.length ? Math.max(...growth.map(g => g.count)) : 0;
 
     return (
         <AnimationWrapper>
             <div className="analytics">
 
-                <h1 className="max-md:hidden">Analytics</h1>
+                <h1 className="analytics__title">
+                    <Icon name="analytics" className="analytics__title-icon" />
+                    Analytics
+                </h1>
 
                 {/* Overview Cards */}
-                <div className="analytics__cards">
+                <div className="analytics__overview">
                     {STAT_CARDS.map(({ key, label, icon, color }) => (
-                        <div key={key} className="analytics__card">
-                            <div className="analytics__card-icon" style={{ background: `rgb(var(${color}) / 0.12)`, color: `rgb(var(${color}))` }}>
-                                <Icon name={icon} className="text-[22px]" filled />
+                        <div key={key} className="analytics__card" style={{ '--card-color': `rgb(var(${color}))` }}>
+                            <Icon name={icon} className="analytics__card-icon" />
+                            <div className="analytics__card-value">
+                                {(overview?.[key] ?? 0).toLocaleString()}
                             </div>
-                            <div className="analytics__card-data">
-                                <span className="analytics__card-value">
-                                    {(overview?.[key] ?? 0).toLocaleString()}
-                                </span>
-                                <span className="analytics__card-label">{label}</span>
-                            </div>
+                            <div className="analytics__card-label">{label}</div>
                         </div>
                     ))}
                 </div>
 
-                {/* Follower Growth */}
-                {growth && growth.length > 0 && (
+                {/* Top Posts */}
+                {topPosts?.length > 0 && (
                     <div className="analytics__section">
-                        <h2 className="analytics__section-title">Follower Growth (Last 6 Months)</h2>
-                        <div className="analytics__growth">
-                            {growth.map(({ month, count }) => (
-                                <div key={month} className="analytics__growth-bar-wrapper">
-                                    <span className="analytics__growth-count">{count}</span>
-                                    <div
-                                        className="analytics__growth-bar"
-                                        style={{ height: `${maxGrowth > 0 ? Math.max((count / maxGrowth) * 100, 8) : 8}%` }}
-                                    />
-                                    <span className="analytics__growth-label">{formatMonth(month)}</span>
-                                </div>
+                        <h2 className="analytics__section-title">
+                            <Icon name="trending_up" className="text-brand" />
+                            Top Posts
+                        </h2>
+                        <div className="analytics__top-posts">
+                            {topPosts.map((post, i) => (
+                                <Link
+                                    key={post.blog_id}
+                                    to={`/blog/${post.blog_id}`}
+                                    className="analytics__post-row"
+                                >
+                                    <span className="analytics__post-rank">#{i + 1}</span>
+                                    <div className="analytics__post-info">
+                                        <h3 className="analytics__post-title">{post.title}</h3>
+                                        <div className="analytics__post-meta">
+                                            <span><Icon name="visibility" className="text-xs" /> {post.total_reads}</span>
+                                            <span><Icon name="favorite" className="text-xs" /> {post.total_likes}</span>
+                                            <span><Icon name="chat_bubble" className="text-xs" /> {post.total_comments}</span>
+                                            <span>{getDay(post.publishedAt)}</span>
+                                        </div>
+                                    </div>
+                                </Link>
                             ))}
                         </div>
                     </div>
                 )}
 
-                {/* Top Posts */}
-                <div className="analytics__section">
-                    <h2 className="analytics__section-title">Top Performing Posts</h2>
-                    {topPosts && topPosts.length > 0 ? (
-                        <div className="analytics__table-wrap">
-                            <table className="analytics__table">
-                                <thead>
-                                    <tr>
-                                        <th className="text-left">Post</th>
-                                        <th>Published</th>
-                                        <th>Reads</th>
-                                        <th>Likes</th>
-                                        <th>Comments</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {topPosts.map((post) => {
-                                        const displayTitle = post.type === "text_post"
-                                            ? (post.text_content?.substring(0, 60) + (post.text_content?.length > 60 ? "..." : "")) || "Text Post"
-                                            : post.title;
-                                        return (
-                                            <tr key={post.blog_id}>
-                                                <td>
-                                                    <Link to={`/blog/${post.blog_id}`} className="analytics__post-link">
-                                                        {post.type === "text_post" && (
-                                                            <span className="analytics__post-badge">Text</span>
-                                                        )}
-                                                        {displayTitle}
-                                                    </Link>
-                                                </td>
-                                                <td className="text-center text-dark-grey text-sm whitespace-nowrap">
-                                                    {getDay(post.publishedAt)}
-                                                </td>
-                                                <td className="text-center font-medium">{post.activity?.total_reads?.toLocaleString() ?? 0}</td>
-                                                <td className="text-center font-medium">{post.activity?.total_likes?.toLocaleString() ?? 0}</td>
-                                                <td className="text-center font-medium">{post.activity?.total_comments?.toLocaleString() ?? 0}</td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                {/* Follower Growth */}
+                {growth?.length > 0 && (
+                    <div className="analytics__section">
+                        <h2 className="analytics__section-title">
+                            <Icon name="group_add" className="text-brand" />
+                            Follower Growth
+                        </h2>
+                        <div className="analytics__growth-chart">
+                            {growth.map((g, i) => (
+                                <div key={i} className="analytics__growth-bar-wrap">
+                                    <div
+                                        className="analytics__growth-bar"
+                                        style={{ height: `${maxGrowth > 0 ? (g.count / maxGrowth) * 100 : 0}%` }}
+                                    />
+                                    <span className="analytics__growth-count">{g.count}</span>
+                                    <span className="analytics__growth-label">{formatMonth(g.month)}</span>
+                                </div>
+                            ))}
                         </div>
-                    ) : (
-                        <p className="text-dark-grey text-sm">No published posts yet. Start writing to see analytics!</p>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
         </AnimationWrapper>
     );

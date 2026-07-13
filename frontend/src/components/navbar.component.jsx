@@ -1,40 +1,26 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useState } from "react";
 import { Link, Outlet, useNavigate } from "react-router-dom";
 import darkLogo from "../imgs/logo-dark.png";
 import lightLogo from "../imgs/logo-light.png";
 import { ThemeContext, UserContext } from "../App";
 import UserNavigationPanel from "./user-navigation.component";
-import api from "../common/api";
 import { storeInSession } from "../common/session";
 import Icon from "./Icon";
 import Avatar from "./Avatar";
+import { useNewNotification, useUnreadMessages } from "../hooks/queries";
 
 const Navbar = () => {
 
     const [ searchBoxVisibility, setSearchBoxVisibility ] = useState(false)
     const [ userNavPanel, setUserNavPanel ] = useState(false);
-    const [ unreadMessages, setUnreadMessages ] = useState(0);
-    const { userAuth, userAuth: { access_token, profile_img, new_notification_available }, setUserAuth } =  useContext(UserContext);
+    const { userAuth, userAuth: { access_token, profile_img }, setUserAuth } =  useContext(UserContext);
 
     let { theme, setTheme } = useContext(ThemeContext);
 
-    useEffect(() => {
-
-        if(access_token){
-            api.get("/new-notification")
-            .then(({ data }) => {
-                setUserAuth(prev => ({ ...prev, ...data }))
-            })
-            .catch(err => {
-            })
-
-            // Fetch unread message count
-            api.post("/messages/unread-total")
-            .then(({ data }) => setUnreadMessages(data.unread_total || 0))
-            .catch(() => {});
-        }
-
-    }, [access_token])
+    // TanStack Query hooks — auto-poll + socket-invalidated
+    const { data: notificationData } = useNewNotification();
+    const { data: unreadMessages = 0 } = useUnreadMessages();
+    const new_notification_available = notificationData?.new_notification_available;
 
     let navigate = useNavigate();
 

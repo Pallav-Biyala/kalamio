@@ -1,14 +1,15 @@
-import api from "../common/api";
 import usePageTitle from "../common/usePageTitle";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
+import { queryKeys } from "../common/queryKeys";
+import api from "../common/api";
 import AnimationWrapper from "../common/page-animation";
 import Loader from "../components/loader.component";
 import NoDataMessage from "../components/nodata.component";
 import LoadMoreDataBtn from "../components/load-more.component";
 import BlogPostCard from "../components/blog-post.component";
 import TextPostCard from "../components/text-post-card.component";
-import { filterPaginationData } from "../common/filter-pagination-data";
 import SubscribeButton from "../components/subscribe-button.component";
 import Avatar from "../components/Avatar";
 import Icon from "../components/Icon";
@@ -18,116 +19,100 @@ import PublicationMenu from "../components/publication-menu.component";
 import InPageNavigation from "../components/inpage-navigation.component";
 import AboutPublication from "../components/about-publication.component";
 
+// Helper: creates an infinite query for a publication's blog feed
+const usePubFeed = (publicationId, type) => {
+    return useInfiniteQuery({
+        queryKey: [...queryKeys.publications.detail(''), 'feed', publicationId, type || 'all'],
+        queryFn: async ({ pageParam = 1 }) => {
+            const body = { publication_id: publicationId, page: pageParam };
+            if (type) body.type = type;
+
+            const [blogsRes, countRes] = await Promise.all([
+                api.post("/publication/blogs", body),
+                pageParam === 1
+                    ? api.post("/publication/blogs-count", { publication_id: publicationId, ...(type ? { type } : {}) })
+                    : Promise.resolve(null),
+            ]);
+
+            return {
+                blogs: blogsRes.data.blogs,
+                totalDocs: countRes?.data?.totalDocs ?? undefined,
+                page: pageParam,
+            };
+        },
+        getNextPageParam: (lastPage, allPages) => {
+            const totalLoaded = allPages.reduce((sum, p) => sum + p.blogs.length, 0);
+            const totalDocs = allPages[0]?.totalDocs ?? 0;
+            if (totalLoaded < totalDocs) return lastPage.page + 1;
+            return undefined;
+        },
+        select: (data) => ({
+            blogs: data.pages.flatMap(p => p.blogs),
+            totalDocs: data.pages[0]?.totalDocs ?? 0,
+        }),
+        enabled: !!publicationId,
+    });
+};
+
 const PublicationPage = () => {
 
     let { slug } = useParams();
     const navigate = useNavigate();
 
-    const [publication, setPublication] = useState(null);
-    const [blogs, setBlogs] = useState(null);
-    const [articles, setArticles] = useState(null);
-    const [textPosts, setTextPosts] = useState(null);
-    const [pubCollections, setPubCollections] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [notFound, setNotFound] = useState(false);
-
     const { userAuth: { access_token, username } } = useContext(UserContext);
-
-    usePageTitle(publication?.title || 'Publication');
 
     // Track subscriber count locally for instant update
     const [localSubs, setLocalSubs] = useState(null);
 
-    const fetchPublication = () => {
-        api.post("/publication/get", { slug })
-        .then(({ data }) => {
-            setPublication(data.publication);
-            setLocalSubs(data.publication.total_subscribers);
-            fetchBlogs({ publication_id: data.publication._id });
-            fetchArticles({ publication_id: data.publication._id });
-            fetchTextPosts({ publication_id: data.publication._id });
-            // Fetch publication collections
-            api.post("/collection/publication-collections", { publication_id: data.publication._id })
-                .then(({ data: colData }) => setPubCollections(colData.collections))
-                .catch(() => {});
-            setLoading(false);
-        })
-        .catch(() => {
-            setNotFound(true);
-            setLoading(false);
-        });
-    };
+    // Fetch publication metadata
+    const { data: pubData, isLoading, isError } = useQuery({
+        queryKey: queryKeys.publications.detail(slug),
+        queryFn: async () => {
+            const { data } = await api.post("/publication/get", { slug });
+            return data.publication;
+        },
+        staleTime: 10 * 60 * 1000,
+    });
 
-    const fetchBlogs = ({ page = 1, publication_id }) => {
-        publication_id = publication_id || publication?._id;
+    const publication = pubData;
+    const pubId = publication?._id;
 
-        api.post("/publication/blogs", { publication_id, page })
-        .then(async ({ data }) => {
-            let formatedData = await filterPaginationData({
-                state: blogs,
-                data: data.blogs,
-                page,
-                countRoute: "/publication/blogs-count",
-                data_to_send: { publication_id }
-            });
-            setBlogs(formatedData);
-        })
-        .catch(() => {});
-    };
+    // Sync localSubs when publication data loads
+    if (publication && localSubs === null) {
+        setLocalSubs(publication.total_subscribers);
+    }
 
-    const fetchArticles = ({ page = 1, publication_id }) => {
-        publication_id = publication_id || publication?._id;
+    usePageTitle(publication?.title || 'Publication');
 
-        api.post("/publication/blogs", { publication_id, page, type: 'blog' })
-        .then(async ({ data }) => {
-            let formatedData = await filterPaginationData({
-                state: articles,
-                data: data.blogs,
-                page,
-                countRoute: "/publication/blogs-count",
-                data_to_send: { publication_id, type: 'blog' }
-            });
-            setArticles(formatedData);
-        })
-        .catch(() => {});
-    };
+    // 3 separate infinite queries for each tab
+    const allFeedQuery = usePubFeed(pubId, null);
+    const articlesFeedQuery = usePubFeed(pubId, 'blog');
+    const textPostsFeedQuery = usePubFeed(pubId, 'text_post');
 
-    const fetchTextPosts = ({ page = 1, publication_id }) => {
-        publication_id = publication_id || publication?._id;
-
-        api.post("/publication/blogs", { publication_id, page, type: 'text_post' })
-        .then(async ({ data }) => {
-            let formatedData = await filterPaginationData({
-                state: textPosts,
-                data: data.blogs,
-                page,
-                countRoute: "/publication/blogs-count",
-                data_to_send: { publication_id, type: 'text_post' }
-            });
-            setTextPosts(formatedData);
-        })
-        .catch(() => {});
-    };
-
-    useEffect(() => {
-        setLoading(true);
-        setPublication(null);
-        setBlogs(null);
-        setArticles(null);
-        setTextPosts(null);
-        setNotFound(false);
-        fetchPublication();
-    }, [slug]);
+    // Publication collections
+    const { data: pubCollections = [] } = useQuery({
+        queryKey: [...queryKeys.collections.all(), 'publication', pubId],
+        queryFn: async () => {
+            const { data } = await api.post("/collection/publication-collections", { publication_id: pubId });
+            return data.collections;
+        },
+        enabled: !!pubId,
+        staleTime: 10 * 60 * 1000,
+    });
 
     const handleSubscribeChange = (isNowSubscribed) => {
         setLocalSubs(prev => prev + (isNowSubscribed ? 1 : -1));
     };
 
-    if (loading) return <Loader />;
-    if (notFound || !publication) return <PageNotFound />;
+    if (isLoading) return <Loader />;
+    if (isError || !publication) return <PageNotFound />;
 
-    const { title, description, banner, profile_photo, owner, tags, total_posts, _id: pubId } = publication;
+    const { title, description, banner, profile_photo, owner, tags, total_posts } = publication;
     const displaySubs = localSubs ?? publication.total_subscribers;
+
+    const allBlogs = allFeedQuery.data?.blogs || [];
+    const articlesBlogs = articlesFeedQuery.data?.blogs || [];
+    const textPostsBlogs = textPostsFeedQuery.data?.blogs || [];
 
     return (
         <AnimationWrapper>
@@ -218,9 +203,9 @@ const PublicationPage = () => {
                         
                         {/* Home Tab */}
                         <>
-                            {blogs == null ? <Loader /> :
-                                blogs.results?.length ?
-                                    blogs.results.map((blog, i) => (
+                            {allFeedQuery.isLoading ? <Loader /> :
+                                allBlogs.length ?
+                                    allBlogs.map((blog, i) => (
                                         <AnimationWrapper key={blog.blog_id} transition={{ duration: 0.4, delay: i * 0.04 }}>
                                             {blog.type === 'text_post' ? (
                                                 <TextPostCard content={blog} author={blog.author.personal_info} />
@@ -231,35 +216,47 @@ const PublicationPage = () => {
                                     ))
                                 : <NoDataMessage message="No posts in this publication yet" />
                             }
-                            <LoadMoreDataBtn state={blogs} fetchDataFun={fetchBlogs} />
+                            <LoadMoreDataBtn
+                                fetchNextPage={allFeedQuery.fetchNextPage}
+                                hasNextPage={allFeedQuery.hasNextPage}
+                                isFetchingNextPage={allFeedQuery.isFetchingNextPage}
+                            />
                         </>
 
                         {/* Articles Tab */}
                         <>
-                            {articles == null ? <Loader /> :
-                                articles.results?.length ?
-                                    articles.results.map((blog, i) => (
+                            {articlesFeedQuery.isLoading ? <Loader /> :
+                                articlesBlogs.length ?
+                                    articlesBlogs.map((blog, i) => (
                                         <AnimationWrapper key={blog.blog_id} transition={{ duration: 0.4, delay: i * 0.04 }}>
                                             <BlogPostCard content={blog} author={blog.author.personal_info} />
                                         </AnimationWrapper>
                                     ))
                                 : <NoDataMessage message="No articles in this publication yet" />
                             }
-                            <LoadMoreDataBtn state={articles} fetchDataFun={fetchArticles} />
+                            <LoadMoreDataBtn
+                                fetchNextPage={articlesFeedQuery.fetchNextPage}
+                                hasNextPage={articlesFeedQuery.hasNextPage}
+                                isFetchingNextPage={articlesFeedQuery.isFetchingNextPage}
+                            />
                         </>
 
                         {/* Posts Tab */}
                         <>
-                            {textPosts == null ? <Loader /> :
-                                textPosts.results?.length ?
-                                    textPosts.results.map((blog, i) => (
+                            {textPostsFeedQuery.isLoading ? <Loader /> :
+                                textPostsBlogs.length ?
+                                    textPostsBlogs.map((blog, i) => (
                                         <AnimationWrapper key={blog.blog_id} transition={{ duration: 0.4, delay: i * 0.04 }}>
                                             <TextPostCard content={blog} author={blog.author.personal_info} />
                                         </AnimationWrapper>
                                     ))
                                 : <NoDataMessage message="No text posts in this publication yet" />
                             }
-                            <LoadMoreDataBtn state={textPosts} fetchDataFun={fetchTextPosts} />
+                            <LoadMoreDataBtn
+                                fetchNextPage={textPostsFeedQuery.fetchNextPage}
+                                hasNextPage={textPostsFeedQuery.hasNextPage}
+                                isFetchingNextPage={textPostsFeedQuery.isFetchingNextPage}
+                            />
                         </>
 
                         {/* Collections Tab */}
@@ -274,8 +271,6 @@ const PublicationPage = () => {
                                             title: title.trim(),
                                             publication_id: publication._id,
                                             visibility: 'public'
-                                        }).then(({ data }) => {
-                                            setPubCollections(prev => [data.collection, ...prev]);
                                         }).catch(() => {});
                                     }}
                                 >
