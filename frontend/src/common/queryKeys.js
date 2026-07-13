@@ -37,7 +37,9 @@ export const queryKeys = {
   // ── Social Graph ──────────────────────────────────────────────
   follow: {
     status:       (userId)          => ['follow', 'status', userId],
-    batchStatus:  (userIds)         => ['follow', 'batch', ...(userIds || [])],
+    // Order-independent single segment so [a,b] and [b,a] share one cache entry
+    // and the key length stays fixed (avoids per-render key churn / orphans).
+    batchStatus:  (userIds)         => ['follow', 'batch', [...(userIds || [])].sort().join(',')],
     followsBack:  (userId)          => ['follow', 'follows-back', userId],
   },
 
@@ -54,7 +56,6 @@ export const queryKeys = {
   // ── Engagement ────────────────────────────────────────────────
   likes: {
     status:       (blogId)          => ['likes', 'status', blogId],
-    batch:        (blogIds)         => ['likes', 'batch', ...(blogIds || [])],
   },
 
   // ── Collections / Bookmarks ───────────────────────────────────

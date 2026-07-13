@@ -2,8 +2,19 @@ import axios from 'axios';
 import { lookInSession, storeInSession, removeFromSession } from './session';
 import toast from 'react-hot-toast';
 
+// Fail loud, not silent: without VITE_SERVER_DOMAIN the base URL becomes
+// "undefinedapi/v1" and every request 404s against the dev server — a confusing
+// symptom that usually means a fresh clone is missing its .env file.
+const SERVER_DOMAIN = import.meta.env.VITE_SERVER_DOMAIN;
+if (!SERVER_DOMAIN) {
+    console.error(
+        '[Kalamio] VITE_SERVER_DOMAIN is not set — API requests will fail.\n' +
+        'Fix: copy frontend/.env.example to frontend/.env, then restart the dev server.',
+    );
+}
+
 const api = axios.create({
-    baseURL: import.meta.env.VITE_SERVER_DOMAIN + 'api/v1',
+    baseURL: (SERVER_DOMAIN || '') + 'api/v1',
 });
 
 // ── Token expiry helpers ────────────────────────────────────────────
@@ -183,10 +194,15 @@ api.interceptors.response.use(
                 // Retry original request with new token
                 return api(originalRequest);
             } catch (err) {
+                // Flag so React Query's retry policy won't retry a dead session
+                // (the refresh failed — retrying just re-hits 401 and re-triggers
+                // this redirect/toast). The flag rides on the same error object
+                // that processQueue rejects queued requests with.
+                if (err && typeof err === 'object') err.__sessionExpired = true;
                 processQueue(err, null);
                 isRefreshing = false;
                 removeFromSession("user");
-                toast.error("Session expired. Please log in again.");
+                showDedupedToast("Session expired. Please log in again.", "session-expired");
                 setTimeout(() => window.location.href = "/signin", 1500);
                 return Promise.reject(err);
             }
