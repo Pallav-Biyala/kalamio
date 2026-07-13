@@ -28,6 +28,14 @@ const optionalEnvVars = {
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
     GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL || '/api/auth/google/callback',
+    // Optional — response caching. When both are set, public read endpoints are
+    // cached in Upstash Redis; otherwise caching is silently disabled.
+    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL || '',
+    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN || '',
+    // Optional — Cloudflare origin lock. When set, only requests carrying this
+    // secret in X-Origin-Secret (added by a Cloudflare Transform Rule) are served;
+    // direct-to-origin traffic is rejected. Unset = no-op.
+    CLOUDFLARE_ORIGIN_SECRET: process.env.CLOUDFLARE_ORIGIN_SECRET || '',
 };
 
 if (!process.env.FRONTEND_URL) {

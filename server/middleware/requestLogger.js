@@ -46,7 +46,8 @@ const requestLogger = pinoHttp({
         req: (req) => ({
             method: req.method,
             url: req.url,
-            remoteAddress: req.remoteAddress,
+            // Real client IP behind Cloudflare (was logging undefined before).
+            ip: req.headers['cf-connecting-ip'] || req.ip,
         }),
         res: (res) => ({
             statusCode: res.statusCode,

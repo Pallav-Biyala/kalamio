@@ -17,6 +17,7 @@ import logger from './config/logger.js';
 // Middleware
 import errorHandler from './middleware/errorHandler.js';
 import requestLogger from './middleware/requestLogger.js';
+import originGuard from './middleware/originGuard.js';
 
 // Routes
 import authRoutes from './routes/auth.routes.js';
@@ -42,6 +43,10 @@ const server = express();
 const httpServer = createServer(server);
 const PORT = process.env.PORT || 8080;
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
+// Behind Cloudflare → nginx → Cloud Run, so req.ip/req.protocol/req.secure must
+// honour X-Forwarded-* (rate limiting keys off CF-Connecting-IP, see rateLimiter).
+server.set('trust proxy', true);
 
 // ── Global middleware ──────────────────────────────────────────────
 server.use(helmet({
@@ -74,6 +79,17 @@ server.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
 }));
+
+// Reject direct-to-origin traffic that bypassed Cloudflare (opt-in via env).
+server.use(originGuard);
+
+// Secure caching default: no intermediary (Cloudflare/browser) caches an API
+// response unless a handler explicitly opts in with a public Cache-Control
+// (see cacheResponse). Prevents accidental edge-caching of per-user data.
+server.use((req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    next();
+});
 
 // Initialize Passport (Google OAuth)
 initializePassport(server);

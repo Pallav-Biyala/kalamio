@@ -16,3 +16,11 @@ export const escapeRegex = (str) => {
     if (!str) return '';
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 };
+
+/**
+ * Resolve the real client IP behind Cloudflare + nginx. Cloudflare sets
+ * `CF-Connecting-IP` and overwrites any client-supplied value, so it can't be
+ * spoofed; fall back to Express's req.ip (which needs `trust proxy`) locally.
+ */
+export const getClientIp = (req) =>
+    req.headers['cf-connecting-ip'] || req.ip || req.socket?.remoteAddress || 'unknown';

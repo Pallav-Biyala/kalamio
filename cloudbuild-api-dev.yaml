@@ -40,7 +40,12 @@ steps:
         'us-central1',
         '--platform',
         'managed',
-        '--allow-unauthenticated'
+        '--allow-unauthenticated',
+        # Cache + Cloudflare-origin-lock creds from Secret Manager (dev-scoped, so
+        # dev/prod don't collide). --update-secrets MERGES — existing secrets preserved.
+        # Prereq: create these secrets first (see repo README / deploy notes).
+        '--update-secrets',
+        'UPSTASH_REDIS_REST_URL=upstash-redis-rest-url-dev:latest,UPSTASH_REDIS_REST_TOKEN=upstash-redis-rest-token-dev:latest,CLOUDFLARE_ORIGIN_SECRET=cloudflare-origin-secret-dev:latest'
       ]
 
 images:

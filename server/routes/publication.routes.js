@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { verifyJWT } from '../middleware/auth.js';
 import asyncHandler from '../middleware/asyncHandler.js';
+import { cacheResponse, invalidateCacheOnWrite } from '../middleware/cache.js';
 import {
     createPublication,
     updatePublication,
@@ -22,18 +23,19 @@ import {
 
 const router = Router();
 
-// Public — anyone can view publications and their content
-router.post("/publication/get", asyncHandler(getPublication));
-router.post("/publication/blogs", asyncHandler(getPublicationBlogs));
-router.post("/publication/blogs-count", asyncHandler(getPublicationBlogsCount));
-router.post("/user-publications", asyncHandler(getUserPublications));
+// Public — anyone can view publications and their content (cached, non-personalized)
+router.post("/publication/get", cacheResponse({ ttl: 300, tags: ['publications'] }), asyncHandler(getPublication));
+router.post("/publication/blogs", cacheResponse({ ttl: 120, tags: ['publications'] }), asyncHandler(getPublicationBlogs));
+router.post("/publication/blogs-count", cacheResponse({ ttl: 120, tags: ['publications'] }), asyncHandler(getPublicationBlogsCount));
+router.post("/user-publications", cacheResponse({ ttl: 300, tags: ['publications'] }), asyncHandler(getUserPublications));
 
-// Protected — requires authentication
-router.post("/publication/create", verifyJWT, asyncHandler(createPublication));
-router.post("/publication/update", verifyJWT, asyncHandler(updatePublication));
-router.post("/publication/delete", verifyJWT, asyncHandler(deletePublication));
-router.post("/publication/add-blog", verifyJWT, asyncHandler(addBlogToPublication));
-router.post("/publication/remove-blog", verifyJWT, asyncHandler(removeBlogFromPublication));
+// Protected — structural writes invalidate the publications cache. (Subscribe/
+// unsubscribe only shift a subscriber count, which is fine to let TTL refresh.)
+router.post("/publication/create", verifyJWT, invalidateCacheOnWrite(['publications']), asyncHandler(createPublication));
+router.post("/publication/update", verifyJWT, invalidateCacheOnWrite(['publications']), asyncHandler(updatePublication));
+router.post("/publication/delete", verifyJWT, invalidateCacheOnWrite(['publications']), asyncHandler(deletePublication));
+router.post("/publication/add-blog", verifyJWT, invalidateCacheOnWrite(['publications']), asyncHandler(addBlogToPublication));
+router.post("/publication/remove-blog", verifyJWT, invalidateCacheOnWrite(['publications']), asyncHandler(removeBlogFromPublication));
 router.post("/my-publications", verifyJWT, asyncHandler(getMyPublications));
 router.post("/subscribe", verifyJWT, asyncHandler(subscribe));
 router.post("/unsubscribe", verifyJWT, asyncHandler(unsubscribe));
