@@ -9,6 +9,33 @@ A full‑stack blog application currently under active development.
 **In Progress**
 Core authentication, user profiles, blog fetching, routing, and UI animations are implemented.
 Advanced blog features and polishing are in progress.
+
+---
+
+## 🚀 Getting Started (Local Setup)
+
+> **Heads-up:** `.env` files are git-ignored, so a fresh clone will **not** include them.
+> You must create them from the provided examples or every API call 404s against the
+> dev server (you'll see requests to `undefinedapi/v1/...` in the console).
+
+```bash
+# 1. Install dependencies
+cd frontend && npm install
+cd ../server && npm install
+
+# 2. Create env files from the examples (required)
+cp frontend/.env.example frontend/.env      # sets VITE_SERVER_DOMAIN
+cp server/.env.example   server/.env        # DB URL, JWT secret, AWS, etc.
+
+# 3. Run (two terminals)
+cd server   && npm run dev                  # API on :8080
+cd frontend && npm run dev                  # app on :5173
+```
+
+The frontend expects `VITE_SERVER_DOMAIN` to point at the running backend (default
+`http://localhost:8080/`, **trailing slash required**). Restart `npm run dev` after
+changing any `.env` — Vite only reads env vars at startup.
+
 ---
 
 ## 🛠️ Technologies Used

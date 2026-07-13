@@ -15,7 +15,7 @@ import RightSidebar from "../components/right-sidebar.component";
 import Avatar from "../components/Avatar";
 import { UserContext } from "../App";
 import NetworkError from "../components/network-error.component";
-import { useLatestBlogs, useCategoryBlogs, useTrendingBlogs, useFollowingFeed, useBatchLikeStatus } from "../hooks/queries";
+import { useLatestBlogs, useCategoryBlogs, useTrendingBlogs, useFollowingFeed } from "../hooks/queries";
 
 const HomePage = () => {
   const [pageState, setPageState] = useState("home");
@@ -42,19 +42,6 @@ const HomePage = () => {
   // Pick the right feed query based on pageState
   const activeFeedQuery = activeTag ? categoryQuery : latestQuery;
   const activeFeedData = activeFeedQuery.data;
-
-  // Batch like status for visible blog IDs
-  const visibleBlogIds = (() => {
-    if (pageState === "following") {
-      return followingQuery.data?.blogs?.map(b => b._id).filter(Boolean) || [];
-    }
-    if (pageState === "trending") {
-      return trendingQuery.data?.map(b => b._id).filter(Boolean) || [];
-    }
-    return activeFeedData?.blogs?.map(b => b._id).filter(Boolean) || [];
-  })();
-
-  const { data: likedBlogs = [] } = useBatchLikeStatus(visibleBlogIds);
 
   let categories = [
     "For You",
@@ -140,7 +127,6 @@ const HomePage = () => {
         <BlogPostCard
           content={blog}
           author={blog.author.personal_info}
-          isLiked={likedBlogs.includes(blog._id)}
         />
       )}
     </AnimationWrapper>

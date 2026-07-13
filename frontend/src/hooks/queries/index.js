@@ -18,7 +18,6 @@ export { default as useFollowsBack } from './useFollowsBack';
 export { default as useSubscribeStatus } from './useSubscribeStatus';
 export { default as useConnectStatus } from './useConnectStatus';
 export { default as useLikeStatus } from './useLikeStatus';
-export { default as useBatchLikeStatus } from './useBatchLikeStatus';
 export { default as useIsSaved } from './useIsSaved';
 export { default as useUserCollections } from './useUserCollections';
 export { default as useCollectionDetail } from './useCollectionDetail';
