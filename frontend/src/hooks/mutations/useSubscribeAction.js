@@ -53,8 +53,12 @@ export const useSubscribeAction = () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.subscribe.status(variables.publicationId),
       });
+      // publications.detail is keyed by SLUG, but we only have the id here, so a
+      // detail(id) key would never match. Invalidate the ['publications'] prefix
+      // instead — this catches the detail query (any slug) and publication lists
+      // so subscriber counts refresh after (un)subscribing.
       queryClient.invalidateQueries({
-        queryKey: queryKeys.publications.detail(variables.publicationId),
+        queryKey: queryKeys.publications.all(),
       });
     },
   });

@@ -44,10 +44,19 @@ export const useVotePoll = () => {
 
     onError: (_error, _variables, context) => {
       if (!context) return;
-      queryClient.setQueryData(
-        queryKeys.polls.voteStatus(context.blogId),
-        context.previousVoteStatus,
-      );
+      // If there was no prior cache entry, the optimistic update CREATED one.
+      // setQueryData(key, undefined) is a no-op in TanStack Query, so restoring
+      // `undefined` would leave the stale optimistic entry behind — remove it.
+      if (context.previousVoteStatus === undefined) {
+        queryClient.removeQueries({
+          queryKey: queryKeys.polls.voteStatus(context.blogId),
+        });
+      } else {
+        queryClient.setQueryData(
+          queryKeys.polls.voteStatus(context.blogId),
+          context.previousVoteStatus,
+        );
+      }
     },
 
     onSettled: (_data, _error, variables) => {
