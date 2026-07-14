@@ -44,12 +44,11 @@ steps:
         # Redis (response caching) wired from Secret Manager on every deploy.
         # --update-secrets REPLACES the earlier --clear-secrets. Prod serves older code
         # until the first release off current main; this takes effect on that release.
-        # CLOUDFLARE_ORIGIN_SECRET is deliberately NOT here yet — add it only AFTER prod
-        # origin-lock is verified against kalamio.com (bind out-of-band + curl test),
-        # so a value mismatch can't 403 production traffic:
-        #   ,CLOUDFLARE_ORIGIN_SECRET=cloudflare-origin-secret:latest
+        # All three wired: Redis caching + Cloudflare origin-lock. Verified live on prod —
+        # kalamio.com passes (CF adds X-Origin-Secret via an all-paths hostname Transform
+        # Rule; the frontend nginx forwards it to the backend); direct *.run.app → 403.
         '--update-secrets',
-        'UPSTASH_REDIS_REST_URL=upstash-redis-rest-url:latest,UPSTASH_REDIS_REST_TOKEN=upstash-redis-rest-token:latest'
+        'UPSTASH_REDIS_REST_URL=upstash-redis-rest-url:latest,UPSTASH_REDIS_REST_TOKEN=upstash-redis-rest-token:latest,CLOUDFLARE_ORIGIN_SECRET=cloudflare-origin-secret:latest'
       ]
 
 images:
