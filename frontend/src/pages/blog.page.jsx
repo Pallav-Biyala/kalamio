@@ -9,6 +9,7 @@ import BlogPostCard from "../components/blog-post.component";
 import BlogContent from "../components/blog-content.component";
 import CommentsContainer, { fetchComments } from "../components/comments.component";
 import { saveReadingProgress } from "../components/keep-reading.component";
+import { cdnUrl } from "../common/cdn";
 import Avatar from "../components/Avatar";
 import Icon from "../components/Icon";
 import FollowButton from "../components/follow-button.component";
@@ -344,7 +345,7 @@ const BlogPage = () => {
                                 {images && images.length > 0 && (
                                     <div className={`feed-card__text-post-images feed-card__text-post-images--${Math.min(images.length, 4)} mb-6`}>
                                         {images.map((url, i) => (
-                                            <img key={i} src={url} alt={`Image ${i + 1}`} className="feed-card__text-post-image" />
+                                            <img key={i} src={cdnUrl(url)} alt={`Image ${i + 1}`} className="feed-card__text-post-image" />
                                         ))}
                                     </div>
                                 )}
@@ -419,7 +420,7 @@ const BlogPage = () => {
                                 {banner && (
                                     <div className="my-8 md:my-12 max-sm:-ml-[5vw] max-sm:w-screen">
                                         <img 
-                                            src={banner} 
+                                            src={cdnUrl(banner)}
                                             className="w-full aspect-video md:aspect-[2/1] object-cover sm:rounded-2xl shadow-xl shadow-black/5" 
                                             alt={title} 
                                         />
@@ -482,7 +483,7 @@ const BlogPage = () => {
                                     <div className="blog-cta-card__body">
                                         <div className="blog-cta-card__pub-icon-wrap">
                                             {publication.profile_photo ? (
-                                                <img src={publication.profile_photo} alt={publication.title} className="w-full h-full object-cover" />
+                                                <img src={cdnUrl(publication.profile_photo)} alt={publication.title} className="w-full h-full object-cover" />
                                             ) : (
                                                 <Icon name="menu_book" className="blog-cta-card__pub-icon" />
                                             )}

@@ -13,7 +13,13 @@ export const uploadImage = async (img) => {
         await axios({
             method: 'PUT',
             url: uploadURL,
-            headers: { 'Content-Type': img.type },
+            headers: {
+                'Content-Type': img.type,
+                // Must EXACTLY match the CacheControl signed into the presigned URL by
+                // the backend (config/s3.js), or S3 rejects with 403 SignatureDoesNotMatch.
+                // Unique filenames make each object immutable → cache for a year.
+                'Cache-Control': 'public, max-age=31536000, immutable',
+            },
             data: img
         })
         .then(() => {

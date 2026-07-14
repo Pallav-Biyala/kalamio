@@ -3,6 +3,7 @@ import { getDay } from "../common/date";
 import { useContext, useState } from "react";
 import { UserContext } from "../App";
 import Icon from "./Icon";
+import { cdnUrl } from "../common/cdn";
 import { useDeleteBlog } from "../hooks/mutations";
 
 const BlogStats = ({ stats }) => {
@@ -50,7 +51,7 @@ export const ManagePublishedBlogsCard = ({ blog, isSelected, onToggleSelect }) =
                 )}
 
                 {!isTextPost && banner && (
-                    <img src={banner} className="max-md:hidden lg:hidden xl:block w-28 h-28 flex-none bg-grey object-cover rounded-radius-md" alt={title} />
+                    <img src={cdnUrl(banner)} className="max-md:hidden lg:hidden xl:block w-28 h-28 flex-none bg-grey object-cover rounded-radius-md" alt={title} />
                 )}
 
                 <div className="flex flex-col justify-between py-2 w-full min-w-[300px]">

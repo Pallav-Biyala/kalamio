@@ -1,4 +1,5 @@
 import Icon from "./Icon";
+import { cdnUrl } from "../common/cdn";
 
 /**
  * Avatar component — renders initials-based avatar or real image.
@@ -62,10 +63,10 @@ const Avatar = ({ src, alt = "avatar", className = "", size = 40 }) => {
         );
     }
 
-    // Real image URL
+    // Real image URL — routed through the image CDN when configured (no-op otherwise)
     return (
         <img
-            src={src}
+            src={cdnUrl(src)}
             alt={alt}
             className={className}
             referrerPolicy="no-referrer"

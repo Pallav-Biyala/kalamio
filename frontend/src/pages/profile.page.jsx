@@ -6,6 +6,7 @@ import Loader from "../components/loader.component";
 import { UserContext } from "../App";
 import AboutUser from "../components/about.component";
 import BlogPostCard from "../components/blog-post.component";
+import { cdnUrl } from "../common/cdn";
 import TextPostCard from "../components/text-post-card.component";
 import NoDataMessage from "../components/nodata.component";
 import LoadMoreDataBtn from "../components/load-more.component";
@@ -294,7 +295,7 @@ const ProfilePage = () => {
                                         <Link key={col._id} to={`/collection/${col._id}`} className="saved-collection-card">
                                             <div className="saved-collection-card__cover">
                                                 {col.cover_image
-                                                    ? <img src={col.cover_image} alt={col.title} />
+                                                    ? <img src={cdnUrl(col.cover_image)} alt={col.title} />
                                                     : <div className="saved-collection-card__cover-placeholder">
                                                         <Icon name={col.is_default ? 'schedule' : 'collections_bookmark'} className="text-3xl" />
                                                     </div>

@@ -9,6 +9,7 @@ import { useContext, useState, useEffect, useRef } from "react";
 import { UserContext } from "../App";
 import toast from "react-hot-toast";
 import api from "../common/api";
+import { cdnUrl } from "../common/cdn";
 import { useLikeStatus, usePollVoteStatus } from "../hooks/queries";
 import { useLikeBlog, useVotePoll } from "../hooks/mutations";
 import PollVotersModal from "./poll-voters-modal.component";
@@ -180,7 +181,7 @@ const TextPostCard = ({ content, author, onEdit }) => {
             {images && images.length > 0 && (
                 <div className={`feed-card__text-post-images feed-card__text-post-images--${Math.min(images.length, 4)}`}>
                     {images.map((url, i) => (
-                        <img key={i} src={url} alt={`Image ${i + 1}`} className="feed-card__text-post-image" />
+                        <img key={i} src={cdnUrl(url)} alt={`Image ${i + 1}`} className="feed-card__text-post-image" />
                     ))}
                 </div>
             )}

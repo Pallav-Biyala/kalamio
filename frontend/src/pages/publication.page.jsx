@@ -18,6 +18,7 @@ import { UserContext } from "../App";
 import PublicationMenu from "../components/publication-menu.component";
 import InPageNavigation from "../components/inpage-navigation.component";
 import AboutPublication from "../components/about-publication.component";
+import { cdnUrl } from "../common/cdn";
 
 // Helper: creates an infinite query for a publication's blog feed
 const usePubFeed = (publicationId, type) => {
@@ -141,7 +142,7 @@ const PublicationPage = () => {
                     </button>
                     {banner && (
                         <div className="publication-header__banner">
-                            <img src={banner} alt={title} />
+                            <img src={cdnUrl(banner)} alt={title} />
                         </div>
                     )}
                     <div className="publication-header__content">
@@ -149,7 +150,7 @@ const PublicationPage = () => {
                         <div className="publication-header__identity">
                             <div className="publication-header__profile-photo">
                                 {profile_photo ? (
-                                    <img src={profile_photo} alt={title} />
+                                    <img src={cdnUrl(profile_photo)} alt={title} />
                                 ) : (
                                     <span className="publication-header__profile-placeholder">
                                         {title.charAt(0).toUpperCase()}
@@ -296,7 +297,7 @@ const PublicationPage = () => {
                                         <Link key={col._id} to={`/collection/${col._id}`} className="saved-collection-card">
                                             <div className="saved-collection-card__cover">
                                                 {col.cover_image
-                                                    ? <img src={col.cover_image} alt={col.title} />
+                                                    ? <img src={cdnUrl(col.cover_image)} alt={col.title} />
                                                     : <div className="saved-collection-card__cover-placeholder">
                                                         <Icon name="collections_bookmark" className="text-3xl" />
                                                     </div>

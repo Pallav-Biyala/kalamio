@@ -2,6 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { getRelativeTime } from "../common/date";
 import Icon from "./Icon";
 import Avatar from "./Avatar";
+import { cdnUrl } from "../common/cdn";
 import PostMenu from "./post-menu.component";
 import CommentField from "./comment-field.component";
 import SaveModal from "./save-modal.component";
@@ -102,7 +103,7 @@ const BlogPostCard = ({ content, author }) => {
 
                 {banner && (
                     <div className="feed-card__thumbnail">
-                        <img src={banner} alt={title}/>
+                        <img src={cdnUrl(banner)} alt={title}/>
                     </div>
                 )}
             </Link>

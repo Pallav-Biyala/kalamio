@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { cdnUrl } from "../common/cdn";
 
 const MinimalBlogPost = ({ blog, index }) => {
     
@@ -18,7 +19,7 @@ const MinimalBlogPost = ({ blog, index }) => {
             
             {banner && (
                 <div className="trending-item__thumb">
-                    <img src={banner} alt={title} />
+                    <img src={cdnUrl(banner)} alt={title} />
                 </div>
             )}
 

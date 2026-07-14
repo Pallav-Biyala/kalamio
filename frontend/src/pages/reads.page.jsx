@@ -1,4 +1,5 @@
 import usePageTitle from "../common/usePageTitle";
+import { cdnUrl } from "../common/cdn";
 import Icon from "../components/Icon";
 import Avatar from "../components/Avatar";
 import { useContext, useEffect, useState, useRef, useCallback } from "react";
@@ -66,7 +67,7 @@ const ReelCard = ({ blog }) => {
                 {/* Background image layer */}
                 {banner && (
                     <div className="reel-card__bg">
-                        <img src={banner} alt="" draggable="false" />
+                        <img src={cdnUrl(banner)} alt="" draggable="false" />
                     </div>
                 )}
 

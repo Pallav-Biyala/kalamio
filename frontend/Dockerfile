@@ -12,6 +12,11 @@ COPY . .
 ARG VITE_SERVER_DOMAIN
 ENV VITE_SERVER_DOMAIN=$VITE_SERVER_DOMAIN
 
+# Image CDN (Cloudflare in front of S3). Empty = images load straight from S3 (no-op).
+# Set once the CDN subdomain is live, e.g. https://cdn.kalamio.com
+ARG VITE_CDN_DOMAIN
+ENV VITE_CDN_DOMAIN=$VITE_CDN_DOMAIN
+
 # Vite bakes all VITE_* env vars into the bundle at build time
 RUN npm run build
 

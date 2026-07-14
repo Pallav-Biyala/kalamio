@@ -2,6 +2,7 @@ import { useContext, useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { UserContext } from "../App";
 import api from "../common/api";
+import { cdnUrl } from "../common/cdn";
 import usePageTitle from "../common/usePageTitle";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { queryKeys } from "../common/queryKeys";
@@ -113,7 +114,7 @@ const SubscriptionsPage = () => {
                                 >
                                     <div className="subscriptions-page__pub-avatar">
                                         {pub.profile_photo ? (
-                                            <img src={pub.profile_photo} alt="" />
+                                            <img src={cdnUrl(pub.profile_photo)} alt="" />
                                         ) : (
                                             <span className="text-sm font-bold text-dark-grey">{pub.title.charAt(0).toUpperCase()}</span>
                                         )}
@@ -131,7 +132,7 @@ const SubscriptionsPage = () => {
                         <div className="subscriptions-page__selected-top">
                             <div className="subscriptions-page__selected-avatar">
                                 {selectedPub.profile_photo ? (
-                                    <img src={selectedPub.profile_photo} alt="" />
+                                    <img src={cdnUrl(selectedPub.profile_photo)} alt="" />
                                 ) : (
                                     <span className="text-3xl font-bold text-dark-grey">{selectedPub.title.charAt(0).toUpperCase()}</span>
                                 )}

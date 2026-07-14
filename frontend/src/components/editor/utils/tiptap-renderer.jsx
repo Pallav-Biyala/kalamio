@@ -1,6 +1,7 @@
 import LazyEmbed from './LazyEmbed';
 import { common, createLowlight } from 'lowlight';
 import { toHtml } from 'hast-util-to-html';
+import { cdnUrl } from '../../../common/cdn';
 
 const lowlight = createLowlight(common);
 
@@ -170,7 +171,7 @@ const renderNode = (node, index) => {
             const { src, alt, caption, title } = node.attrs || {};
             return (
                 <figure key={index} className="blog-image">
-                    <img src={src} alt={alt || title || ''} title={title || undefined} />
+                    <img src={cdnUrl(src)} alt={alt || title || ''} title={title || undefined} />
                     {caption && <figcaption>{caption}</figcaption>}
                 </figure>
             );

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Icon from "./Icon";
+import { cdnUrl } from "../common/cdn";
 
 const STORAGE_KEY = "notelys_keep_reading";
 
@@ -75,7 +76,7 @@ const KeepReading = () => {
                     <>
                         {article.banner && (
                             <div className="keep-reading__thumb">
-                                <img src={article.banner} alt={article.title} />
+                                <img src={cdnUrl(article.banner)} alt={article.title} />
                             </div>
                         )}
                         <div className="keep-reading__info">
