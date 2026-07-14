@@ -41,17 +41,15 @@ steps:
         '--platform',
         'managed',
         '--allow-unauthenticated',
-        # A prior failed deploy (the redis/cloudflare commit) baked these secret refs
-        # into the service's revision template. `run deploy` INHERITS that template, so
-        # merely omitting --update-secrets isn't enough — the refs carry forward and the
-        # deploy keeps failing on the (disabled) Secret Manager API. --clear-secrets
-        # strips ALL secret-backed env vars, giving a revision with no Secret Manager
-        # dependency. Nothing here needs secrets: caching + origin-lock are opt-in and
-        # no-op when unset. Harmless no-op once the template is clean.
-        # To enable Redis/Cloudflare later: create the prod secrets in Secret Manager and
-        # swap this flag for:
-        #   --update-secrets UPSTASH_REDIS_REST_URL=upstash-redis-rest-url:latest,UPSTASH_REDIS_REST_TOKEN=upstash-redis-rest-token:latest,CLOUDFLARE_ORIGIN_SECRET=cloudflare-origin-secret:latest
-        '--clear-secrets'
+        # Redis (response caching) wired from Secret Manager on every deploy.
+        # --update-secrets REPLACES the earlier --clear-secrets. Prod serves older code
+        # until the first release off current main; this takes effect on that release.
+        # CLOUDFLARE_ORIGIN_SECRET is deliberately NOT here yet — add it only AFTER prod
+        # origin-lock is verified against kalamio.com (bind out-of-band + curl test),
+        # so a value mismatch can't 403 production traffic:
+        #   ,CLOUDFLARE_ORIGIN_SECRET=cloudflare-origin-secret:latest
+        '--update-secrets',
+        'UPSTASH_REDIS_REST_URL=upstash-redis-rest-url:latest,UPSTASH_REDIS_REST_TOKEN=upstash-redis-rest-token:latest'
       ]
 
 images:
