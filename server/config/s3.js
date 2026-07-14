@@ -26,6 +26,11 @@ export const generateUploadURL = async (mimeType = 'image/jpeg') => {
         Bucket: BUCKET,
         Key: imageName,
         ContentType: mimeType,
+        // The key is unique per upload (nanoid + timestamp), so the bytes at this URL
+        // never change → cache for a year and skip revalidation entirely. This is
+        // SIGNED into the presigned URL, so the client's PUT MUST send a matching
+        // `Cache-Control` header (see frontend common/aws.jsx) or S3 returns 403.
+        CacheControl: 'public, max-age=31536000, immutable',
     });
 
     return await getSignedUrl(s3, command, {

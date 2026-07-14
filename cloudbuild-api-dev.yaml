@@ -47,7 +47,10 @@ steps:
         # All three wired: Redis caching + Cloudflare origin-lock. Verified live —
         # dev.kalamio.com passes with CF's X-Origin-Secret header; direct *.run.app → 403.
         '--update-secrets',
-        'UPSTASH_REDIS_REST_URL=upstash-redis-rest-url-dev:latest,UPSTASH_REDIS_REST_TOKEN=upstash-redis-rest-token-dev:latest,CLOUDFLARE_ORIGIN_SECRET=cloudflare-origin-secret-dev:latest'
+        'UPSTASH_REDIS_REST_URL=upstash-redis-rest-url-dev:latest,UPSTASH_REDIS_REST_TOKEN=upstash-redis-rest-token-dev:latest,CLOUDFLARE_ORIGIN_SECRET=cloudflare-origin-secret-dev:latest',
+        # Prerender OG/Twitter images route through the image CDN (cdn.kalamio.com).
+        '--update-env-vars',
+        'CDN_DOMAIN=https://cdn.kalamio.com'
       ]
 
 images:

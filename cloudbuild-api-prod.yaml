@@ -48,7 +48,10 @@ steps:
         # kalamio.com passes (CF adds X-Origin-Secret via an all-paths hostname Transform
         # Rule; the frontend nginx forwards it to the backend); direct *.run.app → 403.
         '--update-secrets',
-        'UPSTASH_REDIS_REST_URL=upstash-redis-rest-url:latest,UPSTASH_REDIS_REST_TOKEN=upstash-redis-rest-token:latest,CLOUDFLARE_ORIGIN_SECRET=cloudflare-origin-secret:latest'
+        'UPSTASH_REDIS_REST_URL=upstash-redis-rest-url:latest,UPSTASH_REDIS_REST_TOKEN=upstash-redis-rest-token:latest,CLOUDFLARE_ORIGIN_SECRET=cloudflare-origin-secret:latest',
+        # Prerender OG/Twitter images route through the image CDN (cdn.kalamio.com).
+        '--update-env-vars',
+        'CDN_DOMAIN=https://cdn.kalamio.com'
       ]
 
 images:

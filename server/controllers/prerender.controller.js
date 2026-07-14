@@ -1,6 +1,7 @@
 import Post from '../Schema/Post.js';
 import User from '../Schema/User.js';
 import Publication from '../Schema/Publication.js';
+import { cdnUrl } from '../config/cdn.js';
 
 /**
  * Server-side prerender for social-unfurl crawlers.
@@ -91,7 +92,7 @@ export const blogMeta = (blog) => {
     : (blog.title || 'Blog');
   const description =
     blog.des || (blog.text_content ? truncate(blog.text_content, 200) : DEFAULT_DESCRIPTION);
-  const image = blog.banner || DEFAULT_IMAGE;
+  const image = cdnUrl(blog.banner) || DEFAULT_IMAGE;
   const authorName = blog.author?.personal_info?.fullname;
   const authorUsername = blog.author?.personal_info?.username;
 
@@ -128,7 +129,7 @@ export const userMeta = (user) => {
   return {
     title: p.fullname || `@${p.username}`,
     description: (p.bio && p.bio.trim()) || `@${p.username} on ${SITE_NAME}`,
-    image: p.profile_img || DEFAULT_IMAGE,
+    image: cdnUrl(p.profile_img) || DEFAULT_IMAGE,
     url: `${ORIGIN}/user/${p.username}`,
     type: 'profile',
   };
@@ -137,7 +138,7 @@ export const userMeta = (user) => {
 export const publicationMeta = (pub) => ({
   title: pub.title || 'Publication',
   description: (pub.description && pub.description.trim()) || `${pub.title} on ${SITE_NAME}`,
-  image: pub.profile_photo || pub.banner || DEFAULT_IMAGE,
+  image: cdnUrl(pub.profile_photo || pub.banner) || DEFAULT_IMAGE,
   url: `${ORIGIN}/publication/${pub.slug}`,
   type: 'website',
 });
