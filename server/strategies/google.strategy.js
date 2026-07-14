@@ -47,7 +47,7 @@ const googleStrategy = new GoogleStrategy(
                     email,
                     username,
                     profile_img: picture,
-                    isEmailVerified: true, // Google already verified the email
+                    isEmailVerified: true, // Google already verified the email.
                 },
                 google_auth: true,
                 provider: 'google',

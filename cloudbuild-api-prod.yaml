@@ -40,14 +40,18 @@ steps:
         'us-central1',
         '--platform',
         'managed',
-        '--allow-unauthenticated'
-        # UPSTASH_REDIS_REST_* and CLOUDFLARE_ORIGIN_SECRET are intentionally NOT
-        # wired here: they're opt-in in the app (caching + origin-lock no-op when
-        # unset), so the deploy must not hard-depend on the secrets existing. To turn
-        # them on, create the prod secrets in Secret Manager, then bind them ONCE:
-        #   gcloud run services update kalamio-api --region us-central1 \
-        #     --update-secrets UPSTASH_REDIS_REST_URL=upstash-redis-rest-url:latest,UPSTASH_REDIS_REST_TOKEN=upstash-redis-rest-token:latest,CLOUDFLARE_ORIGIN_SECRET=cloudflare-origin-secret:latest
-        # Later `run deploy` calls preserve the binding (a revision inherits prior config).
+        '--allow-unauthenticated',
+        # A prior failed deploy (the redis/cloudflare commit) baked these secret refs
+        # into the service's revision template. `run deploy` INHERITS that template, so
+        # merely omitting --update-secrets isn't enough — the refs carry forward and the
+        # deploy keeps failing on the (disabled) Secret Manager API. --clear-secrets
+        # strips ALL secret-backed env vars, giving a revision with no Secret Manager
+        # dependency. Nothing here needs secrets: caching + origin-lock are opt-in and
+        # no-op when unset. Harmless no-op once the template is clean.
+        # To enable Redis/Cloudflare later: create the prod secrets in Secret Manager and
+        # swap this flag for:
+        #   --update-secrets UPSTASH_REDIS_REST_URL=upstash-redis-rest-url:latest,UPSTASH_REDIS_REST_TOKEN=upstash-redis-rest-token:latest,CLOUDFLARE_ORIGIN_SECRET=cloudflare-origin-secret:latest
+        '--clear-secrets'
       ]
 
 images:
