@@ -7,6 +7,9 @@ steps:
 
         '--build-arg', 'VITE_SERVER_DOMAIN=https://kalamio.com/',
 
+        # Image CDN — CloudFront-cached S3, served via cdn.kalamio.com.
+        '--build-arg', 'VITE_CDN_DOMAIN=https://cdn.kalamio.com',
+
         '-t',
         'us-central1-docker.pkg.dev/$PROJECT_ID/kalamio/frontend:$COMMIT_SHA',
 
