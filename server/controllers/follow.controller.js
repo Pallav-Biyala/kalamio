@@ -250,7 +250,7 @@ export const followFeed = async (req, res) => {
         const Post = (await import('../Schema/Post.js')).default;
 
         const blogs = await Post.find({ author: { $in: followingIds }, draft: false })
-            .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname -_id")
+            .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname")
             .sort({ publishedAt: -1 })
             .select("blog_id title des banner activity tags readTime publishedAt type text_content images poll edited author")
             .skip((page - 1) * maxLimit)

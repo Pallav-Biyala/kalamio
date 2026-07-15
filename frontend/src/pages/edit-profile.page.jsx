@@ -1,7 +1,9 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import usePageTitle from "../common/usePageTitle";
 import { UserContext } from "../App";
+import { propagateProfileUpdate } from "../common/propagateProfile";
 import api from "../common/api";
 import { profileDataStructure } from "./profile.page";
 import AnimationWrapper from "../common/page-animation";
@@ -22,6 +24,7 @@ const EditProfile = () => {
     usePageTitle('Edit Profile');
 
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
 
     let { userAuth, userAuth: { access_token }, setUserAuth } = useContext(UserContext);
 
@@ -88,7 +91,8 @@ const EditProfile = () => {
     }
 
     const handleEditCurrentPhoto = () => {
-        // Open cropper with the existing server photo
+        // Open the cropper on the existing server photo directly — CSP img-src allows S3/Google
+        // hosts, so it displays fine. The cropper handles the CORS-safe read for canvas export.
         setCropImageSrc(profile_img);
     };
 
@@ -126,6 +130,9 @@ const EditProfile = () => {
                         ...prev,
                         personal_info: { ...prev.personal_info, profile_img: data.profile_img }
                     }));
+
+                    // Propagate the new photo to every cached avatar across the app (no refresh)
+                    propagateProfileUpdate(queryClient, userAuth._id, { profile_img: data.profile_img });
 
                     setUpdatedProfileImg(null);
                     setPreviewImgUrl(null);
@@ -166,6 +173,9 @@ const EditProfile = () => {
                 ...prev,
                 personal_info: { ...prev.personal_info, profile_img: data.profile_img }
             }));
+
+            // Propagate the removal to every cached avatar across the app (no refresh)
+            propagateProfileUpdate(queryClient, userAuth._id, { profile_img: data.profile_img });
 
             setUpdatedProfileImg(null);
             setPreviewImgUrl(null);
@@ -216,7 +226,9 @@ const EditProfile = () => {
         })
         .then(({ data }) => {
 
-            if(userAuth.username != data.username){
+            const usernameChanged = userAuth.username != data.username;
+
+            if(usernameChanged){
 
                 let newUserAuth = { ...userAuth, username: data.username };
 
@@ -224,6 +236,9 @@ const EditProfile = () => {
                 setUserAuth(newUserAuth);
 
             }
+
+            // Reconcile cached feeds/comments/profile; instantly patch a changed username everywhere.
+            propagateProfileUpdate(queryClient, userAuth._id, usernameChanged ? { username: data.username } : null);
 
             toast.dismiss(loadingToast);
             e.target.removeAttribute("disabled");

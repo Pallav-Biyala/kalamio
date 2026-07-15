@@ -249,9 +249,10 @@ const BlogPage = () => {
         }
     }, [blogQuery.data?._id]);
 
-    // Reset UI state and scroll on blog_id change
+    // Reset comment UI on blog_id change. Window scroll is owned by <ScrollToTop />, which
+    // tops-out a fresh article and restores on Back — calling scrollTo here would race and
+    // defeat that restore (it runs post-paint, after the manager's layout-effect restore).
     useEffect(() => {
-        window.scrollTo(0, 0);
         setCommentsWrapper(false);
         setTotalParentCommentsLoaded(0);
 

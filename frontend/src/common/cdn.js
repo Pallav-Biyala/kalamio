@@ -19,4 +19,14 @@ export const cdnUrl = (url) => {
   return CDN_DOMAIN.replace(/\/$/, '') + url.slice(S3_ORIGIN.length);
 };
 
+// True if `url` points at OUR image host (raw S3 origin or the CDN that fronts it). Used to
+// decide which images must be same-origin-proxied for canvas reads — foreign hosts
+// (googleusercontent, dicebear) send their own CORS and are loaded directly, never proxied.
+// Mirrors the server's SSRF guard (config/s3.js keyForOwnedUrl) so both agree on what's proxied.
+export const isOwnedImageUrl = (url) => {
+  if (typeof url !== 'string') return false;
+  const cdn = CDN_DOMAIN ? CDN_DOMAIN.replace(/\/$/, '') : '';
+  return url.startsWith(S3_ORIGIN) || (!!cdn && url.startsWith(cdn));
+};
+
 export default cdnUrl;

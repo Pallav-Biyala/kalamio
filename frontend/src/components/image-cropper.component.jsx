@@ -1,17 +1,48 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Cropper from 'react-easy-crop';
+import toast from 'react-hot-toast';
+import { proxyImageUrl } from '../common/imageProxy';
+import { isOwnedImageUrl } from '../common/cdn';
 import Icon from './Icon';
 
 // ─── Canvas utility: extract a rotated + cropped region as a JPEG Blob ───────
 
-const createImage = (url) =>
+const loadImage = (url, { crossOrigin, referrerPolicy } = {}) =>
   new Promise((resolve, reject) => {
     const image = new Image();
     image.addEventListener('load', () => resolve(image));
     image.addEventListener('error', (error) => reject(error));
-    image.setAttribute('crossOrigin', 'anonymous');
+    if (crossOrigin) image.crossOrigin = crossOrigin;
+    if (referrerPolicy) image.referrerPolicy = referrerPolicy;
     image.src = url;
   });
+
+/**
+ * Load an image ready for a canvas READ (crop/rotate export), CSP- and CORS-safe:
+ *  - blob:/data: (fresh local uploads) → load directly (same-origin, never tainted).
+ *  - Our S3/CDN images → fetch through the same-origin /image-proxy and load the resulting
+ *    same-origin blob. (CSP connect-src allows the API host like any API call; img-src does NOT,
+ *    so the proxy URL can't be an <img> src — but a fetch is fine. A same-origin blob never taints.)
+ *  - Foreign hosts (Google/dicebear/…) → CSP img-src allows them but connect-src does NOT, so we
+ *    can't fetch them; read via a crossOrigin <img> (their host sends CORS). no-referrer avoids
+ *    hotlink 429s.
+ */
+const createImage = async (src) => {
+  if (!/^https?:/i.test(src)) return loadImage(src); // blob:/data:
+
+  if (isOwnedImageUrl(src)) {
+    const resp = await fetch(proxyImageUrl(src), { mode: 'cors', cache: 'no-store' });
+    if (!resp.ok) throw new Error(`Image fetch failed: ${resp.status}`);
+    const objectUrl = URL.createObjectURL(await resp.blob());
+    try {
+      return await loadImage(objectUrl);
+    } finally {
+      URL.revokeObjectURL(objectUrl); // safe post-load: the decoded bitmap is retained
+    }
+  }
+
+  return loadImage(src, { crossOrigin: 'anonymous', referrerPolicy: 'no-referrer' });
+};
 
 function getRadianAngle(degreeValue) {
   return (degreeValue * Math.PI) / 180;
@@ -35,7 +66,7 @@ function rotateSize(width, height, rotation) {
  * the cropped area defined by `pixelCrop`. Returns a JPEG Blob.
  */
 export async function getCroppedImg(imageSrc, pixelCrop, rotation = 0) {
-  const image = await createImage(imageSrc);
+  const image = await createImage(imageSrc); // fetched CORS-clean as a same-origin blob (see above)
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
 
@@ -109,6 +140,7 @@ const ImageCropperModal = ({ imageSrc, onComplete, onCancel }) => {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [imgObjectFit, setImgObjectFit] = useState('horizontal-cover');
   const [cropSize, setCropSize] = useState(null);
+  const [applying, setApplying] = useState(false);
   const containerRef = useRef(null);
 
   // Measure container — circle fills full width so image edges touch circle edges
@@ -137,6 +169,7 @@ const ImageCropperModal = ({ imageSrc, onComplete, onCancel }) => {
         setImgObjectFit('vertical-cover');
       }
     };
+    img.referrerPolicy = 'no-referrer'; // don't leak Referer to Google (429 hotlink block)
     img.src = imageSrc;
   }, [imageSrc]);
 
@@ -149,18 +182,24 @@ const ImageCropperModal = ({ imageSrc, onComplete, onCancel }) => {
   const handleResetRotation = () => setRotation(0);
 
   const handleApply = async () => {
+    if (!croppedAreaPixels || applying) return;
+    setApplying(true);
     try {
       const croppedBlob = await getCroppedImg(
         imageSrc,
         croppedAreaPixels,
         rotation
       );
+      if (!croppedBlob) throw new Error('Empty crop result');
       const file = new File([croppedBlob], 'cropped.jpeg', {
         type: 'image/jpeg',
       });
-      onComplete(file);
+      onComplete(file); // unmounts the modal on success
     } catch (err) {
+      // Most often a tainted/blocked cross-origin canvas — surface it instead of failing silently.
       console.error('Crop failed', err);
+      toast.error("Couldn't process the image. Please try again.");
+      setApplying(false);
     }
   };
 
@@ -205,6 +244,7 @@ const ImageCropperModal = ({ imageSrc, onComplete, onCancel }) => {
                 restrictPosition={true}
                 objectFit={imgObjectFit}
                 cropSize={cropSize}
+                mediaProps={{ referrerPolicy: 'no-referrer' }}
                 style={{
                   cropAreaStyle: {
                     border: 'none',
@@ -311,8 +351,9 @@ const ImageCropperModal = ({ imageSrc, onComplete, onCancel }) => {
                 type="button"
                 className="btn-dark w-full !py-2.5"
                 onClick={handleApply}
+                disabled={applying || !croppedAreaPixels}
               >
-                Apply
+                {applying ? 'Applying…' : 'Apply'}
               </button>
             </div>
           </div>

@@ -195,7 +195,7 @@ export const getPublicationBlogs = async (req, res) => {
         else if (type === 'text_post') ModelToUse = TextPost;
 
         const blogs = await ModelToUse.find(query)
-            .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname -_id")
+            .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname")
             .populate("publication", "title slug")
             .sort({ publishedAt: -1 })
             .select("blog_id title des banner activity tags readTime publishedAt publication type text_content images poll edited author")
@@ -519,7 +519,7 @@ export const getSubscriptionFeed = async (req, res) => {
         }
 
         const blogs = await Post.find({ publication: { $in: pubIds }, draft: false })
-            .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname -_id")
+            .populate("author", "personal_info.profile_img personal_info.username personal_info.fullname")
             .populate("publication", "title slug banner")
             .sort({ publishedAt: -1 })
             .select("blog_id title des banner activity tags readTime publishedAt publication type text_content images poll edited author")

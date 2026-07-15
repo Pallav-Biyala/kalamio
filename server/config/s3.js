@@ -1,9 +1,11 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { nanoid } from 'nanoid';
 
 const BUCKET = process.env.AWS_BUCKET || 'blog-app-82817';
 const REGION = process.env.AWS_REGION || 'ap-south-1';
+const S3_ORIGIN = `https://${BUCKET}.s3.${REGION}.amazonaws.com`;
+const CDN_DOMAIN = (process.env.CDN_DOMAIN || '').replace(/\/+$/, '');
 
 // AWS SDK v3 — modular client (replaces deprecated aws-sdk v2)
 const s3 = new S3Client({
@@ -53,6 +55,24 @@ const extractKeyFromUrl = (url) => {
         return null;
     }
 };
+
+/**
+ * SSRF guard for the image proxy: return the object key ONLY if `url` points at our own
+ * bucket (raw S3 origin or the CDN host that fronts it), else null. Prevents the proxy from
+ * being coerced into fetching arbitrary URLs.
+ */
+export const keyForOwnedUrl = (url) => {
+    if (typeof url !== 'string') return null;
+    const owned = url.startsWith(S3_ORIGIN) || (CDN_DOMAIN && url.startsWith(CDN_DOMAIN));
+    return owned ? extractKeyFromUrl(url) : null;
+};
+
+/**
+ * Fetch an object from our bucket as a stream, for the same-origin image proxy.
+ * Response carries `.Body` (a Node Readable) and `.ContentType`.
+ */
+export const getObjectStream = (key) =>
+    s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
 
 /**
  * Deletes a single image from S3 by its full URL.

@@ -13,6 +13,7 @@ import NoDataMessage from "../components/nodata.component";
 import LoadMoreDataBtn from "../components/load-more.component";
 import RightSidebar from "../components/right-sidebar.component";
 import Avatar from "../components/Avatar";
+import { cancelScrollRestore } from "../components/scroll-to-top.component";
 import { UserContext } from "../App";
 import NetworkError from "../components/network-error.component";
 import { useLatestBlogs, useCategoryBlogs, useTrendingBlogs, useFollowingFeed } from "../hooks/queries";
@@ -99,6 +100,7 @@ const HomePage = () => {
   }, []);
 
   const loadBlogByCategory = (category) => {
+    cancelScrollRestore(); // abort any in-flight restore so it can't fight this same-route reset
     window.scrollTo(0, 0);
 
     if (category === "For You") {
