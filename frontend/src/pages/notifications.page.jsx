@@ -19,7 +19,7 @@ const Notifications = () => {
 
     const [ filter, setFilter ] = useState('all');
 
-    let filters = ['all', 'like', 'comment', 'reply', 'follow', 'connect_request', 'subscribe', 'mention', 'poll_vote'];
+    let filters = ['all', 'like', 'comment', 'reply', 'follow', 'subscribe', 'mention', 'poll_vote'];
 
     const { setUserAuth } = useContext(UserContext);
     const queryClient = useQueryClient();

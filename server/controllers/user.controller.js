@@ -1,6 +1,5 @@
 import User, { generateAvatar } from '../Schema/User.js';
 import Follow from '../Schema/Follow.js';
-import Connection from '../Schema/Connection.js';
 import { escapeRegex } from '../utils/helpers.js';
 
 // Search Users
@@ -43,13 +42,10 @@ export const getProfile = (req, res) => {
             return res.status(404).json({ error: "User not found" });
         }
 
-        // Respect privacy: hide read count and connections if user opted out
+        // Respect privacy: hide read count if user opted out
         const userObj = user.toObject();
         if (userObj.privacy_settings?.show_read_count === false) {
             userObj.account_info.total_reads = undefined;
-        }
-        if (userObj.privacy_settings?.show_connections === false) {
-            userObj.account_info.total_connections = undefined;
         }
 
         return res.status(200).json(userObj)
@@ -159,16 +155,7 @@ export const searchConnectionsFollows = async (req, res) => {
         const follows = await Follow.find({ follower: userId }).select('following');
         const followedIds = follows.map(f => f.following);
 
-        const connections = await Connection.find({
-            $or: [{ requester: userId }, { recipient: userId }],
-            status: 'accepted'
-        }).select('requester recipient');
-        
-        const connectedIds = connections.map(c => 
-            c.requester.toString() === userId.toString() ? c.recipient : c.requester
-        );
-
-        const uniqueIds = [...new Set([...followedIds.map(String), ...connectedIds.map(String)])].filter(id => id !== 'undefined' && id);
+        const uniqueIds = [...new Set(followedIds.map(String))].filter(id => id !== 'undefined' && id);
 
         let users = await User.find({
             _id: { $in: uniqueIds },

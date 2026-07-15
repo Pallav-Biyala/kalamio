@@ -9,7 +9,6 @@ const DEFAULTS = {
     comment:          { in_app: true,  email: true },
     reply:            { in_app: true,  email: true },
     follow:           { in_app: true,  email: false },
-    connect_request:  { in_app: true,  email: true },
     subscribe:        { in_app: true,  email: false },
     mention:          { in_app: true,  email: true },
     mute_all: false
@@ -89,13 +88,12 @@ export const updateNotificationPreferences = async (req, res) => {
 const PRIVACY_DEFAULTS = {
     who_can_message: 'everyone',
     show_profile: 'everyone',
-    show_read_count: true,
-    show_connections: true
+    show_read_count: true
 };
 
 const VALID_PRIVACY_KEYS = new Set(Object.keys(PRIVACY_DEFAULTS));
-const VALID_MESSAGE_OPTIONS = ['everyone', 'connections', 'nobody'];
-const VALID_PROFILE_OPTIONS = ['everyone', 'logged_in', 'connections'];
+const VALID_MESSAGE_OPTIONS = ['everyone', 'nobody'];
+const VALID_PROFILE_OPTIONS = ['everyone', 'logged_in'];
 
 export const getPrivacySettings = async (req, res) => {
     try {
@@ -124,6 +122,12 @@ export const updatePrivacySettings = async (req, res) => {
                 return res.status(400).json({ error: `Unknown privacy key: ${key}` });
             }
         }
+
+        // 'connections' is a removed option, but a user's stored value may still be it (and the client
+        // re-sends the full settings object on every toggle). Coerce it to a valid value before
+        // validation so the whole update doesn't 400 — this also self-heals the stored value.
+        if (privacy_settings.who_can_message === 'connections') privacy_settings.who_can_message = 'nobody';
+        if (privacy_settings.show_profile === 'connections') privacy_settings.show_profile = 'logged_in';
 
         if (privacy_settings.who_can_message && !VALID_MESSAGE_OPTIONS.includes(privacy_settings.who_can_message)) {
             return res.status(400).json({ error: "Invalid value for who_can_message" });
@@ -268,23 +272,18 @@ import Post from '../Schema/Post.js';
 import Comment from '../Schema/Comment.js';
 import Collection from '../Schema/Collection.js';
 import Follow from '../Schema/Follow.js';
-import Connection from '../Schema/Connection.js';
 
 export const exportData = async (req, res) => {
     try {
         const user_id = req.user;
 
-        const [user, posts, comments, collections, followers, following, connections] = await Promise.all([
+        const [user, posts, comments, collections, followers, following] = await Promise.all([
             User.findById(user_id).select('personal_info social_links account_info notification_preferences privacy_settings joinedAt -_id'),
             Post.find({ author: user_id, draft: false }).select('blog_id title text_content type des tags content publishedAt activity -_id').lean(),
             Comment.find({ commented_by: user_id }).populate('blog_id', 'blog_id title -_id').select('comment commentedAt blog_id -_id').lean(),
             Collection.find({ owner: user_id, type: 'user' }).select('title visibility total_articles createdAt -_id').lean(),
             Follow.find({ following: user_id }).populate('follower', 'personal_info.username -_id').select('follower followedAt -_id').lean(),
-            Follow.find({ follower: user_id }).populate('following', 'personal_info.username -_id').select('following followedAt -_id').lean(),
-            Connection.find({ $or: [{ requester: user_id }, { recipient: user_id }], status: 'accepted' })
-                .populate('requester', 'personal_info.username -_id')
-                .populate('recipient', 'personal_info.username -_id')
-                .select('requester recipient acceptedAt -_id').lean()
+            Follow.find({ follower: user_id }).populate('following', 'personal_info.username -_id').select('following followedAt -_id').lean()
         ]);
 
         const exportPayload = {
@@ -294,8 +293,7 @@ export const exportData = async (req, res) => {
             comments: comments || [],
             collections: collections || [],
             followers: followers || [],
-            following: following || [],
-            connections: connections || []
+            following: following || []
         };
 
         res.setHeader('Content-Type', 'application/json');

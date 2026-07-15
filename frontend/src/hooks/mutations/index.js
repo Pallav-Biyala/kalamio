@@ -1,7 +1,6 @@
 export { useLikeBlog } from './useLikeBlog';
 export { useFollowUser } from './useFollowUser';
 export { useSubscribeAction } from './useSubscribeAction';
-export { useConnectAction } from './useConnectAction';
 export { useDeleteBlog } from './useDeleteBlog';
 export { useBulkDeleteBlogs } from './useBulkDeleteBlogs';
 export { useDeleteNotification } from './useDeleteNotification';

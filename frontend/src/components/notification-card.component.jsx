@@ -6,7 +6,6 @@ import NotificationCommentField from "./notification-comment-field.component";
 import { UserContext } from "../App";
 import api from "../common/api";
 import FollowButton from "./follow-button.component";
-import ConnectButton from "./connect-button.component";
 import Icon from "./Icon";
 
 const NotificationCard = ({ data, index, onDelete }) => {
@@ -20,7 +19,7 @@ const NotificationCard = ({ data, index, onDelete }) => {
             _id: notification_id,
         } = data;
 
-    // Blog fields (may be null for follow/connect notifications)
+    // Blog fields (may be null for follow/subscribe notifications)
     let blog_id = blog?.blog_id;
     let blog_title = blog?.title;
     let blog_oid = blog?._id;
@@ -56,8 +55,6 @@ const NotificationCard = ({ data, index, onDelete }) => {
             case 'reply': return 'replied on';
             case 'follow': return 'started following you';
             case 'subscribe': return 'subscribed to your publication';
-            case 'connect_request': return 'sent you a connect request';
-            case 'connect_accepted': return 'accepted your connect request';
             case 'mention': return 'mentioned you in a post';
             case 'share': return 'shared your post';
             case 'poll_vote': return 'voted on your poll';
@@ -66,7 +63,7 @@ const NotificationCard = ({ data, index, onDelete }) => {
     };
 
     // Social notifications (no blog context)
-    const isSocialNotification = ['follow', 'connect_request', 'connect_accepted', 'subscribe'].includes(type);
+    const isSocialNotification = ['follow', 'subscribe'].includes(type);
 
     return (
         <div className={"p-6 border-b border-border relative group " + (!seen ? "border-l-2 border-l-black" : "" )}>
@@ -124,19 +121,6 @@ const NotificationCard = ({ data, index, onDelete }) => {
                         </div>
                     )}
 
-                    {/* Connect request — show accept/decline */}
-                    {type === 'connect_request' && (
-                        <div className="mt-3">
-                            <ConnectButton targetUserId={user._id} initialStatus="pending_received" size="sm" />
-                        </div>
-                    )}
-
-                    {/* Connect accepted — show connected state */}
-                    {type === 'connect_accepted' && (
-                        <div className="mt-3">
-                            <ConnectButton targetUserId={user._id} initialStatus="accepted" size="sm" />
-                        </div>
-                    )}
                 </div>
             </div>
 

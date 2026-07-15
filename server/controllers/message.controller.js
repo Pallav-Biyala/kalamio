@@ -125,16 +125,11 @@ export const sendMessage = async (req, res) => {
                 return res.status(403).json({ error: "Cannot message this user" });
             }
 
-            // Privacy check — respect recipient's who_can_message setting
+            // Privacy check — respect recipient's who_can_message setting. 'connections' is a removed
+            // option; treat any leftover value as the most-private ('nobody') rather than opening up.
             const msgPref = targetUser.privacy_settings?.who_can_message || 'everyone';
-            if (msgPref === 'nobody') {
+            if (msgPref === 'nobody' || msgPref === 'connections') {
                 return res.status(403).json({ error: "This user is not accepting messages" });
-            }
-            if (msgPref === 'connections') {
-                const connected = await areConnected(sender_id, recipient_id);
-                if (!connected) {
-                    return res.status(403).json({ error: "This user only accepts messages from connections" });
-                }
             }
 
             conversation = await findOrCreateConversation(sender_id, recipient_id);

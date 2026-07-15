@@ -49,10 +49,6 @@ export const queryKeys = {
     feed:         ()                => ['subscribe', 'feed'],
   },
 
-  connect: {
-    status:       (userId)          => ['connect', 'status', userId],
-  },
-
   // ── Engagement ────────────────────────────────────────────────
   likes: {
     status:       (blogId)          => ['likes', 'status', blogId],
@@ -122,12 +118,6 @@ export const queryKeys = {
   subscriptions: {
     all:          ()                => ['subscriptions'],
     feed:         ()                => ['subscriptions', 'feed'],
-  },
-
-  // ── Connections ───────────────────────────────────────────────
-  connections: {
-    all:          ()                => ['connections'],
-    list:         (tab)             => ['connections', 'list', tab],
   },
 
   // ── Settings ──────────────────────────────────────────────────

@@ -16,12 +16,14 @@ import {
   Code, Code2, Library, Copy, Crop, Moon, LayoutDashboard, Trash2, Palette, CheckCheck,
   Download, GripVertical, Pencil, SquarePen, CircleAlert, ChevronUp, ChevronDown, Heart,
   FolderOpen, Quote, MessagesSquare, LayoutGrid, Users, UserPlus, Sun, Lightbulb,
-  Handshake, House, Hourglass, Vote, Image, Inbox, Info, Share, Globe, ListPlus, Unlink,
+  House, Hourglass, Vote, Image, Inbox, Info, Share, Globe, ListPlus, Unlink,
   Lock, LogOut, UserCog, MessageSquareDot, Menu, Ellipsis, Film, Music, Newspaper, Bell, BellRing,
   ExternalLink, CirclePause, User, UserMinus, Play, ChartColumnBig, RefreshCw, Repeat2,
   RotateCcw, RotateCw, Clock, Search, Send, Settings, Share2, Shield, MonitorPlay,
   Tag, Heading, TrendingUp, SlidersHorizontal, ChevronsUpDown, Upload, Video, Eye, EyeOff,
   TriangleAlert, WifiOff, Briefcase, ZoomIn, ZoomOut, CircleHelp,
+  Mail, Key, LockOpen, Bold, Italic, Underline, Strikethrough, List, ListOrdered,
+  AlignLeft, AlignCenter, AlignRight, Minus, Highlighter, Redo2, Undo2, Table, Terminal, Paperclip,
 } from 'lucide-react';
 
 // Material Symbols name → lucide-react component. Covers every name used across the app
@@ -41,7 +43,7 @@ const ICONS = {
   error: CircleAlert, expand_less: ChevronUp, expand_more: ChevronDown, favorite: Heart,
   favorite_border: Heart, feedback: Lightbulb, folder_open: FolderOpen, format_quote: Quote,
   forum: MessagesSquare, grid_view: LayoutGrid, group: Users, group_add: UserPlus,
-  handshake: Handshake, home: House, hourglass_empty: Hourglass, how_to_vote: Vote,
+  home: House, hourglass_empty: Hourglass, how_to_vote: Vote,
   image: Image, import_contacts: Newspaper, inbox: Inbox, info: Info, ios_share: Share,
   keyboard_arrow_down: ChevronDown, keyboard_arrow_up: ChevronUp, language: Globe, library_add: ListPlus, light_mode: Sun,
   link: Link, link_off: Unlink, lock: Lock, logout: LogOut, manage_accounts: UserCog,
@@ -56,6 +58,14 @@ const ICONS = {
   trending_up: TrendingUp, tune: SlidersHorizontal, unfold_more: ChevronsUpDown, update: RefreshCw,
   upload: Upload, videocam: Video, visibility: Eye, visibility_off: EyeOff, warning: TriangleAlert,
   wifi_off: WifiOff, work: Briefcase, zoom_in: ZoomIn, zoom_out: ZoomOut,
+  // Auth / input fields
+  mail: Mail, key: Key, lock_open: LockOpen,
+  // Editor toolbar
+  format_bold: Bold, format_italic: Italic, format_underlined: Underline, strikethrough_s: Strikethrough,
+  format_list_bulleted: List, format_list_numbered: ListOrdered,
+  format_align_left: AlignLeft, format_align_center: AlignCenter, format_align_right: AlignRight,
+  horizontal_rule: Minus, ink_highlighter: Highlighter, redo: Redo2, undo: Undo2,
+  table_chart: Table, terminal: Terminal, attach_file: Paperclip,
 };
 
 // Names whose FILLED variant is the intended look — a solid heart when liked, a solid

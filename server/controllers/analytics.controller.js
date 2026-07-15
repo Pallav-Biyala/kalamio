@@ -17,7 +17,7 @@ export const getAnalyticsOverview = async (req, res) => {
             return res.status(404).json({ error: "User not found" });
         }
 
-        const { total_posts, total_reads, total_followers, total_following, total_connections } = user.account_info;
+        const { total_posts, total_reads, total_followers, total_following } = user.account_info;
 
         // Aggregate likes and comments across all published posts
         const engagementStats = await Post.aggregate([
@@ -32,7 +32,6 @@ export const getAnalyticsOverview = async (req, res) => {
             total_posts,
             total_reads,
             total_followers,
-            total_connections,
             total_likes,
             total_comments
         });

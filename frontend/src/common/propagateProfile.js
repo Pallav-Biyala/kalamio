@@ -23,7 +23,6 @@ const AUTHOR_BEARING_KEYS = [
     ["users"],         // profile, search, suggestions
     ["notifications"], // actor avatars
     ["comments"],      // comment-thread
-    ["connections"],
     ["collections"],
     ["publications"],
     ["subscribe"],     // subscription feed + my-subscriptions (queryKeys.subscribe.*)

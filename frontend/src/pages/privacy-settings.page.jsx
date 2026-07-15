@@ -9,14 +9,12 @@ import toast from "react-hot-toast";
 
 const MESSAGING_OPTIONS = [
     { value: 'everyone', label: 'Everyone', desc: 'Anyone can send you messages' },
-    { value: 'connections', label: 'Connections Only', desc: 'Only your connections can message you' },
     { value: 'nobody', label: 'Nobody', desc: 'Disable all incoming messages' },
 ];
 
 const PROFILE_OPTIONS = [
     { value: 'everyone', label: 'Everyone', desc: 'Your profile is visible to anyone' },
     { value: 'logged_in', label: 'Logged In Users', desc: 'Only signed-in users can see your profile' },
-    { value: 'connections', label: 'Connections Only', desc: 'Only your connections can see your profile' },
 ];
 
 const PrivacySettingsPage = () => {
@@ -140,21 +138,6 @@ const PrivacySettingsPage = () => {
                                 type="checkbox"
                                 checked={settings?.show_read_count ?? true}
                                 onChange={(e) => updateSetting('show_read_count', e.target.checked)}
-                            />
-                            <span className="custom-toggle__slider"></span>
-                        </label>
-                    </div>
-
-                    <div className="privacy__toggle-row">
-                        <div>
-                            <span className="font-medium text-sm">Show Connections Count</span>
-                            <span className="text-xs text-dark-grey block">Display total connections on your profile</span>
-                        </div>
-                        <label className="custom-toggle">
-                            <input
-                                type="checkbox"
-                                checked={settings?.show_connections ?? true}
-                                onChange={(e) => updateSetting('show_connections', e.target.checked)}
                             />
                             <span className="custom-toggle__slider"></span>
                         </label>

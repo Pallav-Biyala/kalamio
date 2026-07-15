@@ -76,11 +76,6 @@ const SideNav = () => {
                             Notification
                         </NavLink>
 
-                        <NavLink to="/dashboard/connections" onClick={(e) => setpageState(e.target.innerText)} className="sidebar-link">
-                            <Icon name="handshake" />
-                            Connections
-                        </NavLink>
-
                         <NavLink to="/dashboard/publications" onClick={(e) => setpageState(e.target.innerText)} className="sidebar-link">
                             <Icon name="import_contacts" />
                             Publications

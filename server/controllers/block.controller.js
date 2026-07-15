@@ -1,11 +1,10 @@
 import BlockedUser from '../Schema/BlockedUser.js';
 import Follow from '../Schema/Follow.js';
-import Connection from '../Schema/Connection.js';
 import User from '../Schema/User.js';
 
 /**
  * POST /api/v1/block-user
- * Block a user. Removes follows and connections in both directions.
+ * Block a user. Removes follows in both directions.
  */
 export const blockUser = async (req, res) => {
     try {
@@ -28,14 +27,6 @@ export const blockUser = async (req, res) => {
             $or: [
                 { follower: user_id, following: target_id },
                 { follower: target_id, following: user_id }
-            ]
-        });
-
-        // Remove any connection between them
-        const connectionDeleted = await Connection.deleteOne({
-            $or: [
-                { requester: user_id, recipient: target_id },
-                { requester: target_id, recipient: user_id }
             ]
         });
 
@@ -81,14 +72,6 @@ export const blockUser = async (req, res) => {
             }
 
             if (updateOps.length) await Promise.all(updateOps);
-        }
-
-        // Update connection counts if a connection was removed
-        if (connectionDeleted.deletedCount > 0) {
-            await Promise.all([
-                User.findByIdAndUpdate(user_id, { $inc: { "account_info.total_connections": -1 } }),
-                User.findByIdAndUpdate(target_id, { $inc: { "account_info.total_connections": -1 } })
-            ]);
         }
 
         return res.status(200).json({ blocked: true });

@@ -109,10 +109,6 @@ const userSchema = mongoose.Schema({
             type: Number,
             default: 0
         },
-        total_connections: {
-            type: Number,
-            default: 0
-        },
     },
     google_auth: {
         type: Boolean,
@@ -137,7 +133,6 @@ const userSchema = mongoose.Schema({
         comment:          { in_app: { type: Boolean, default: true },  email: { type: Boolean, default: true } },
         reply:            { in_app: { type: Boolean, default: true },  email: { type: Boolean, default: true } },
         follow:           { in_app: { type: Boolean, default: true },  email: { type: Boolean, default: false } },
-        connect_request:  { in_app: { type: Boolean, default: true },  email: { type: Boolean, default: true } },
         subscribe:        { in_app: { type: Boolean, default: true },  email: { type: Boolean, default: false } },
         mention:          { in_app: { type: Boolean, default: true },  email: { type: Boolean, default: true } },
         mute_all:         { type: Boolean, default: false }
@@ -149,10 +144,9 @@ const userSchema = mongoose.Schema({
         deletion_reason:       { type: String, default: '' }
     },
     privacy_settings: {
-        who_can_message:  { type: String, enum: ['everyone', 'connections', 'nobody'], default: 'everyone' },
-        show_profile:     { type: String, enum: ['everyone', 'logged_in', 'connections'], default: 'everyone' },
-        show_read_count:  { type: Boolean, default: true },
-        show_connections: { type: Boolean, default: true }
+        who_can_message:  { type: String, enum: ['everyone', 'nobody'], default: 'everyone' },
+        show_profile:     { type: String, enum: ['everyone', 'logged_in'], default: 'everyone' },
+        show_read_count:  { type: Boolean, default: true }
     }
 }, 
 { 
