@@ -48,10 +48,9 @@ const BlogInteraction = () => {
         }
     }
 
-    // Display like count — use optimistic count from mutation or original
-    const displayLikes = likeMutation.isPending
-        ? (isLikedByUser ? total_likes - 1 : total_likes + 1)
-        : total_likes;
+    // useLikeBlog.onMutate already optimistically adjusts total_likes in the query cache (synced into
+    // context), so render it directly — adjusting again here would double-count (show the stale value).
+    const displayLikes = total_likes;
 
     return (
         <>

@@ -184,13 +184,15 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
 
                 let parentCommentIncrementVal = replyingTo ? 0 : 1;
 
-                blogContext.setBlog({ ...blogContext.blog, 
-                    comments: { ...blogContext.blog.comments, results: newCommentArr }, 
-                    activity: { ...activity, 
-                        total_comments: total_comments + 1, 
-                        total_parent_comments: total_parent_comments + parentCommentIncrementVal 
-                    } 
-                });
+                // Functional form so a concurrent live activity update (e.g. someone else liking the
+                // post while this comment is in flight) isn't reverted by a stale-closure snapshot.
+                blogContext.setBlog(prev => ({ ...prev,
+                    comments: { ...prev.comments, results: newCommentArr },
+                    activity: { ...prev.activity,
+                        total_comments: (prev.activity?.total_comments || 0) + 1,
+                        total_parent_comments: (prev.activity?.total_parent_comments || 0) + parentCommentIncrementVal
+                    }
+                }));
 
                 if (blogContext.setTotalParentCommentsLoaded) {
                     blogContext.setTotalParentCommentsLoaded(preVal => preVal + parentCommentIncrementVal);

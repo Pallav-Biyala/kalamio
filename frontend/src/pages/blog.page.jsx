@@ -20,6 +20,7 @@ import toast from "react-hot-toast";
 import NetworkError from "../components/network-error.component";
 import useReadTracker from "../hooks/useReadTracker";
 import { useBlogDetail, useSimilarBlogs, usePollVoteStatus } from "../hooks/queries";
+import { getSocket } from "../common/socket";
 import { useVotePoll } from "../hooks/mutations";
 import PollVotersModal from "../components/poll-voters-modal.component";
 
@@ -172,6 +173,40 @@ const BlogPage = () => {
     const blog = blogWithComments;
     const setBlog = setBlogWithComments;
 
+    // Live like/comment counts: join this post's room and apply pushed count updates so the numbers
+    // move in real time while it's open (the server emits blog_updated to blog:<_id> on like/comment).
+    const liveBlogId = blogQuery.data?._id;
+    useEffect(() => {
+        if (!liveBlogId) return;
+        const socket = getSocket();
+        if (!socket) return;
+
+        socket.emit("join_blog", liveBlogId);
+        // Re-join on every reconnect — a reconnect gets a fresh socket that isn't in the room anymore,
+        // which would otherwise silently stop live counts until a page reload.
+        const rejoin = () => socket.emit("join_blog", liveBlogId);
+        socket.on("connect", rejoin);
+
+        const handleBlogUpdate = (data) => {
+            if (String(data.blog_id) !== String(liveBlogId)) return;
+            // poll updates arrive under activity.poll (live poll votes) — apply it to blog.poll and
+            // merge the remaining count fields (total_likes / total_comments) into activity.
+            const { poll, ...activityRest } = data.activity || {};
+            setBlogWithComments(prev => ({
+                ...prev,
+                ...(poll ? { poll } : {}),
+                activity: { ...prev.activity, ...activityRest },
+            }));
+        };
+        socket.on("blog_updated", handleBlogUpdate);
+
+        return () => {
+            socket.emit("leave_blog", liveBlogId);
+            socket.off("connect", rejoin);
+            socket.off("blog_updated", handleBlogUpdate);
+        };
+    }, [liveBlogId]);
+
     let { title, des, tags, content, banner, author: { personal_info: { fullname, username: author_username, profile_img, bio }, account_info: { total_posts: author_total_posts, total_reads: author_total_reads } = {} }, publishedAt, publication, type, text_content, images, poll: blogPoll } = blog;
 
     const isTextPost = type === 'text_post';
@@ -221,12 +256,29 @@ const BlogPage = () => {
         const fetchAndSetComments = () => {
             if (blogQuery.data && !blogQuery.data.draft && blogQuery.data._id) {
                 fetchComments({ blog_id: blogQuery.data._id, setParentCommentCountFun: setTotalParentCommentsLoaded })
-                    .then(comments => {
-                        setBlogWithComments(prev => ({
-                            ...prev,
-                            comments: comments,
-                        }));
-                    });
+                    .then(res => {
+                        if (!res) return;
+                        setBlogWithComments(prev => {
+                            // Apply the server-synced counts so a stale total (e.g. the "1 comment but
+                            // none exist" drift) self-corrects on load.
+                            const activity = {
+                                ...prev.activity,
+                                ...(res.total_comments != null ? { total_comments: res.total_comments } : {}),
+                                ...(res.total_parent_comments != null ? { total_parent_comments: res.total_parent_comments } : {}),
+                            };
+                            const existing = prev.comments?.results || [];
+                            // First load — take the fresh first page as-is.
+                            if (!existing.length) {
+                                return { ...prev, comments: { results: res.results }, activity };
+                            }
+                            // Tab-focus refetch: keep every page already loaded and just prepend any
+                            // brand-new top-level comments, so loaded pages survive the tab switch.
+                            const existingIds = new Set(existing.map(c => c._id));
+                            const brandNew = res.results.filter(c => !existingIds.has(c._id));
+                            return { ...prev, comments: { results: [...brandNew, ...existing] }, activity };
+                        });
+                    })
+                    .catch(() => {});
             }
         };
 

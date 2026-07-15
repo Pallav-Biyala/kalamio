@@ -4,6 +4,7 @@ import ScrollToTop from "./components/scroll-to-top.component";
 import { createContext, useEffect, useState, lazy, Suspense } from "react";
 import { useQueryClient } from '@tanstack/react-query';
 import { lookInSession } from "./common/session";
+import { getSocket, disconnectSocket, connectSocketToQueryCache } from "./common/socket";
 import { Toaster } from 'react-hot-toast';
 import Loader from "./components/loader.component";
 import CustomTooltip from "./components/CustomTooltip";
@@ -105,6 +106,28 @@ const App = () => {
         if (userAuth.access_token === null) {
             queryClient.clear();
         }
+    }, [userAuth.access_token, queryClient]);
+
+    // Real-time: connect the socket on login, wire it to the query cache (so badges/feeds update
+    // live), and keep the context-based Activity flag live too. Disconnect on logout.
+    useEffect(() => {
+        if (!userAuth.access_token) {
+            disconnectSocket();
+            return;
+        }
+
+        const socket = getSocket();
+        if (!socket) return;
+
+        connectSocketToQueryCache(socket, queryClient);
+
+        // The mobile/you-page Activity dot reads userAuth.new_notification_available (context, not a
+        // query), so flip it on when a notification arrives; it's cleared when the tab is visited.
+        const onNotification = () => setUserAuth(prev =>
+            prev.new_notification_available ? prev : { ...prev, new_notification_available: true }
+        );
+        socket.on("new_notification", onNotification);
+        return () => socket.off("new_notification", onNotification);
     }, [userAuth.access_token, queryClient]);
 
     return (

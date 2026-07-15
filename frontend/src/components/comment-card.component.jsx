@@ -10,7 +10,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../common/queryKeys";
 
-const CommentCard = ({ index, commentData, isTextPost = false }) => {
+const CommentCard = ({ index, commentData, isTextPost = false, onReplyDeleted }) => {
 
     // Guard: skip rendering if the comment author was deleted
     if (!commentData.commented_by) {
@@ -107,21 +107,42 @@ const CommentCard = ({ index, commentData, isTextPost = false }) => {
         setShowMenu(false);
         api.post("/delete-comment", { _id })
         .then(() => {
-            const newArr = commentsArr.filter((c, i) => i !== index);
             const isParent = commentData.childrenLevel == 0;
+            // Server deletes this comment AND all its nested replies.
             const removedCount = 1 + (commentData.children?.length || 0);
+
             if (isParent) {
-                setTotalParentCommentsLoaded(preVal => preVal - 1)
+                // Top-level comment: drop it from the blog's comment list. Match by _id, not by
+                // `index` — index-based filtering removed the wrong slot and made siblings vanish.
+                const newArr = commentsArr.filter(c => c._id !== _id);
+                setTotalParentCommentsLoaded(preVal => preVal - 1);
+                setBlog({
+                    ...blog,
+                    comments: { ...comments, results: newArr },
+                    activity: {
+                        ...activity,
+                        total_parent_comments: total_parent_comments - 1,
+                        total_comments: (activity.total_comments || 0) - removedCount,
+                    }
+                });
+            } else {
+                // Reply. It may live in the PARENT card's inline-replies state (article inline replies)
+                // or, in the flat-list reply UI, inside commentsArr. Remove by _id from both — filtering
+                // commentsArr by this reply's local `index` (its position among sibling replies) would
+                // delete an unrelated top-level comment: the whole-comment-disappears bug. onReplyDeleted
+                // handles the inline case; the _id filter is a no-op there and correct for the flat case.
+                onReplyDeleted?.(_id);
+                const newArr = commentsArr.filter(c => c._id !== _id);
+                setBlog({
+                    ...blog,
+                    comments: { ...comments, results: newArr },
+                    activity: {
+                        ...activity,
+                        total_comments: (activity.total_comments || 0) - removedCount,
+                    }
+                });
             }
-            setBlog({
-                ...blog,
-                comments: { results: newArr },
-                activity: {
-                    ...activity,
-                    total_parent_comments: total_parent_comments - (isParent ? 1 : 0),
-                    total_comments: (activity.total_comments || 0) - removedCount,
-                }
-            });
+
             // Invalidate feed queries so other tabs/views get updated count
             queryClient.invalidateQueries({ queryKey: queryKeys.blogs.all() });
         })
@@ -460,7 +481,17 @@ const CommentCard = ({ index, commentData, isTextPost = false }) => {
             {!isTextPost && showInlineReplies && inlineReplies.length > 0 && (
                 <div className="comment-card__inline-replies">
                     {inlineReplies.map((reply, i) => (
-                        <CommentCard key={reply._id || i} index={i} commentData={{...reply, childrenLevel: (commentData.childrenLevel || 0) + 1}} isTextPost={false} />
+                        <CommentCard
+                            key={reply._id || i}
+                            index={i}
+                            commentData={{...reply, childrenLevel: (commentData.childrenLevel || 0) + 1}}
+                            isTextPost={false}
+                            onReplyDeleted={(rid) => {
+                                setInlineReplies(prev => prev.filter(r => r._id !== rid));
+                                setReplyCount(c => Math.max(0, c - 1));
+                                setInlineRepliesLoaded(n => Math.max(0, n - 1));
+                            }}
+                        />
                     ))}
                     {inlineRepliesLoaded < replyCount && (
                         <button className="comment-card__replies-toggle" onClick={loadInlineReplies} disabled={loadingInlineReplies}>

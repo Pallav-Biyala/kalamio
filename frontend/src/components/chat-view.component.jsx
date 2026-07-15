@@ -1,6 +1,8 @@
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { UserContext } from "../App";
+import { queryKeys } from "../common/queryKeys";
 import api from "../common/api";
 import { getSocket } from "../common/socket";
 import MessageBubble from "./message-bubble.component";
@@ -8,9 +10,23 @@ import Avatar from "./Avatar";
 import Icon from "./Icon";
 import toast from "react-hot-toast";
 
+// A message's sender may be a populated object or a bare id string (optimistic sends) — normalise.
+const resolveSenderId = (m) => m?.sender?._id || m?.sender;
+
 const ChatView = ({ conversation, onConversationUpdate, onConversationCreated }) => {
 
-    const { userAuth: { _id: currentUserId, access_token } } = useContext(UserContext);
+    const { userAuth: { _id: currentUserId, access_token, profile_img: myAvatar, fullname: myName } } = useContext(UserContext);
+    const queryClient = useQueryClient();
+
+    // Mark a conversation read on the server, then refresh the unread badge + conversation list so
+    // the Chat red dot clears live (not only on refresh).
+    const markConversationRead = (cid) => {
+        api.post("/messages/mark-read", { conversation_id: cid })
+            .then(() => {
+                queryClient.invalidateQueries({ queryKey: queryKeys.messages.unreadTotal() });
+            })
+            .catch(() => {});
+    };
 
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState("");
@@ -23,6 +39,21 @@ const ChatView = ({ conversation, onConversationUpdate, onConversationCreated })
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
     const typingTimeoutRef = useRef(null);
+
+    // Which own messages show a read receipt: the last own message, PLUS any own message whose read
+    // status differs from the next own message — so a "Read" message followed by a newer "Delivered"
+    // one shows both, instead of only "Delivered" under the latest (which reads as if none were read).
+    const receiptFlags = useMemo(() => {
+        const flags = new Array(messages.length).fill(false);
+        let nextOwnRead = null; // read status of the nearest own message AFTER index i
+        for (let i = messages.length - 1; i >= 0; i--) {
+            if (resolveSenderId(messages[i]) !== currentUserId) continue;
+            const r = !!messages[i].read;
+            if (nextOwnRead === null || nextOwnRead !== r) flags[i] = true;
+            nextOwnRead = r;
+        }
+        return flags;
+    }, [messages, currentUserId]);
 
     const other = conversation?.other_user;
     const convId = conversation?._id;
@@ -56,7 +87,7 @@ const ChatView = ({ conversation, onConversationUpdate, onConversationCreated })
             setLoading(false);
 
             // Mark as read
-            api.post("/messages/mark-read", { conversation_id: convId }).catch(() => {});
+            markConversationRead(convId);
         })
         .catch(() => setLoading(false));
 
@@ -77,7 +108,7 @@ const ChatView = ({ conversation, onConversationUpdate, onConversationCreated })
                 scrollToBottom();
 
                 // Mark as read immediately since we're in this chat
-                api.post("/messages/mark-read", { conversation_id: convId }).catch(() => {});
+                markConversationRead(convId);
             }
             // Update conversation list regardless
             onConversationUpdate?.();
@@ -95,14 +126,25 @@ const ChatView = ({ conversation, onConversationUpdate, onConversationCreated })
             }
         };
 
+        const handleMessagesRead = (data) => {
+            if (data.conversation_id === convId) {
+                // The other user opened the chat — mark our sent messages read (read receipt).
+                setMessages(prev => prev.map(m =>
+                    resolveSenderId(m) === currentUserId ? { ...m, read: true } : m
+                ));
+            }
+        };
+
         socket.on('new_message', handleNewMessage);
         socket.on('user_typing', handleTyping);
         socket.on('user_stop_typing', handleStopTyping);
+        socket.on('messages_read', handleMessagesRead);
 
         return () => {
             socket.off('new_message', handleNewMessage);
             socket.off('user_typing', handleTyping);
             socket.off('user_stop_typing', handleStopTyping);
+            socket.off('messages_read', handleMessagesRead);
         };
     }, [convId, access_token]);
 
@@ -271,14 +313,18 @@ const ChatView = ({ conversation, onConversationUpdate, onConversationCreated })
                     </div>
                 ) : (
                     messages.map((msg, i) => {
-                        const isOwn = msg.sender?._id === currentUserId || msg.sender === currentUserId;
-                        const showAvatar = i === 0 || messages[i-1]?.sender?._id !== msg.sender?._id;
+                        const isOwn = resolveSenderId(msg) === currentUserId;
+                        // Show the avatar only on the first message of a same-sender run (group).
+                        const showAvatar = i === 0 || resolveSenderId(messages[i-1]) !== resolveSenderId(msg);
                         return (
                             <MessageBubble
                                 key={msg._id || i}
                                 message={msg}
                                 isOwn={isOwn}
                                 showAvatar={showAvatar}
+                                showReceipt={receiptFlags[i]}
+                                myAvatar={myAvatar}
+                                myName={myName}
                             />
                         );
                     })

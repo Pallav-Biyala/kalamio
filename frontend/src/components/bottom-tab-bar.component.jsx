@@ -1,11 +1,10 @@
-import { useContext, useState, useEffect } from "react";
+import { useContext, useState } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { UserContext } from "../App";
 import Icon from "./Icon";
 import Avatar from "./Avatar";
 import TextPostComposer from "./text-post-composer.component";
-import api from "../common/api";
-import { getSocket } from "../common/socket";
+import { useUnreadMessages } from "../hooks/queries";
 
 const BottomTabBar = () => {
 
@@ -15,27 +14,10 @@ const BottomTabBar = () => {
 
     const [showFabMenu, setShowFabMenu] = useState(false);
     const [showComposer, setShowComposer] = useState(false);
-    const [unreadMessages, setUnreadMessages] = useState(0);
 
-    // Fetch unread message count
-    useEffect(() => {
-        if (!access_token) return;
-
-        const fetchUnread = () => {
-            api.post("/messages/unread-total")
-                .then(({ data }) => setUnreadMessages(data.unread_total || 0))
-                .catch(() => {});
-        };
-
-        fetchUnread();
-
-        const socket = getSocket();
-        if (socket) {
-            const handleNewMessage = () => fetchUnread();
-            socket.on('new_message', handleNewMessage);
-            return () => socket.off('new_message', handleNewMessage);
-        }
-    }, [access_token]);
+    // Live unread-message count — invalidated by the socket→cache bridge on new_message and by
+    // chat-view on mark-read (replaces the old local state + manual per-component socket listener).
+    const { data: unreadMessages = 0 } = useUnreadMessages();
 
     const handleCreateTextPost = () => {
         setShowFabMenu(false);

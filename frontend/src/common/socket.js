@@ -4,12 +4,24 @@ import { queryKeys } from './queryKeys';
 
 let socket = null;
 
+// Proactively reconnect a dropped socket the moment the network returns — snappier than waiting for
+// the next backoff retry. connect() is a no-op on an already-connected socket, so this is safe.
+if (typeof window !== "undefined") {
+    window.addEventListener("online", () => {
+        if (socket && !socket.connected) socket.connect();
+    });
+}
+
 /**
  * Get or create a Socket.IO connection.
  * Uses the JWT from session for authentication.
  */
 export const getSocket = () => {
-    if (socket?.connected) return socket;
+    // Reuse the single instance whatever its state (connecting / connected / reconnecting).
+    // Checking `.connected` here would spawn a NEW socket on every call made during the initial
+    // connecting window — several components call getSocket() on mount, so that created duplicate
+    // connections and split listeners across them.
+    if (socket) return socket;
 
     const user = lookInSession("user");
     if (!user) return null;
@@ -24,7 +36,19 @@ export const getSocket = () => {
         transports: ['websocket', 'polling'],
         reconnection: true,
         reconnectionDelay: 1000,
-        reconnectionAttempts: 10
+        // Never give up: socket.io keeps retrying with a capped (~5s) backoff, so real-time recovers
+        // whenever connectivity returns. A finite cap would leave the socket permanently dead after a
+        // long outage (laptop sleep, tunnel, VPN drop), since getSocket() reuses the single instance.
+        reconnectionAttempts: Infinity
+    });
+
+    // On every reconnect attempt, re-read the (possibly refreshed) token from session so an expired
+    // token can't permanently break real-time after a network blip.
+    socket.io.on('reconnect_attempt', () => {
+        const u = lookInSession("user");
+        if (u) {
+            try { socket.auth = { token: JSON.parse(u).access_token }; } catch { /* keep old auth */ }
+        }
     });
 
     socket.on('connect', () => {
@@ -62,22 +86,22 @@ export const disconnectSocket = () => {
  */
 export const connectSocketToQueryCache = (sock, queryClient) => {
     if (!sock || !queryClient) return;
+    // Idempotent — only wire the bridge once per socket instance, even if called on every re-render.
+    if (sock._cacheBridged) return;
+    sock._cacheBridged = true;
 
     sock.on('new_message', () => {
+        // The unread-total badge query IS a React Query; the conversation list is local state on the
+        // messages page (refreshed by its own new_message listener), so we don't invalidate it here.
         queryClient.invalidateQueries({ queryKey: queryKeys.messages.unreadTotal() });
-        queryClient.invalidateQueries({ queryKey: queryKeys.messages.conversations() });
     });
 
     sock.on('new_notification', () => {
         queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unread() });
         queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all() });
     });
-
-    sock.on('blog_updated', ({ blog_id }) => {
-        if (blog_id) {
-            queryClient.invalidateQueries({ queryKey: queryKeys.blogs.detail(blog_id) });
-        }
-    });
+    // (blog_updated — live like/comment counts — is handled directly by the blog page, which keys
+    // its room/state on the post _id rather than the slug used by the blogs.detail query.)
 };
 
 export default getSocket;

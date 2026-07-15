@@ -3,7 +3,7 @@ import usePageTitle from "../common/usePageTitle";
 import { useContext, useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { UserContext } from "../App";
-import { getSocket, disconnectSocket } from "../common/socket";
+import { getSocket } from "../common/socket";
 import ConversationList from "../components/conversation-list.component";
 import ChatView from "../components/chat-view.component";
 import Icon from "../components/Icon";
@@ -84,10 +84,22 @@ const MessagesPage = () => {
             fetchConversations();
         };
 
+        // The other user accepted our message request — unblock the open chat live (onConversationUpdate
+        // only refreshes the list, not the selected conversation, so flip its status directly) and
+        // refresh the list so it moves from Requests → Chats.
+        const handleRequestAccepted = (data) => {
+            setActiveConv(prev => (prev && String(prev._id) === String(data.conversation_id))
+                ? { ...prev, request_status: 'accepted' }
+                : prev);
+            fetchConversations();
+        };
+
         socket.on('new_message', handleNewMessage);
+        socket.on('request_accepted', handleRequestAccepted);
 
         return () => {
             socket.off('new_message', handleNewMessage);
+            socket.off('request_accepted', handleRequestAccepted);
         };
     }, [access_token, fetchConversations]);
 

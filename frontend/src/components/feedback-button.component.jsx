@@ -299,6 +299,9 @@ const FeedbackButton = () => {
     // On mobile, feedback is in the You section — don't show floating button
     if (window.innerWidth < 1024) return null;
 
+    // On desktop, only show the floating button on the home screen
+    if (location.pathname !== "/") return null;
+
     return (
         <div className="feedback-fab" ref={fabRef}>
             {/* Tooltip */}

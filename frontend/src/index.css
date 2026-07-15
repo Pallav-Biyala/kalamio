@@ -4372,7 +4372,9 @@
     display: flex;
     flex: 1;
     min-height: 0;
-    height: calc(100vh - 80px);
+    /* Desktop has no top/bottom bar (left sidebar layout), so fill the viewport. Mobile overrides
+       below to subtract the mobile top bar + bottom tab bar. */
+    height: 100dvh;
     overflow: hidden;
 }
 
@@ -4573,7 +4575,7 @@
     font-size: 11px;
     font-weight: 700;
     background: rgb(var(--c-brand));
-    color: #fff;
+    color: rgb(var(--c-white));
     flex-shrink: 0;
 }
 
@@ -4736,6 +4738,11 @@
     align-self: flex-start;
 }
 
+/* First message of a same-sender run — add space above so groups read as groups. */
+.msg-bubble--start {
+    margin-top: 10px;
+}
+
 .msg-bubble__avatar {
     width: 28px;
     height: 28px;
@@ -4743,6 +4750,12 @@
     object-fit: cover;
     flex-shrink: 0;
     margin-top: 4px;
+}
+
+/* Keeps the avatar column reserved on consecutive (avatar-less) messages so bubbles stay aligned. */
+.msg-bubble__avatar-spacer {
+    width: 28px;
+    flex-shrink: 0;
 }
 
 .msg-bubble__body {
@@ -4753,7 +4766,7 @@
 
 .msg-bubble--own .msg-bubble__body {
     background: rgb(var(--c-brand));
-    color: #fff;
+    color: rgb(var(--c-white));
     border-bottom-right-radius: 4px;
 }
 
@@ -4770,6 +4783,21 @@
     white-space: pre-wrap;
 }
 
+/* Column holding the bubble body + the read-receipt line beneath it. */
+.msg-bubble__col {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.msg-bubble--own .msg-bubble__col {
+    align-items: flex-end;
+}
+
+.msg-bubble--other .msg-bubble__col {
+    align-items: flex-start;
+}
+
 .msg-bubble__time {
     font-size: 11px;
     opacity: 0.6;
@@ -4779,6 +4807,14 @@
 
 .msg-bubble--own .msg-bubble__time {
     text-align: right;
+}
+
+/* Read receipt under your latest sent message: "Delivered" until opened, then "Read". */
+.msg-bubble__receipt {
+    font-size: 11px;
+    color: rgb(var(--c-dark-grey));
+    margin-top: 3px;
+    padding: 0 4px;
 }
 
 /* ── Typing Indicator ─────────────────────────── */
@@ -4906,7 +4942,7 @@
     border-radius: 50%;
     border: none;
     background: rgb(var(--c-brand));
-    color: #fff;
+    color: rgb(var(--c-white));
     cursor: pointer;
     display: flex;
     align-items: center;

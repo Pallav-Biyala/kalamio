@@ -150,7 +150,7 @@ const LeftSidebar = () => {
                                         {showBadge && new_notification_available && (
                                             <span className="notification-badge !w-2 !h-2 !top-0 !right-0"></span>
                                         )}
-                                        {icon === "chat" && unreadMessages > 0 && (
+                                        {icon === "forum" && unreadMessages > 0 && (
                                             <span className="notification-badge !w-2 !h-2 !top-0 !right-0"></span>
                                         )}
                                     </div>

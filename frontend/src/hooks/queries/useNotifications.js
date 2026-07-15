@@ -37,6 +37,10 @@ const useNotifications = (filter = 'all') => {
 
     enabled: !!access_token,
 
+    // Always refetch on mount: the server marks notifications seen when the list is fetched, so
+    // visiting the tab must hit the server (even within staleTime) for the Activity badge to clear.
+    refetchOnMount: 'always',
+
     getNextPageParam: (lastPage, allPages) => {
       const totalDocs = allPages[0]?.totalDocs ?? 0;
       const totalLoaded = allPages.reduce(

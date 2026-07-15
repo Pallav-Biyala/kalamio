@@ -1,4 +1,4 @@
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import { BlogContext } from "../pages/blog.page";
 import CommentField from "./comment-field.component";
 import api from "../common/api";
@@ -17,18 +17,32 @@ export const fetchComments = async ({ skip=0, blog_id, setParentCommentCountFun,
     await api.post("/get-blog-comments", { blog_id, skip })
     .then(({ data }) => {
 
-        data.map(comment => {
+        // Server returns { comments, total_comments, total_parent_comments } with the counts freshly
+        // synced to the true document counts. Tolerate a bare array too (older server) so a version
+        // skew doesn't blank the list.
+        const list = Array.isArray(data) ? data : (data.comments || []);
+
+        list.forEach(comment => {
             comment.childrenLevel = 0;
         })
 
-        setParentCommentCountFun(preVal => preVal + data.length)
+        if (setParentCommentCountFun) setParentCommentCountFun(preVal => preVal + list.length)
 
+        let results;
         if(comment_array == null){
-            res = { results: data }
-        } 
-        else{
-            res = { results: [ ...comment_array, ...data ] }
+            results = list;
         }
+        else{
+            // Dedupe by _id so a skip/refetch overlap can't insert the same comment twice.
+            const seen = new Set(comment_array.map(c => c._id));
+            results = [ ...comment_array, ...list.filter(c => !seen.has(c._id)) ];
+        }
+
+        res = {
+            results,
+            total_comments: Array.isArray(data) ? undefined : data.total_comments,
+            total_parent_comments: Array.isArray(data) ? undefined : data.total_parent_comments,
+        };
 
     })
 
@@ -38,19 +52,46 @@ export const fetchComments = async ({ skip=0, blog_id, setParentCommentCountFun,
 
 const CommentsContainer = () => {
 
-    let { blog, commentsWrapper, setCommentsWrapper, totalParentCommentsLoaded, setTotalParentCommentsLoaded, setBlog } = useContext(BlogContext);
+    let { blog, commentsWrapper, setCommentsWrapper, setBlog } = useContext(BlogContext);
 
-    const { _id, title, type, comments, activity: { total_parent_comments } = {} } = blog || {};
+    // total_comments counts replies too (matching the interaction-bar icon and every feed card);
+    // total_parent_comments counts only top-level threads and drives the "Load More" pagination.
+    const { _id, title, type, comments, activity: { total_comments, total_parent_comments } = {} } = blog || {};
     const commentsArr = comments?.results || [];
 
     const isTextPost = type === 'text_post';
 
+    const [loadingMore, setLoadingMore] = useState(false);
+
+    // How many top-level comments are loaded — derived from the list itself, NOT a running counter.
+    // The old counter was incremented on every fetch (including each tab-focus refetch, which reloads
+    // page 1), so it drifted above the real count and the button flickered on/off. The array length is
+    // always in sync with what's actually rendered, so the button can't disagree with the list.
+    const loadedCount = commentsArr.length;
+    const hasMoreComments = (total_parent_comments || 0) > loadedCount;
+
     const loadMoreComments = async () => {
-        let newCommentsArr = await fetchComments({ skip: totalParentCommentsLoaded, blog_id: _id, setParentCommentCountFun: setTotalParentCommentsLoaded, comment_array: commentsArr })
-        if (setBlog) {
-            setBlog({ ...blog, comments: newCommentsArr })
+        if (loadingMore || !_id) return;
+        setLoadingMore(true);
+        try {
+            const res = await fetchComments({ skip: loadedCount, blog_id: _id, comment_array: commentsArr });
+            if (setBlog && res) {
+                setBlog(prev => ({
+                    ...prev,
+                    comments: { results: res.results },
+                    activity: {
+                        ...prev.activity,
+                        ...(res.total_comments != null ? { total_comments: res.total_comments } : {}),
+                        ...(res.total_parent_comments != null ? { total_parent_comments: res.total_parent_comments } : {}),
+                    },
+                }));
+            }
+        } catch {
+            // Leave the button in place so the user can retry.
+        } finally {
+            setLoadingMore(false);
         }
-    }
+    };
 
     return(
         <div id="comments-section" className="comments-section">
@@ -58,8 +99,8 @@ const CommentsContainer = () => {
 
             <div className="comments-section__header">
                 <span className="comments-section__count">
-                    {total_parent_comments > 0 
-                        ? `${total_parent_comments} ${total_parent_comments === 1 ? 'Comment' : 'Comments'}` 
+                    {total_comments > 0
+                        ? `${total_comments} ${total_comments === 1 ? 'Comment' : 'Comments'}`
                         : 'Comments'
                     }
                 </span>
@@ -79,12 +120,13 @@ const CommentsContainer = () => {
             </div>
 
             {
-                total_parent_comments > totalParentCommentsLoaded ? 
-                <button 
+                hasMoreComments ?
+                <button
                     onClick={loadMoreComments}
+                    disabled={loadingMore}
                     className="comments-section__load-more"
                 >
-                    Load More Comments
+                    {loadingMore ? 'Loading…' : 'Load More Comments'}
                 </button>
                 : ""
             }
