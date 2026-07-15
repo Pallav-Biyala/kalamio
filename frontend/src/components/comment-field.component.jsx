@@ -1,4 +1,5 @@
 import { useContext, useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { UserContext } from "../App";
 import toast from "react-hot-toast";
 import api from "../common/api";
@@ -41,18 +42,23 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
             textareaRef.current.focus();
         }
 
-        // Lock body scroll when modal is open
+        // Lock body scroll when open — and reserve the scrollbar's width as padding so that
+        // removing it doesn't shift the (blurred) background sideways as the modal opens.
         if (showModal && !isReply) {
+            const scrollbarW = window.innerWidth - document.documentElement.clientWidth;
             document.body.style.overflow = 'hidden';
             document.documentElement.style.overflow = 'hidden';
+            if (scrollbarW > 0) document.body.style.paddingRight = `${scrollbarW}px`;
         } else {
             document.body.style.overflow = '';
             document.documentElement.style.overflow = '';
+            document.body.style.paddingRight = '';
         }
 
         return () => {
             document.body.style.overflow = '';
             document.documentElement.style.overflow = '';
+            document.body.style.paddingRight = '';
         };
     }, [showModal, isReply]);
 
@@ -322,16 +328,24 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
     // ── Top-level comment stub + modal ──
     return (
         <>
-            {/* Clickable stub — no layout shift */}
-            <div className="comment-input" onClick={openModal} id="comment-textarea">
-                <Avatar src={profile_img} alt={username} size={32} />
-                <div className="comment-input__box comment-input__box--stub">
-                    <span className="comment-input__placeholder">Leave a comment...</span>
+            {/* Trigger stub — ONLY for inline (blog-detail) usage. In the feed the modal is
+                opened directly (defaultOpen), so rendering the stub there would inject an
+                element into the transformed feed card and shift its layout as the modal opens.
+                The card's own comment button is the trigger there, so the stub isn't needed. */}
+            {!defaultOpen && (
+                <div className="comment-input" onClick={openModal} id="comment-textarea">
+                    <Avatar src={profile_img} alt={username} size={32} />
+                    <div className="comment-input__box comment-input__box--stub">
+                        <span className="comment-input__placeholder">Leave a comment...</span>
+                    </div>
                 </div>
-            </div>
+            )}
 
-            {/* Comment Modal */}
-            {showModal && (
+            {/* Comment Modal — portaled to <body> so its fixed overlay escapes the feed
+                card's framer-motion transform. A fixed element inside a transformed ancestor
+                anchors to that ancestor (not the viewport), which caused the corner→center
+                glitch; at <body> it centers smoothly like the text-post composer. */}
+            {showModal && createPortal(
                 <div className="comment-modal-overlay" onClick={closeModal}>
                     <div className="reply-modal" onClick={e => e.stopPropagation()}>
                         {/* Parent Row - Blog author context */}
@@ -460,7 +474,8 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
                             </div>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </>
     );

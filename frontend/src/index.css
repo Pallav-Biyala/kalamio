@@ -1,5 +1,4 @@
 @import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Cormorant+Garamond:wght@700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700;800;900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block');
 @import "./editor-theme.css";
 
 @tailwind base;
@@ -138,9 +137,16 @@
         }
     }
 
+    /* Now an inline SVG (lucide) wrapper class, not a font. Size follows CSS font-size
+       via width/height:1em, so every existing `.material-symbols-rounded { font-size }`
+       rule keeps controlling icon size; color flows through currentColor as before. */
     .material-symbols-rounded {
-        @apply leading-none align-middle;
-        font-variation-settings: 'wght' 500, 'FILL' 0;
+        @apply leading-none align-middle shrink-0;
+        /* Override Tailwind Preflight's `svg { display: block }` so icons flow inline
+           next to text (e.g. the "+ Follow" buttons); flex layouts are unaffected. */
+        display: inline-block;
+        width: 1em;
+        height: 1em;
     }
 
     .material-symbols-rounded.filled {
@@ -3254,6 +3260,10 @@
     white-space: nowrap;
     transition: all 0.2s ease;
     user-select: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
 }
 
 .follow-btn:disabled {
@@ -3283,6 +3293,16 @@
 }
 
 .follow-btn--follow:hover:not(:disabled) {
+    opacity: 0.85;
+}
+
+/* State: They follow you, you don't yet — same prominent CTA as Follow */
+.follow-btn--follow-back {
+    background: rgb(var(--c-black));
+    color: rgb(var(--c-white));
+}
+
+.follow-btn--follow-back:hover:not(:disabled) {
     opacity: 0.85;
 }
 
@@ -6849,6 +6869,8 @@
     padding: 24px;
     display: flex;
     flex-direction: column;
+    /* Same smooth scale-up entrance as the text-post composer. */
+    animation: tpComposerIn 0.25s ease;
 }
 .reply-modal__row {
     display: flex;
@@ -8251,7 +8273,10 @@
     justify-content: center;
     z-index: 60;
     padding: 20px;
-    animation: fadeIn 0.15s ease;
+    /* Dedicated opacity-only fade. The generic `fadeIn` has a colliding keyframe
+       elsewhere that includes translate(-50%,-50%), which yanked this flex-centered
+       overlay to the corner mid-animation then snapped it back — the open glitch. */
+    animation: tpOverlayIn 0.2s ease;
     overscroll-behavior: contain;
 }
 .comment-modal {

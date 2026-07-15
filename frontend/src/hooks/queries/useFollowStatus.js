@@ -26,7 +26,9 @@ const useFollowStatus = (targetUserId, initialData) => {
 
     enabled: !!access_token && !!targetUserId && targetUserId !== currentUserId,
     staleTime: 10 * 60 * 1000,
-    ...(initialData !== undefined && { initialData }),
+    // Seed ONLY from a real boolean. A null "unknown" (e.g. batch status still loading)
+    // must not seed — else it sticks as a stale falsy value and the real fetch is skipped.
+    ...(initialData != null && { initialData }),
   });
 };
 

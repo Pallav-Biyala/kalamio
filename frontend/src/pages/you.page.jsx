@@ -86,7 +86,7 @@ const YouPage = () => {
                         <MenuLink
                             to="/dashboard/notifications"
                             icon="notifications"
-                            label="Notifications"
+                            label="Activity"
                             badge={new_notification_available ? "New" : null}
                         />
                         <MenuLink to="/dashboard/publications" icon="import_contacts" label="Publications" />
@@ -101,7 +101,7 @@ const YouPage = () => {
                     <div className="you-hub__menu">
                         <MenuLink to="/settings/edit-profile" icon="person" label="Edit Profile" />
                         <MenuLink to="/settings/change-password" icon="lock" label="Change Password" />
-                        <MenuLink to="/settings/notification-preferences" icon="notifications_active" label="Notification Prefs" />
+                        <MenuLink to="/settings/notification-preferences" icon="notifications_active" label="Notifications" />
                         <MenuLink to="/settings/blocked-users" icon="block" label="Blocked Users" />
                         <MenuLink to="/settings/privacy" icon="shield" label="Privacy" />
                         <MenuLink to="/settings/account" icon="manage_accounts" label="Account" />

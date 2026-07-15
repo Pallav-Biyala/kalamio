@@ -57,7 +57,7 @@ const WhoToFollow = () => {
                                 <FollowButton
                                     targetUserId={user._id}
                                     initiallyFollowing={isFollowing}
-                                    initialFollowsYou={followsYou}
+                                    initiallyFollowsYou={followsYou}
                                     size="sm"
                                 />
                             ) : (

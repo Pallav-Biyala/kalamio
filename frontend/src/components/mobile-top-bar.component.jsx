@@ -23,7 +23,7 @@ const MobileTopBar = () => {
         if (path.includes("/dashboard/blogs")) return "My Blogs";
         if (path.includes("/dashboard/drafts")) return "Drafts";
         if (path.includes("/dashboard/bookmarks")) return "Collections";
-        if (path.includes("/dashboard/notifications")) return "Notifications";
+        if (path.includes("/dashboard/notifications")) return "Activity";
 
         if (path.includes("/dashboard/publications")) return "Publications";
         if (path.includes("/dashboard/analytics")) return "Analytics";
@@ -31,7 +31,7 @@ const MobileTopBar = () => {
         if (path.includes("/settings/profile")) return "Profile";
         if (path.includes("/settings/edit-profile")) return "Edit Profile";
         if (path.includes("/settings/change-password")) return "Change Password";
-        if (path.includes("/settings/notification-preferences")) return "Notification Prefs";
+        if (path.includes("/settings/notification-preferences")) return "Notifications";
         if (path.includes("/settings/blocked-users")) return "Blocked Users";
         if (path.includes("/settings/privacy")) return "Privacy";
         if (path.includes("/settings/account")) return "Account";
@@ -102,7 +102,7 @@ const MobileTopBar = () => {
                             <span className="font-semibold text-[15px]">{getPageTitle()}</span>
                         </button>
                     ) : (
-                        <Link to="/" className="mobile-top-bar__brand flex items-center">
+                        <Link to="/" state={{ resetScroll: true }} className="mobile-top-bar__brand flex items-center">
                             <img
                                 src={theme === "light" ? darkLogo : lightLogo}
                                 alt="Kalamio logo"

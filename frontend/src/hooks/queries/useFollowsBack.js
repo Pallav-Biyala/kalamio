@@ -24,7 +24,8 @@ const useFollowsBack = (targetUserId, initialData) => {
 
     enabled: !!access_token && !!targetUserId,
     staleTime: 10 * 60 * 1000,
-    ...(initialData !== undefined && { initialData }),
+    // Seed ONLY from a real boolean — a null "unknown" must not seed (see useFollowStatus).
+    ...(initialData != null && { initialData }),
   });
 };
 

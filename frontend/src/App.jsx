@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import MainLayout from "./components/main-layout.component";
+import ScrollToTop from "./components/scroll-to-top.component";
 import { createContext, useEffect, useState, lazy, Suspense } from "react";
 import { useQueryClient } from '@tanstack/react-query';
 import { lookInSession } from "./common/session";
@@ -127,6 +128,7 @@ const App = () => {
                     }}
                 />
                 <CustomTooltip />
+                <ScrollToTop />
                 <Suspense fallback={<Loader />}>
                     <Routes>
                         <Route path="/editor" element={<Editor/>} />

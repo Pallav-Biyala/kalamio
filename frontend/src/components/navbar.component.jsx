@@ -58,7 +58,7 @@ const Navbar = () => {
         <>
             <nav className="navbar z-50">
 
-                <Link to="/" className="flex-none flex items-center gap-1">
+                <Link to="/" state={{ resetScroll: true }} className="flex-none flex items-center gap-1">
                     <img src={ theme === "light" ? darkLogo : lightLogo } className="w-10" alt="Kalamio logo"/>
                     <span className="bg-[#FF6B00]/10 text-[#FF6B00] text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-[#FF6B00]/20 leading-none">BETA</span>
                 </Link>

@@ -65,7 +65,7 @@ const BlogInteraction = () => {
                         onClick={handleLike}
                         className={"w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-90 " + ( isLikedByUser ? "bg-red/10 text-red" : "bg-grey hover:bg-grey/80" )}
                     >
-                        <Icon name="favorite" filled={isLikedByUser} className="text-[18px]" />
+                        <Icon name={isLikedByUser ? "favorite" : "favorite_border"} className="text-[18px]" />
                     </button>
                     <p className="text-base text-dark-grey">{displayLikes}</p>
 

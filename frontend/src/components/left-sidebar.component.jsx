@@ -26,11 +26,11 @@ const dashboardItems = [
     { to: "/dashboard/blogs", icon: "article", label: "Blogs" },
     { to: "/dashboard/drafts", icon: "draft", label: "Drafts" },
     { to: "/dashboard/bookmarks", icon: "collections_bookmark", label: "Collections" },
-    { to: "/dashboard/notifications", icon: "notifications", label: "Notifications", showBadge: true },
+    { to: "/dashboard/notifications", icon: "notifications", label: "Activity", showBadge: true },
 
     { to: "/dashboard/publications", icon: "import_contacts", label: "Publications" },
     { to: "/dashboard/analytics", icon: "bar_chart", label: "Analytics" },
-    { to: "/messages", icon: "chat", label: "Messages" },
+    { to: "/messages", icon: "forum", label: "Chat" },
     { to: "/editor", icon: "edit_note", label: "Write" },
 ];
 
@@ -38,7 +38,7 @@ const settingsItems = [
     { to: "/settings/profile", icon: "person", label: "Profile" },
     { to: "/settings/edit-profile", icon: "edit", label: "Edit Profile" },
     { to: "/settings/change-password", icon: "lock", label: "Change Password" },
-    { to: "/settings/notification-preferences", icon: "notifications_active", label: "Notification Prefs" },
+    { to: "/settings/notification-preferences", icon: "notifications_active", label: "Notifications" },
     { to: "/settings/privacy", icon: "shield", label: "Privacy" },
     { to: "/settings/blocked-users", icon: "block", label: "Blocked Users" },
     { to: "/settings/account", icon: "manage_accounts", label: "Account" },
@@ -192,7 +192,7 @@ const LeftSidebar = () => {
                 /* === NORMAL MODE === */
                 <div key="normal-mode" className="left-sidebar__mode-content">
                     {/* Logo */}
-                    <Link to="/" className="left-sidebar__logo flex items-center">
+                    <Link to="/" state={{ resetScroll: true }} className="left-sidebar__logo flex items-center">
                         <img
                             src={theme === "light" ? darkLogo : lightLogo}
                             alt="Kalamio logo"
