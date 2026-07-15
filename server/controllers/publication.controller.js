@@ -5,6 +5,7 @@ import User from '../Schema/User.js';
 import Post from '../Schema/Post.js';
 import Blog from '../Schema/Blog.js';
 import TextPost from '../Schema/TextPost.js';
+import { emitNotification } from '../utils/notify.js';
 
 // ────────────────────────────────────────────────────────
 // PUBLICATION CRUD
@@ -399,7 +400,9 @@ export const subscribe = async (req, res) => {
                 type: "subscribe",
                 notification_for: publication.owner,
                 user: subscriber_id,
-            }).save().catch(err => console.error('[Publication] Notification error:', err.message));
+            }).save()
+                .then(() => emitNotification(req, publication.owner, { type: "subscribe" }))
+                .catch(err => console.error('[Publication] Notification error:', err.message));
         }
 
         return res.status(200).json({ subscribed: true });

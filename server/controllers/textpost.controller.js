@@ -3,6 +3,7 @@ import PollVote from '../Schema/PollVote.js';
 import User from '../Schema/User.js';
 import Notification from '../Schema/Notification.js';
 import Publication from '../Schema/Publication.js';
+import { emitNotification, emitBlogUpdate } from '../utils/notify.js';
 import { nanoid } from 'nanoid';
 import sanitizeHtml from 'sanitize-html';
 
@@ -135,6 +136,7 @@ export const createTextPost = (req, res) => {
                                             notification_for: u._id,
                                             user: authorId
                                         }).save();
+                                        emitNotification(req, u._id, { type: "mention" });
                                         console.log('[Mention] ✅ Notification created for:', u.personal_info.username);
                                     } else {
                                         console.log('[Mention] Notification already exists for:', u.personal_info.username);
@@ -199,6 +201,11 @@ export const votePoll = (req, res) => {
                 new PollVote({ blog_id, user: user_id, option_index }).save()
             ])
             .then(([updated]) => {
+                // Push the fresh tally to everyone viewing this post so poll results move live, the
+                // same way likes/comments do (carried under `activity.poll`; the client applies it to
+                // blog.poll). post._id is the room key clients join as blog:<_id>.
+                emitBlogUpdate(req, post._id, { poll: updated.poll });
+
                 // Create notification for poll creator (skip self-vote)
                 const authorId = post.author.toString();
                 if (authorId !== user_id) {
@@ -214,13 +221,7 @@ export const votePoll = (req, res) => {
                             }).save()
                             .then(() => {
                                 // Emit real-time notification via socket
-                                const io = req.app.get('io');
-                                if (io) {
-                                    io.to(`user:${authorId}`).emit('new_notification', {
-                                        type: 'poll_vote',
-                                        blog_id,
-                                    });
-                                }
+                                emitNotification(req, post.author, { type: "poll_vote", blog_id });
                             })
                             .catch(err => console.error('[PollVote] Notification error:', err.message));
                         }

@@ -1,6 +1,7 @@
 import Connection from '../Schema/Connection.js';
 import User from '../Schema/User.js';
 import Notification from '../Schema/Notification.js';
+import { emitNotification } from '../utils/notify.js';
 
 /**
  * POST /api/connect/send
@@ -55,7 +56,7 @@ export const sendConnectRequest = async (req, res) => {
                         type: "connect_accepted",
                         notification_for: user_id,
                         user: requester_id,
-                    }).save().catch(err => console.error('[Connect] Notification error:', err.message));
+                    }).save().then(() => emitNotification(req, user_id, { type: "connect_accepted" })).catch(err => console.error('[Connect] Notification error:', err.message));
 
                     return res.status(200).json({ status: 'accepted', message: "Connection accepted (mutual request)" });
                 }
@@ -73,7 +74,7 @@ export const sendConnectRequest = async (req, res) => {
                     type: "connect_request",
                     notification_for: user_id,
                     user: requester_id,
-                }).save().catch(err => console.error('[Connect] Notification error:', err.message));
+                }).save().then(() => emitNotification(req, user_id, { type: "connect_request" })).catch(err => console.error('[Connect] Notification error:', err.message));
 
                 return res.status(200).json({ status: 'pending' });
             }
@@ -87,7 +88,7 @@ export const sendConnectRequest = async (req, res) => {
             type: "connect_request",
             notification_for: user_id,
             user: requester_id,
-        }).save().catch(err => console.error('[Connect] Notification error:', err.message));
+        }).save().then(() => emitNotification(req, user_id, { type: "connect_request" })).catch(err => console.error('[Connect] Notification error:', err.message));
 
         return res.status(200).json({ status: 'pending' });
 
@@ -138,7 +139,7 @@ export const acceptConnection = async (req, res) => {
             type: "connect_accepted",
             notification_for: user_id,
             user: recipient_id,
-        }).save().catch(err => console.error('[Connect] Notification error:', err.message));
+        }).save().then(() => emitNotification(req, user_id, { type: "connect_accepted" })).catch(err => console.error('[Connect] Notification error:', err.message));
 
         return res.status(200).json({ status: 'accepted' });
 
@@ -209,8 +210,11 @@ export const withdrawConnection = async (req, res) => {
             return res.status(404).json({ error: "No pending request to withdraw" });
         }
 
-        // Clean up notification
+        // Remove the recipient's pending-request notification, then push a live update so their
+        // Activity badge / requests list drops it instead of showing a phantom that 404s on accept
+        // (mirrors the emit in sendConnectRequest / acceptConnection).
         Notification.findOneAndDelete({ type: "connect_request", notification_for: user_id, user: requester_id })
+            .then(() => emitNotification(req, user_id, { type: "connect_request" }))
             .catch(err => console.error('[Connect] Notification cleanup error:', err.message));
 
         return res.status(200).json({ status: 'none' });

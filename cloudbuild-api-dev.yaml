@@ -41,13 +41,21 @@ steps:
         '--platform',
         'managed',
         '--allow-unauthenticated',
+        # Sticky sessions so a Socket.IO client stays pinned to one instance (esp. the polling
+        # handshake). Cross-instance delivery itself is handled by the Redis adapter (REDIS_URL).
+        '--session-affinity',
         # Redis (response caching) is wired from Secret Manager on every deploy.
         # --update-secrets REPLACES the earlier --clear-secrets, so the refs are
         # re-applied each deploy instead of stripped. Secrets must exist with values.
         # All three wired: Redis caching + Cloudflare origin-lock. Verified live —
         # dev.kalamio.com passes with CF's X-Origin-Secret header; direct *.run.app → 403.
         '--update-secrets',
-        'UPSTASH_REDIS_REST_URL=upstash-redis-rest-url-dev:latest,UPSTASH_REDIS_REST_TOKEN=upstash-redis-rest-token-dev:latest,CLOUDFLARE_ORIGIN_SECRET=cloudflare-origin-secret-dev:latest',
+        # REDIS_URL (Socket.IO Redis adapter) is the Upstash REDIS-PROTOCOL string (rediss://…),
+        # distinct from the UPSTASH_REDIS_REST_* pair used for response caching. Prerequisite: the
+        # `redis-url-dev` secret must exist AND the runtime service account must hold
+        # roles/secretmanager.secretAccessor on it, or Cloud Run rejects the deploy. Once deployed,
+        # cross-instance Socket.IO broadcast activates (config/socket.js logs "Redis adapter enabled").
+        'UPSTASH_REDIS_REST_URL=upstash-redis-rest-url-dev:latest,UPSTASH_REDIS_REST_TOKEN=upstash-redis-rest-token-dev:latest,CLOUDFLARE_ORIGIN_SECRET=cloudflare-origin-secret-dev:latest,REDIS_URL=redis-url-dev:latest',
         # Prerender OG/Twitter images route through the image CDN (cdn.kalamio.com).
         '--update-env-vars',
         'CDN_DOMAIN=https://cdn.kalamio.com'

@@ -1,6 +1,7 @@
 import Follow from '../Schema/Follow.js';
 import User from '../Schema/User.js';
 import Notification from '../Schema/Notification.js';
+import { emitNotification } from '../utils/notify.js';
 
 /**
  * POST /api/follow
@@ -45,7 +46,9 @@ export const followUser = async (req, res) => {
             type: "follow",
             notification_for: user_id,
             user: follower_id,
-        }).save().catch(err => console.error('[Follow] Notification error:', err.message));
+        }).save()
+            .then(() => emitNotification(req, user_id, { type: "follow" }))
+            .catch(err => console.error('[Follow] Notification error:', err.message));
 
         return res.status(200).json({ followed: true });
 

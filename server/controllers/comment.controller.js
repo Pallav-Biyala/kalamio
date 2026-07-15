@@ -1,10 +1,12 @@
 import Comment from '../Schema/Comment.js';
 import Post from '../Schema/Post.js';
 import Notification from '../Schema/Notification.js';
+import { emitNotification, emitBlogUpdate } from '../utils/notify.js';
 import sanitizeHtml from 'sanitize-html';
 
-// Delete comments helper (recursive)
-const deleteComments = (_id) => {
+// Delete comments helper (recursive). `req` is threaded through so the post-decrement count can be
+// broadcast live to everyone viewing the post (blog:<id> room), mirroring addComment's count-up.
+const deleteComments = (_id, req) => {
     Comment.findOneAndDelete({ _id })
     .then(comment => {
 
@@ -15,15 +17,26 @@ const deleteComments = (_id) => {
 
         Notification.findOneAndDelete({ comment: _id })
         .catch(err => console.error('[Comment] Failed to delete notification:', err.message));
-        
+
         Notification.findOneAndUpdate({ reply: _id }, { $unset: { reply: 1 } })
         .catch(err => console.error('[Comment] Failed to unset reply notification:', err.message));
 
-        Post.findOneAndUpdate({ _id: comment.blog_id }, { $pull: { comments: _id }, $inc: { 'activity.total_comments': -1 }, "activity.total_parent_comments": comment.parent ? 0 : -1 })
+        // total_parent_comments MUST live inside $inc (as addComment does). As a bare field beside
+        // $inc/$pull it's a non-operator key, which MongoDB rejects — the whole update was failing
+        // into the catch, so deletes never decremented the count or pulled the ref. { new: true }
+        // returns the fresh doc so we can broadcast the decremented count.
+        Post.findOneAndUpdate(
+            { _id: comment.blog_id },
+            { $pull: { comments: _id }, $inc: { 'activity.total_comments': -1, 'activity.total_parent_comments': comment.parent ? 0 : -1 } },
+            { new: true }
+        )
         .then(blog => {
+            // Push the decremented count so it falls live for other viewers (delete path was the
+            // only engagement mutation missing its emitBlogUpdate).
+            if (blog) emitBlogUpdate(req, blog._id, { total_comments: blog.activity.total_comments });
             if(comment.children.length){
                 comment.children.map(replies => {
-                    deleteComments(replies)
+                    deleteComments(replies, req)
                 })
             }
         })
@@ -67,9 +80,13 @@ export const addComment = (req, res) => {
 
         let { comment, commentedAt, children } = commentFile;
 
-        Post.findOneAndUpdate({ _id }, { 
-            $push: { "comments": commentFile._id }, 
+        Post.findOneAndUpdate({ _id }, {
+            $push: { "comments": commentFile._id },
             $inc: { "activity.total_comments": 1, "activity.total_parent_comments": replying_to ? 0 : 1  }
+        }, { new: true })
+        .then(updated => {
+            // Push the new comment count to everyone viewing this post (live counts).
+            if (updated) emitBlogUpdate(req, updated._id, { total_comments: updated.activity.total_comments });
         })
         .catch(err => console.error('[Comment] Failed to update blog:', err.message));
 
@@ -98,6 +115,12 @@ export const addComment = (req, res) => {
         }
 
         new Notification(notificationObj).save()
+        .then(() => {
+            // Don't push a live notification for acting on your own content.
+            if (String(notificationObj.notification_for) !== String(user_id)) {
+                emitNotification(req, notificationObj.notification_for, { type: notificationObj.type });
+            }
+        })
         .catch(err => console.error('[Comment] Failed to create notification:', err.message));
 
         return res.status(200).json({
@@ -120,25 +143,56 @@ export const getBlogComments = async (req, res) => {
 
     let { blog_id, skip } = req.body;
 
-    let maxLimit = 5;
+    // Top-level comments loaded per page (initial load + each "Load More").
+    const maxLimit = 10;
+    const skipCount = Math.max(0, parseInt(skip) || 0);
 
     try {
-        // Auto-sync counter
-        const actual_count = await Comment.countDocuments({ blog_id, isReply: false });
-        await Post.updateOne({ _id: blog_id }, { $set: { "activity.total_parent_comments": actual_count } });
-
+        // Fetch the requested page of top-level comments.
         const comment = await Comment.find({ blog_id, isReply: false })
             .populate("commented_by", "personal_info.username personal_info.fullname personal_info.profile_img")
-            .skip(skip)
+            .skip(skipCount)
             .limit(maxLimit)
             .sort({
                 'commentedAt': -1
             });
 
-        // Filter out comments whose author (commented_by) was deleted
+        // A comment whose author account was deleted populates to a null commented_by, so the UI
+        // filters it out — but it's still a stored document, so it keeps inflating the count. Delete
+        // these ghosts (and their direct replies) and pull their Post.comments refs.
+        const orphanIds = comment.filter(c => c.commented_by == null).map(c => c._id);
+        if (orphanIds.length) {
+            await Comment.deleteMany({ $or: [{ _id: { $in: orphanIds } }, { parent: { $in: orphanIds } }] });
+            await Post.updateOne({ _id: blog_id }, { $pull: { comments: { $in: orphanIds } } });
+        }
+
+        // Count the true document totals.
+        let [total_comments, total_parent_comments] = await Promise.all([
+            Comment.countDocuments({ blog_id }),
+            Comment.countDocuments({ blog_id, isReply: false }),
+        ]);
+
+        // If no top-level comments remain but documents still exist, those are replies orphaned by the
+        // historical delete bug: it deleted a parent comment but left its replies behind (the recursive
+        // child-delete lived inside the Post update's .then, which never ran because that update was
+        // failing). Orphaned replies have no surviving parent, so they never render yet still inflate
+        // the count — this is the "comments array empty but count shows 1" case. Purge them.
+        if (total_parent_comments === 0 && total_comments > 0) {
+            await Comment.deleteMany({ blog_id });
+            await Post.updateOne({ _id: blog_id }, { $set: { comments: [] } });
+            total_comments = 0;
+        }
+
+        // Persist the healed counts. total_comments counts replies too; total_parent_comments is
+        // top-level only.
+        await Post.updateOne({ _id: blog_id }, { $set: {
+            "activity.total_comments": total_comments,
+            "activity.total_parent_comments": total_parent_comments,
+        } });
+
         const validComments = comment.filter(c => c.commented_by != null);
-            
-        return res.status(200).json(validComments);
+
+        return res.status(200).json({ comments: validComments, total_comments, total_parent_comments });
     } catch (err) {
         console.error('[Comment] getBlogComments failed:', err.message);
         return res.status(500).json({ error: err.message });
@@ -191,7 +245,7 @@ export const deleteComment = (req, res) => {
 
         if(user_id == comment.commented_by.toString() || user_id == comment.blog_author.toString()){
 
-            deleteComments(_id)
+            deleteComments(_id, req)
 
             return res.status(200).json({ 'status': 'done' });
 
@@ -320,6 +374,9 @@ export const likeComment = async (req, res) => {
                     notification_for: comment.commented_by,
                     user: user_id
                 }).save();
+                if (String(comment.commented_by) !== String(user_id)) {
+                    emitNotification(req, comment.commented_by, { type: "comment_like" });
+                }
             }
             return res.status(200).json({ liked_by_user: true, total_likes: comment.activity.total_likes });
         } else {

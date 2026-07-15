@@ -430,6 +430,18 @@ export const acceptMessageRequest = async (req, res) => {
         conversation.request_status = 'accepted';
         await conversation.save();
 
+        // Tell the initiator (who's been blocked on "Waiting for … to accept") live, so their chat
+        // unblocks without a refresh. A conversation state change uses a direct io emit — not the
+        // notify.js helpers, which are for notifications / blog counts (mirrors markRead above).
+        const io = req.app.get('io');
+        const initiatorId = conversation.request_initiator?.toString();
+        if (io && initiatorId && initiatorId !== user_id) {
+            io.to(`user:${initiatorId}`).emit('request_accepted', {
+                conversation_id: conversation._id.toString(),
+                request_status: 'accepted'
+            });
+        }
+
         return res.status(200).json({ status: 'accepted' });
 
     } catch (err) {

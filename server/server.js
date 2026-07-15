@@ -165,9 +165,14 @@ process.on('uncaughtException', (error) => {
 const gracefulShutdown = (signal) => {
     console.log(`\n🛑 ${signal} received. Starting graceful shutdown...`);
 
-    // Stop accepting new connections
-    httpServer.close(async () => {
-        console.log('✅ HTTP server closed');
+    // Close Socket.IO first — this disconnects all sockets AND closes the underlying HTTP server, so
+    // shutdown doesn't stall on long-lived WebSocket connections (which would otherwise keep
+    // httpServer.close() from ever completing and skip the Mongo/Redis cleanup below).
+    io.close(async () => {
+        console.log('✅ Socket.IO + HTTP server closed');
+
+        // Release the Redis adapter's pub/sub connections (no-op in single-instance mode).
+        await Promise.allSettled((io.redisClients || []).map(c => c.quit()));
 
         try {
             // Close MongoDB connection

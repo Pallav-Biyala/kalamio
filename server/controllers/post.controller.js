@@ -5,6 +5,7 @@ import Comment from '../Schema/Comment.js';
 import Publication from '../Schema/Publication.js';
 import { escapeRegex } from '../utils/helpers.js';
 import { deleteMultipleFromS3 } from '../config/s3.js';
+import { emitNotification, emitBlogUpdate } from '../utils/notify.js';
 import jwt from 'jsonwebtoken';
 
 // Latest Posts (unified feed — returns both blogs and text posts)
@@ -173,65 +174,56 @@ export const getPost = (req, res) => {
         });
 };
 
-// Like post
-export const likePost = (req, res) => {
+// Like post — idempotent: the count and notification only change when the like state actually flips,
+// so a stale/duplicate request can't inflate total_likes (which is now broadcast live to all viewers).
+export const likePost = async (req, res) => {
 
-    let user_id = req.user;
-
-    let { _id, isLikedByUser } = req.body;
+    const user_id = req.user;
+    const { _id, isLikedByUser } = req.body;
 
     if (!_id) {
         return res.status(400).json({ error: "Blog ID is required" });
     }
 
-    let incrementVal = !isLikedByUser ? 1 : -1;
+    try {
+        if (!isLikedByUser) {
+            // LIKE — only count + notify if there wasn't already a like from this user.
+            const existing = await Notification.findOne({ user: user_id, blog: _id, type: "like" });
+            if (existing) {
+                return res.status(200).json({ liked_by_user: true });
+            }
 
-    Post.findOneAndUpdate({ _id }, { $inc: { "activity.total_likes": incrementVal } })
-    .then(blog => {
+            const blog = await Post.findOneAndUpdate({ _id }, { $inc: { "activity.total_likes": 1 } }, { new: true });
+            if (!blog) {
+                return res.status(404).json({ error: "Blog not found" });
+            }
 
-        if (!blog) {
-            return res.status(404).json({ error: "Blog not found" });
-        }
+            await new Notification({ type: "like", blog: _id, notification_for: blog.author, user: user_id }).save();
 
-        if(!isLikedByUser){
-            // Idempotent: only create notification if one doesn't already exist
-            Notification.findOne({ user: user_id, blog: _id, type: "like" })
-            .then(existing => {
-                if (existing) {
-                    return res.status(200).json({ liked_by_user: true });
-                }
-                new Notification({
-                    type: "like",
-                    blog: _id,
-                    notification_for: blog.author,
-                    user: user_id
-                }).save().then(() => {
-                    return res.status(200).json({ liked_by_user: true });
-                }).catch(err => {
-                    return res.status(500).json({ error: err.message });
-                });
-            })
-            .catch(err => {
-                return res.status(500).json({ error: err.message });
-            });
-        }
-        else{
+            emitBlogUpdate(req, blog._id, { total_likes: blog.activity.total_likes });
+            if (String(blog.author) !== String(user_id)) {
+                emitNotification(req, blog.author, { type: "like" });
+            }
 
-            Notification.findOneAndDelete({ user: user_id, blog: _id, type: "like" })
-            .then(() => {
+            return res.status(200).json({ liked_by_user: true });
+        } else {
+            // UNLIKE — only decrement if a like actually existed.
+            const removed = await Notification.findOneAndDelete({ user: user_id, blog: _id, type: "like" });
+            if (!removed) {
                 return res.status(200).json({ liked_by_user: false });
-            })
-            .catch(err => {
-                return res.status(500).json({ error: err.message });
-            })
+            }
 
+            const blog = await Post.findOneAndUpdate({ _id }, { $inc: { "activity.total_likes": -1 } }, { new: true });
+            if (blog) {
+                emitBlogUpdate(req, blog._id, { total_likes: blog.activity.total_likes });
+            }
+
+            return res.status(200).json({ liked_by_user: false });
         }
-
-    })
-    .catch(err => {
-        return res.status(500).json({ error: err.message })
-    })
-
+    } catch (err) {
+        console.error('[Post] likePost failed:', err.message);
+        return res.status(500).json({ error: err.message });
+    }
 };
 
 // Is liked by user
