@@ -8,9 +8,21 @@ import EditorStats from './EditorStats';
 import BlockHandle from './BlockHandle';
 import { mentionSuggestionConfig } from './MentionList';
 
-const TiptapEditor = ({ content, onUpdate, onEditorReady }) => {
+const TiptapEditor = ({ content, onUpdate, onEditorReady, saveStatus, savedAt }) => {
   const [showEmbedModal, setShowEmbedModal] = useState(false);
   const debounceRef = useRef(null);
+
+  // The block-reorder handles are a hover-only, left-gutter affordance — unusable on touch and
+  // off-canvas on narrow screens — so we render them on desktop only.
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window === 'undefined' || window.matchMedia('(min-width: 768px)').matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const onChange = (e) => setIsDesktop(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
 
   const handleUpdate = useCallback(
     ({ editor }) => {
@@ -41,7 +53,9 @@ const TiptapEditor = ({ content, onUpdate, onEditorReady }) => {
     onCreate: handleCreate,
     editorProps: {
       attributes: {
-        class: 'tiptap-content prose',
+        class: 'tiptap-content prose notranslate',
+        // Stop mobile browsers from offering to translate / auto-translating the draft you're writing.
+        translate: 'no',
       },
     },
   });
@@ -64,14 +78,16 @@ const TiptapEditor = ({ content, onUpdate, onEditorReady }) => {
   }, []);
 
   return (
-    <div className="tiptap-editor-wrapper">
-      <EditorToolbar editor={editor} onEmbedClick={handleOpenEmbed} />
+    <div className="tiptap-editor-wrapper notranslate" translate="no">
+      <EditorToolbar editor={editor} onEmbedClick={handleOpenEmbed} saveStatus={saveStatus} savedAt={savedAt} />
       <BubbleMenuComponent editor={editor} />
       <div className="tiptap-content-relative">
-        <BlockHandle editor={editor} />
+        {isDesktop && <BlockHandle editor={editor} />}
         <EditorContent editor={editor} className="tiptap-content-area" />
       </div>
-      <EditorStats editor={editor} />
+      {/* Bottom footer stats — desktop only. On mobile they move up next to the save indicator so
+          they stay visible while writing (see blog-editor's mobile status line). */}
+      <EditorStats editor={editor} className="editor-stats max-md:hidden" />
       {showEmbedModal && (
         <EmbedInsertModal editor={editor} onClose={handleCloseEmbed} />
       )}

@@ -4,6 +4,7 @@ import { useContext, useEffect, useState } from "react";
 import { EditorContext } from "../pages/editor.pages";
 import Tag from "./tags.component";
 import Icon from "./Icon";
+import SaveStatus from "./editor/SaveStatus";
 import api from "../common/api";
 import { UserContext } from "../App";
 import { useNavigate, useParams } from "react-router-dom";
@@ -15,11 +16,16 @@ const PublishForm = () => {
 
     let { blog_id } = useParams();
     
-    let { blog, blog: { banner, title, tags, des, content }, setEditorState, setBlog, textEditor } = useContext(EditorContext);
+    let { blog, blog: { banner, title, tags, des, content }, setEditorState, setBlog, textEditor, saveStatus, savedAt, clearLocalDraft } = useContext(EditorContext);
 
     let { userAuth: { access_token } } = useContext(UserContext);
 
     let navigate = useNavigate();
+
+    // A published post can't be moved back to a draft (the server rejects it too), so "Save as draft"
+    // is hidden when editing one. blog.draft is present when editing an existing post (loaded via
+    // get-blog) and undefined for a brand-new post — matching the editor's own isEditingPublishedPost.
+    const isEditingPublishedPost = Boolean(blog_id && blog?.draft === false);
 
     const [publications, setPublications] = useState([]);
     const [selectedPub, setSelectedPub] = useState("");
@@ -73,7 +79,7 @@ const PublishForm = () => {
                     setBlog({ ...blog, tags: [ ...tags, tag ] })
                 }
             }else {
-                toast.error(`You can add maximum ${tagLimit} Tags`);
+                toast.error(`You can add up to ${tagLimit} hashtags`);
             }
 
             e.target.value = "";
@@ -95,7 +101,7 @@ const PublishForm = () => {
         }
 
         if(!tags.length){
-            return toast.error("Enter at least 1 tag to help us rank your blog");
+            return toast.error("Add at least 1 hashtag so readers can find your blog");
         }
 
         // Get latest content from Tiptap editor
@@ -126,7 +132,10 @@ const PublishForm = () => {
         api.post("/create-blog", { ...blogObj, id: blog_id })
         .then(() => {
             e.target.classList.remove('disable');
-            
+
+            // Published — the local safety-net snapshot is no longer needed.
+            clearLocalDraft?.();
+
             toast.dismiss(loadingToast);
             toast.success("Published 👍");
 
@@ -146,6 +155,63 @@ const PublishForm = () => {
             const status = err?.response?.status;
             if (status && status < 500 && ![401, 413, 429].includes(status)) {
                 toast.error(err.response.data?.error || "Something went wrong while publishing. Please try again.");
+            }
+        })
+
+    }
+
+    // Save everything entered here — including the description, tags and publication chosen on THIS
+    // screen — as a draft. Drafts only require a title (the server relaxes des/banner/tags/content for
+    // drafts), so nothing the user has filled in is lost and they can finish publishing later.
+    const saveDraft = (e) => {
+
+        if(e.target.className.includes("disable")){
+            return;
+        }
+
+        if(!title.length){
+            return toast.error("Write a blog title before saving as draft");
+        }
+
+        // Pull the latest body from the editor, same as publishing.
+        let finalContent = content;
+        if (textEditor && typeof textEditor.getJSON === 'function') {
+            finalContent = textEditor.getJSON();
+        }
+
+        let loadingToast = toast.loading("Saving draft....");
+
+        e.target.classList.add('disable');
+
+        let blogObj = {
+            title, banner, des, content: finalContent, tags, draft: true,
+            publication: selectedPub || null
+        }
+
+        // `id: blog_id` updates the existing draft (or published-post-in-edit) in place; when it's a
+        // brand-new post blog_id is undefined and the server creates a fresh draft — no duplicates.
+        api.post("/create-blog", { ...blogObj, id: blog_id })
+        .then(() => {
+            e.target.classList.remove('disable');
+
+            // Saved to the server — drop the local safety-net snapshot.
+            clearLocalDraft?.();
+
+            toast.dismiss(loadingToast);
+            toast.success("Saved to drafts");
+
+            setTimeout(() => {
+                navigate("/dashboard/blogs?tab=draft");
+            }, 500);
+        })
+        .catch((err) => {
+            e.target.classList.remove('disable');
+            toast.dismiss(loadingToast);
+
+            // Same centralized-vs-call-site split as publishBlog (see comment above).
+            const status = err?.response?.status;
+            if (status && status < 500 && ![401, 413, 429].includes(status)) {
+                toast.error(err.response.data?.error || "Something went wrong while saving. Please try again.");
             }
         })
 
@@ -190,10 +256,13 @@ const PublishForm = () => {
 
                     <p className="mt-1 text-dark-grey text-sm text-right">{ CharacterLimit - des.length } characters left</p>
 
-                    <p className="text-dark-grey mb-2 mt-9 text-sm font-medium">Topics — Helps in searching and ranking your blog post</p>
+                    <p className="text-dark-grey mb-1 mt-9 text-sm font-medium">Hashtags — help readers discover your blog</p>
+                    <p className="text-dark-grey text-xs mb-2 leading-relaxed">
+                        Type a topic and press <b className="font-semibold">Enter</b> to add it. No need to type “#” — it’s added automatically.
+                    </p>
 
                     <div className="relative input-box pl-2 py-2 pb-4">
-                        <input type="text" placeholder="Topic" className="sticky input-box bg-surface top-0 left-0 pl-4 mb-3 focus:bg-surface"
+                        <input type="text" placeholder="Add a topic, then press Enter" className="sticky input-box bg-surface top-0 left-0 pl-4 mb-3 focus:bg-surface"
                         onKeyDown={handleTagkeyDown}
                         />
 
@@ -204,7 +273,7 @@ const PublishForm = () => {
                         }
                     </div>
 
-                    <p className="mt-1 mb-6 text-dark-grey text-sm text-right">{ tagLimit - tags.length } Tags left</p>
+                    <p className="mt-1 mb-6 text-dark-grey text-sm text-right">{ tagLimit - tags.length } hashtags left</p>
 
                     {/* Publication Selector */}
                     {publications.length > 0 && (
@@ -229,9 +298,23 @@ const PublishForm = () => {
                         </div>
                     )}
 
-                    <button className="btn-brand px-8 mt-4"
-                        onClick={publishBlog}
-                    >Publish</button>
+                    <div className="flex flex-wrap items-center gap-3 mt-4">
+                        <button className="btn-brand px-8"
+                            onClick={publishBlog}
+                        >Publish</button>
+
+                        {!isEditingPublishedPost && (
+                            <button className="btn-light px-8 flex items-center gap-2"
+                                onClick={saveDraft}
+                            >
+                                <Icon name="save" className="text-lg" />
+                                Save as draft
+                            </button>
+                        )}
+
+                        {/* Local autosave status — your description/tags here are saved to this device too. */}
+                        <span className="ml-auto"><SaveStatus status={saveStatus} savedAt={savedAt} /></span>
+                    </div>
 
                 </div>
 

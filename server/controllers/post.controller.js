@@ -139,7 +139,7 @@ export const getPost = (req, res) => {
     Post.findOne({ blog_id })
         .populate("author", "personal_info.fullname personal_info.username personal_info.profile_img personal_info.bio account_info.total_posts account_info.total_reads")
         .populate("publication", "title slug description total_subscribers total_posts profile_photo")
-        .select("title des content banner activity publishedAt blog_id tags draft author publication type text_content images poll")
+        .select("title des content banner activity publishedAt updatedAt blog_id tags draft author publication type text_content images poll")
         .then(blog => {
             if (!blog) {
                 return res.status(404).json({ error: "Blog not found" });

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 
-const EditorStats = ({ editor }) => {
+const EditorStats = ({ editor, className = 'editor-stats' }) => {
   const [stats, setStats] = useState({ words: 0, chars: 0 });
 
   const updateStats = useCallback(() => {
@@ -36,7 +36,7 @@ const EditorStats = ({ editor }) => {
   const readingTime = Math.max(1, Math.ceil(words / 200));
 
   return (
-    <div className="editor-stats">
+    <div className={className}>
       <span>{words} {words === 1 ? 'word' : 'words'}</span>
       <span className="editor-stats__dot">·</span>
       <span>{readingTime} min read</span>

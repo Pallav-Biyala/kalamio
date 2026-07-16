@@ -94,6 +94,9 @@
   font-size: 1.125rem;
   line-height: 1.8;
   color: rgb(var(--c-black));
+  /* Suppress the native long-press callout menu (iOS/Safari) on the editable text so it doesn't cover
+     the editor's own selection (bubble) menu. Text selection itself is unaffected. */
+  -webkit-touch-callout: none;
 }
 
 .tiptap-content-area .ProseMirror > * + * {
@@ -121,6 +124,15 @@
   backdrop-filter: blur(12px);
 }
 
+/* On phones, break the sticky header out of the centered content column so it spans the full device
+   width edge-to-edge, like the navbar (the article body stays in its column). */
+@media (max-width: 767px) {
+  .editor-toolbar-sticky {
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+  }
+}
+
 .editor-toolbar {
   display: flex;
   align-items: center;
@@ -136,6 +148,63 @@
 .editor-toolbar::-webkit-scrollbar {
   display: none;
 }
+
+/* ── Horizontal-scroll affordance (the scrollbar is hidden) ─────────── */
+.editor-toolbar-scroll {
+  position: relative;
+}
+/* Gradient fade at each edge that still has content beyond it → signals "more tools this way". */
+.editor-toolbar-scroll::before,
+.editor-toolbar-scroll::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 48px;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.editor-toolbar-scroll::before {
+  left: 0;
+  background: linear-gradient(to right, rgb(var(--c-grey)) 35%, rgb(var(--c-grey) / 0));
+}
+.editor-toolbar-scroll::after {
+  right: 0;
+  background: linear-gradient(to left, rgb(var(--c-grey)) 35%, rgb(var(--c-grey) / 0));
+}
+.editor-toolbar-scroll.is-overflow-left::before { opacity: 1; }
+.editor-toolbar-scroll.is-overflow-right::after { opacity: 1; }
+
+/* Tappable scroll chevrons, shown only on the edge that overflows. */
+.editor-toolbar-scroll-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  font-size: 16px;
+  border-radius: 9999px;
+  background: rgb(var(--c-white));
+  border: 1px solid rgb(var(--c-border));
+  color: rgb(var(--c-dark-grey));
+  box-shadow: 0 1px 5px rgb(0 0 0 / 0.14);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.editor-toolbar-scroll-btn:hover {
+  color: rgb(var(--c-black));
+  background: rgb(var(--c-grey));
+}
+.editor-toolbar-scroll-btn--left { left: 4px; }
+.editor-toolbar-scroll-btn--right { right: 4px; }
+.editor-toolbar-scroll.is-overflow-left .editor-toolbar-scroll-btn--left { display: flex; }
+.editor-toolbar-scroll.is-overflow-right .editor-toolbar-scroll-btn--right { display: flex; }
 
 .toolbar-btn {
   display: inline-flex;
@@ -944,6 +1013,9 @@
 
 /* ── Editor Stats ───────────────────────────────────────────── */
 .editor-stats {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -951,7 +1023,17 @@
   border-top: 1px solid rgb(var(--c-border));
   font-size: 0.75rem;
   color: rgb(var(--c-dark-grey));
-  background: rgb( / );
+  background: rgb(var(--c-white));
+}
+
+/* Inline variant used on the mobile status line next to the save indicator (no footer chrome). */
+.editor-stats--inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: rgb(var(--c-dark-grey));
+  white-space: nowrap;
 }
 
 /* ── Reader-Side Embeds (Lazy) ──────────────────────────────── */

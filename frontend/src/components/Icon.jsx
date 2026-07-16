@@ -24,6 +24,7 @@ import {
   TriangleAlert, WifiOff, Briefcase, ZoomIn, ZoomOut, CircleHelp,
   Mail, Key, LockOpen, Bold, Italic, Underline, Strikethrough, List, ListOrdered,
   AlignLeft, AlignCenter, AlignRight, Minus, Highlighter, Redo2, Undo2, Table, Terminal, Paperclip,
+  Save, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 
 // Material Symbols name → lucide-react component. Covers every name used across the app
@@ -39,7 +40,8 @@ const ICONS = {
   collections_bookmark: Library, content_copy: Copy, crop: Crop, dark_mode: Moon,
   dashboard: LayoutDashboard, delete: Trash2, delete_forever: Trash2, delete_outline: Trash2,
   delete_sweep: Trash2, design_services: Palette, done_all: CheckCheck, download: Download,
-  draft: FileText, drag_indicator: GripVertical, edit: Pencil, edit_note: SquarePen,
+  draft: FileText, drag_indicator: GripVertical, edit: Pencil, edit_note: SquarePen, save: Save,
+  chevron_left: ChevronLeft, chevron_right: ChevronRight,
   error: CircleAlert, expand_less: ChevronUp, expand_more: ChevronDown, favorite: Heart,
   favorite_border: Heart, feedback: Lightbulb, folder_open: FolderOpen, format_quote: Quote,
   forum: MessagesSquare, grid_view: LayoutGrid, group: Users, group_add: UserPlus,

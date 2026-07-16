@@ -9,6 +9,8 @@ import { useContext, useEffect, useRef, useCallback, useState } from "react";
 import toast from "react-hot-toast";
 import { EditorContext } from "../pages/editor.pages";
 import TiptapEditor from "./editor/TiptapEditor";
+import SaveStatus from "./editor/SaveStatus";
+import { blogSignature } from "../hooks/useDraftAutosave";
 import api from "../common/api";
 import { ThemeContext, UserContext } from "../App";
 import Icon from "./Icon";
@@ -27,7 +29,7 @@ const blogStructure = {
 
 const BlogEditor = () => {
 
-    let { blog, setBlog, setTextEditor, setEditorState } = useContext(EditorContext);
+    let { blog, setBlog, setTextEditor, setEditorState, saveStatus, savedAt, clearLocalDraft, setServerContentSig } = useContext(EditorContext);
     let { title, banner, content, tags, des } = blog;
 
     let { userAuth: { access_token, profile_img, fullname } } = useContext(UserContext);
@@ -78,6 +80,7 @@ const BlogEditor = () => {
 
     const resetEditor = () => {
         setBlog({ ...blogStructure });
+        setServerContentSig?.(null); // fresh new post — nothing on the server yet
         setEditingDraftId(null);
         if (editorRef.current) {
             editorRef.current.commands.setContent({ type: 'doc', content: [{ type: 'paragraph' }] });
@@ -131,7 +134,7 @@ const BlogEditor = () => {
     // ── Load a draft into editor ──
     const loadDraft = (draft) => {
         // Set blog state
-        setBlog({
+        const loaded = {
             title: draft.title || "",
             banner: draft.banner || "",
             content: draft.content || [],
@@ -139,7 +142,12 @@ const BlogEditor = () => {
             des: draft.des || "",
             draft: true,
             author: draft.author || { personal_info: {} }
-        });
+        };
+        setBlog(loaded);
+        // This switches the edited draft in place (no remount), so tell the autosave hook that the loaded
+        // content is exactly what the server already holds — otherwise it would spuriously re-upload the
+        // untouched draft and stamp it `edited`.
+        setServerContentSig?.(blogSignature(loaded));
         setEditingDraftId(draft.blog_id);
         setDraftMenuOpen(null);
         setView("editor");
@@ -208,6 +216,9 @@ const BlogEditor = () => {
         const loadingToast = toast.loading(isEditingDraft ? "Updating draft..." : "Saving draft...");
         try {
             const { data } = await api.post("/create-blog", buildDraftPayload());
+            // Work is now safely on the server — drop the local safety-net snapshot so this saved draft
+            // isn't later offered back as "unsaved work".
+            clearLocalDraft?.();
             toast.dismiss(loadingToast);
             toast.success(isEditingDraft ? "Draft updated" : "Saved to drafts");
             // If new draft, set the editing ID
@@ -475,22 +486,35 @@ const BlogEditor = () => {
                     {isEditingDraft && <span className="editor-draft-badge">Draft</span>}
                 </p>
 
-                <div className="flex gap-4 ml-auto">
+                <div className="flex items-center gap-2 md:gap-4 ml-auto">
+                    {/* Autosave status — DESKTOP only. Fixed-width right-aligned slot so toggling between
+                        "Saving…" and "Saved · Xm ago" never shifts the buttons. On phones there's no room
+                        beside the buttons, so it moves to its own line below the nav (see below). */}
+                    <span className="hidden md:flex justify-end min-w-[108px]">
+                        <SaveStatus status={saveStatus} savedAt={savedAt} />
+                    </span>
+                    {/* Phase 1 of 2: this doesn't publish — it validates and advances to the publish
+                        setup form (description, tags, preview), where the actual "Publish" lives. So
+                        the label is "Continue", not "Publish". */}
                     <button className="btn-brand py-2 px-6"
                         onClick={handlePublishEvent}
                     >
-                        Publish
+                        Continue
                     </button>
                     {!isEditingPublishedPost && (
+                        // Dual-purpose control: with unsaved work it prompts to save the current draft;
+                        // on an empty editor it opens the drafts list. The label/icon track that so the
+                        // button reads as a Save action exactly when clicking it will save.
                         <button className="btn-light py-2 flex items-center gap-2"
                             onClick={handleDraftsClick}
                         >
-                            <Icon name="draft" className="text-lg" />
-                            Drafts
+                            <Icon name={hasContent ? "save" : "draft"} className="text-lg" />
+                            {hasContent ? "Save draft" : "Drafts"}
                         </button>
                     )}
                 </div>
             </nav>
+
 
             {/* Save/Update popup */}
             {showDraftPopup && (
@@ -563,6 +587,8 @@ const BlogEditor = () => {
                             content={getInitialContent()}
                             onUpdate={handleEditorUpdate}
                             onEditorReady={handleEditorReady}
+                            saveStatus={saveStatus}
+                            savedAt={savedAt}
                         />
 
                     </div>

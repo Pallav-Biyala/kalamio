@@ -30,6 +30,9 @@ const BubbleMenuComponent = ({ editor }) => {
         animation: 'shift-toward-subtle',
       }}
       shouldShow={({ editor: ed, from, to }) => {
+        // On mobile the always-visible sticky toolbar handles formatting, so suppress the bubble menu —
+        // it would otherwise collide with (and be covered by) the native text-selection toolbar.
+        if (typeof window !== 'undefined' && window.innerWidth < 768) return false;
         // Don't show on image nodes or empty selections
         if (from === to) return false;
         if (ed.isActive('image')) return false;

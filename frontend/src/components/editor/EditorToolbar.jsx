@@ -1,14 +1,52 @@
-import { memo, useCallback, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
+import Icon from '../Icon';
 import ToolbarButton from './ToolbarButton';
 import ToolbarDivider from './ToolbarDivider';
 import { uploadImage } from '../../common/aws';
 import LinkInsertModal from './LinkInsertModal';
+import SaveStatus from './SaveStatus';
+import EditorStats from './EditorStats';
 
-const EditorToolbar = ({ editor, onEmbedClick }) => {
+const EditorToolbar = ({ editor, onEmbedClick, saveStatus, savedAt }) => {
   const imageInputRef = useRef(null);
   const fileInputRef = useRef(null);
   const [showLinkModal, setShowLinkModal] = useState(false);
+
+  // Horizontal-scroll affordance: the toolbar's scrollbar is hidden, so users can't tell more tools are
+  // reachable by scrolling. We watch scroll position + width and show a fade + a scroll chevron on each
+  // edge that still has content beyond it.
+  const scrollerRef = useRef(null);
+  const [overflowLeft, setOverflowLeft] = useState(false);
+  const [overflowRight, setOverflowRight] = useState(false);
+
+  const updateOverflow = useCallback(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    setOverflowLeft(el.scrollLeft > 1);
+    setOverflowRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    updateOverflow();
+    el.addEventListener('scroll', updateOverflow, { passive: true });
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateOverflow) : null;
+    ro?.observe(el);
+    window.addEventListener('resize', updateOverflow);
+    return () => {
+      el.removeEventListener('scroll', updateOverflow);
+      ro?.disconnect();
+      window.removeEventListener('resize', updateOverflow);
+    };
+  }, [updateOverflow, editor]);
+
+  const scrollToolbar = useCallback((dir) => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * Math.max(140, el.clientWidth * 0.7), behavior: 'smooth' });
+  }, []);
 
   if (!editor) return null;
 
@@ -89,7 +127,18 @@ const EditorToolbar = ({ editor, onEmbedClick }) => {
 
   return (
     <div className="editor-toolbar-sticky">
-      <div className="editor-toolbar" role="toolbar" aria-label="Editor formatting toolbar">
+      {/* MOBILE: live word/read/character counts + the save status, kept with the (sticky) toolbar so
+          they stay visible while writing without a separate strip cluttering the nav. Single
+          non-wrapping row — the counts take the space (and truncate on the right only in the extreme),
+          the status keeps its size — so it never jumps between one and two lines. */}
+      <div className="md:hidden flex items-center gap-3 px-3 pt-1.5 pb-1">
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <EditorStats editor={editor} className="editor-stats--inline" />
+        </div>
+        <SaveStatus status={saveStatus} savedAt={savedAt} />
+      </div>
+      <div className={`editor-toolbar-scroll${overflowLeft ? ' is-overflow-left' : ''}${overflowRight ? ' is-overflow-right' : ''}`}>
+      <div className="editor-toolbar" role="toolbar" aria-label="Editor formatting toolbar" ref={scrollerRef}>
         {/* Group 1 — History */}
         <div className="toolbar-group">
           <ToolbarButton
@@ -280,6 +329,25 @@ const EditorToolbar = ({ editor, onEmbedClick }) => {
           className="hidden"
           aria-hidden="true"
         />
+      </div>
+        <button
+          type="button"
+          className="editor-toolbar-scroll-btn editor-toolbar-scroll-btn--left"
+          onClick={() => scrollToolbar(-1)}
+          aria-label="Scroll toolbar left"
+          tabIndex={-1}
+        >
+          <Icon name="chevron_left" />
+        </button>
+        <button
+          type="button"
+          className="editor-toolbar-scroll-btn editor-toolbar-scroll-btn--right"
+          onClick={() => scrollToolbar(1)}
+          aria-label="More formatting tools"
+          tabIndex={-1}
+        >
+          <Icon name="chevron_right" />
+        </button>
       </div>
       {showLinkModal && (
         <LinkInsertModal editor={editor} onClose={() => setShowLinkModal(false)} />

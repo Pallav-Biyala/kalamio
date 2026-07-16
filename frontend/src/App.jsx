@@ -133,7 +133,7 @@ const App = () => {
     return (
         <ThemeContext.Provider value={{ theme, setTheme }}>
             <UserContext.Provider value={{userAuth, setUserAuth}}>
-                <Toaster 
+                <Toaster
                     position="top-center"
                     toastOptions={{
                         duration: 3000,
@@ -144,8 +144,8 @@ const App = () => {
                             borderRadius: '12px',
                             fontSize: '14px',
                             fontFamily: "'DM Sans', sans-serif",
-                            boxShadow: theme === 'dark' 
-                                ? '0 10px 20px rgba(0,0,0,0.4)' 
+                            boxShadow: theme === 'dark'
+                                ? '0 10px 20px rgba(0,0,0,0.4)'
                                 : '0 10px 20px rgba(0,0,0,0.08)',
                         },
                     }}
@@ -193,7 +193,7 @@ const App = () => {
                             <Route path="auth/callback" element={<AuthCallback />} />
                             <Route path="*" element={<PageNotFound />} />
                         </Route>
-                        
+
                     </Routes>
                 </Suspense>
 

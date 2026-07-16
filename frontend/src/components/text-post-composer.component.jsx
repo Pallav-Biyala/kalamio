@@ -881,9 +881,12 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId, replyTo }) =>
                             </div>
                         )}
                         {!isEditingPublishedPost && (
+                            // Mirrors the blog editor: label/icon read as "Save draft" exactly when a
+                            // click will save the current work, and "Drafts" (open the list) otherwise.
+                            // Replies don't support drafts (handleDraftsClick no-ops), so never imply save.
                             <button className="tp-composer__drafts-btn" onClick={handleDraftsClick}>
-                                <Icon name="draft" className="text-lg" />
-                                Drafts
+                                <Icon name={hasContent && !replyTo ? "save" : "draft"} className="text-lg" />
+                                {hasContent && !replyTo ? "Save draft" : "Drafts"}
                             </button>
                         )}
                     </div>
