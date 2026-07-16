@@ -18,6 +18,7 @@ export { default as useFollowsBack } from './useFollowsBack';
 export { default as useSubscribeStatus } from './useSubscribeStatus';
 export { default as useLikeStatus } from './useLikeStatus';
 export { default as useIsSaved } from './useIsSaved';
+export { default as useArticleCollections } from './useArticleCollections';
 export { default as useUserCollections } from './useUserCollections';
 export { default as useCollectionDetail } from './useCollectionDetail';
 export { default as useUnreadMessages } from './useUnreadMessages';

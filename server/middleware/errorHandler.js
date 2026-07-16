@@ -30,6 +30,20 @@ const errorHandler = (err, req, res, next) => {
         message = `Invalid ${err.path}: ${err.value}`;
     }
 
+    // ── Request body too large (body-parser) — replace the raw "request entity too large" with a
+    // human-readable message. This is a graceful fallback: normal-length articles are well within the
+    // limit; only an extreme payload lands here.
+    if (err.type === 'entity.too.large' || err.status === 413 || err.statusCode === 413) {
+        statusCode = 413;
+        message = 'This content is too large to save. Please shorten it and try again.';
+    }
+
+    // ── Malformed JSON body (body-parser SyntaxError) ──
+    if (err.type === 'entity.parse.failed') {
+        statusCode = 400;
+        message = 'Invalid request format.';
+    }
+
     // ── JWT errors ──
     if (err.name === 'JsonWebTokenError') {
         statusCode = 401;

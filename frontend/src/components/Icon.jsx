@@ -68,14 +68,18 @@ const ICONS = {
   table_chart: Table, terminal: Terminal, attach_file: Paperclip,
 };
 
-// Names whose FILLED variant is the intended look — a solid heart when liked, a solid
-// bookmark when saved. Flood-filling any other (outline) lucide icon just makes a blob,
-// so the `filled` prop (used for active nav tabs) no longer fills the whole glyph — it
-// renders a slightly bolder stroke instead; active state also reads through color (CSS).
-const FILLED = new Set(['favorite', 'bookmark']);
+// Solid-fill handling. `favorite` is inherently the filled heart — its outline counterpart is the
+// SEPARATE `favorite_border` name — so it's solid whenever it's rendered (callers switch the name to
+// toggle like state). `bookmark` is a single name that's outline by default and only turns solid when
+// its `filled` prop is set (the Save toggle), so it must NOT fill unconditionally. Flood-filling any
+// other outline lucide glyph just makes a blob, so `filled` on those (active nav tabs) only bolds the
+// stroke; active state also reads through color (CSS).
+const ALWAYS_FILLED = new Set(['favorite']);
+const FILL_WHEN_ACTIVE = new Set(['bookmark']);
 
 const Icon = ({ name, className = '', filled = false, ariaLabel = '', onClick = null, style = {} }) => {
   const LucideIcon = ICONS[name] || CircleHelp;
+  const solid = ALWAYS_FILLED.has(name) || (filled && FILL_WHEN_ACTIVE.has(name));
   return (
     <LucideIcon
       className={`material-symbols-rounded ${className}`.trim()}
@@ -83,7 +87,7 @@ const Icon = ({ name, className = '', filled = false, ariaLabel = '', onClick = 
       aria-label={ariaLabel || name}
       onClick={onClick}
       style={style}
-      fill={FILLED.has(name) ? 'currentColor' : 'none'}
+      fill={solid ? 'currentColor' : 'none'}
       strokeWidth={filled ? 2.5 : 2}
     />
   );

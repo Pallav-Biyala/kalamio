@@ -97,6 +97,10 @@ const BlogEditor = () => {
             page: 1,
             draft: true,
             content_type: "blog",
+            // This is the ONLY consumer that reloads a draft's full body into the editor (loadDraft →
+            // draft.content), so it opts in to the heavy `content` field. The manage-blogs list and the
+            // text-post picker omit it and get a lean projection (see userWrittenPosts).
+            include_content: true,
             query: query || undefined
         }).then(({ data }) => {
             setDrafts(data.blogs || []);
@@ -216,7 +220,12 @@ const BlogEditor = () => {
             setDraftSearch("");
         } catch (err) {
             toast.dismiss(loadingToast);
-            toast.error(err?.response?.data?.error || "Failed to save draft");
+            // 413 (too long), 429, 5xx and offline are surfaced centrally by the api interceptor; only
+            // show the server's specific message for ordinary 4xx rejections here (no double toast).
+            const status = err?.response?.status;
+            if (status && status < 500 && ![401, 413, 429].includes(status)) {
+                toast.error(err.response.data?.error || "Failed to save draft");
+            }
         }
     };
 

@@ -2,25 +2,22 @@ import { useState, useRef, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import Icon from "./Icon";
 import { UserContext } from "../App";
+import { useArticleCollections } from "../hooks/queries";
 import toast from "react-hot-toast";
 import api from "../common/api";
 
 const PostMenu = ({ blogId, authorUsername, postType, onEdit, onSaveToCollection }) => {
     const [open, setOpen] = useState(false);
-    const [isSaved, setIsSaved] = useState(false);
     const menuRef = useRef(null);
     const navigate = useNavigate();
     const { userAuth: { username, access_token } } = useContext(UserContext);
 
     const isOwner = username === authorUsername;
 
-    // Check saved status every time the menu is opened
-    useEffect(() => {
-        if (!access_token || !blogId || !open) return;
-        api.post("/collection/is-saved", { blog_id: blogId })
-            .then(({ data }) => setIsSaved(data.saved))
-            .catch(() => {});
-    }, [access_token, blogId, open]);
+    // Fetch collections only once the menu opens — this fills the Save icon when the article is already
+    // saved, and warms the cache so the Save modal opens instantly instead of loading from scratch.
+    const { data: articleCollections } = useArticleCollections(blogId, { enabled: open });
+    const isSaved = !!articleCollections?.some(c => c.contains_article);
 
     // Close on outside click
     useEffect(() => {
@@ -89,21 +86,6 @@ const PostMenu = ({ blogId, authorUsername, postType, onEdit, onSaveToCollection
         setOpen(false);
     };
 
-    const handleQuickSave = () => {
-        if (!access_token) {
-            toast.error("Please sign in to save");
-            setOpen(false);
-            return;
-        }
-        api.post("/collection/quick-save", { blog_id: blogId })
-            .then(({ data }) => {
-                setIsSaved(data.saved);
-                toast.success(data.saved ? "Saved to Read Later" : "Removed from Read Later");
-            })
-            .catch(() => toast.error("Failed to save"));
-        setOpen(false);
-    };
-
     const handleSaveToCollection = () => {
         if (!access_token) {
             toast.error("Please sign in to save");
@@ -126,16 +108,10 @@ const PostMenu = ({ blogId, authorUsername, postType, onEdit, onSaveToCollection
 
             {open && (
                 <div className="post-menu__dropdown">
-                    {/* Save to Read Later */}
-                    <button className="post-menu__item" onClick={handleQuickSave}>
-                        <Icon name="bookmark" filled={isSaved} />
-                        <span>{isSaved ? 'Saved to Read Later' : 'Save to Read Later'}</span>
-                    </button>
-
-                    {/* Save to collection */}
+                    {/* Save to collection — auto-adds to "Read Later" on open, then lets you organize */}
                     <button className="post-menu__item" onClick={handleSaveToCollection}>
-                        <Icon name="playlist_add" />
-                        <span>Save to collection</span>
+                        <Icon name="bookmark" filled={isSaved} />
+                        <span>{isSaved ? 'Saved to collection' : 'Save to collection'}</span>
                     </button>
 
                     <div className="post-menu__divider" />

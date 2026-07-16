@@ -6,12 +6,42 @@ import AuthCode from '../Schema/AuthCode.js';
 import passport from 'passport';
 import { emailRegex, passwordRegex } from '../utils/regex.js';
 import { generateUsername } from '../utils/helpers.js';
-import { generateTokenPair, generateAccessToken, verifyRefreshToken } from '../services/token.service.js';
+import { generateTokenPair, generateAccessToken, verifyRefreshToken, verifyAccessToken, hashToken, safeEqual } from '../services/token.service.js';
 import { generateOtp, verifyOtp } from '../services/otp.service.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email.service.js';
 import { AUTH } from '../constants/auth.constants.js';
 import { ERRORS } from '../constants/error-messages.js';
 import audit from '../middleware/auditLogger.js';
+
+// ─────────────────────────────────────────────
+// Refresh sessions (per-device)
+// ─────────────────────────────────────────────
+
+/**
+ * Create a new per-device refresh session for a user and return its token pair.
+ * Each login/OAuth-exchange gets its own session entry, so signing in on one device never logs out
+ * another. Sessions are capped — beyond the cap the least-recently-used entry is dropped.
+ */
+const createUserSession = async (user_id) => {
+    const sid = crypto.randomUUID();
+    const tokens = generateTokenPair(user_id, sid);
+    const now = new Date();
+    const entry = { sid, token_hash: hashToken(tokens.refresh_token), created_at: now, last_used_at: now };
+
+    // Atomic push-sort-slice: appends the new session and trims to the cap (most recently used kept)
+    // in ONE document update — two devices logging in simultaneously can't clobber each other the way
+    // a read-modify-write of the whole array could.
+    await User.updateOne(
+        { _id: user_id },
+        { $push: { refresh_sessions: {
+            $each: [entry],
+            $sort: { last_used_at: -1 },
+            $slice: AUTH.MAX_REFRESH_SESSIONS,
+        } } }
+    );
+
+    return tokens;
+};
 
 // ─────────────────────────────────────────────
 // Signup — creates unverified user, sends OTP
@@ -127,9 +157,7 @@ export const verifyEmail = async (req, res) => {
         }
 
         // Generate tokens and store hashed refresh token
-        const tokens = generateTokenPair(user._id);
-        const hashedRefreshToken = await bcrypt.hash(tokens.refresh_token, AUTH.SALT_ROUNDS);
-        await User.updateOne({ _id: user._id }, { refreshToken: hashedRefreshToken });
+        const tokens = await createUserSession(user._id);
 
         return res.status(200).json({
             _id: user._id,
@@ -260,9 +288,7 @@ export const signin = async (req, res) => {
         audit.log(req, 'LOGIN_SUCCESS', { email: identifier });
 
         // Generate tokens and store hashed refresh token
-        const tokens = generateTokenPair(user._id);
-        const hashedRefreshToken = await bcrypt.hash(tokens.refresh_token, AUTH.SALT_ROUNDS);
-        await User.updateOne({ _id: user._id }, { refreshToken: hashedRefreshToken });
+        const tokens = await createUserSession(user._id);
 
         return res.status(200).json({
             _id: user._id,
@@ -371,9 +397,7 @@ export const exchangeAuthCode = async (req, res) => {
         }
 
         // Generate tokens and store hashed refresh token
-        const tokens = generateTokenPair(user._id);
-        const hashedRefreshToken = await bcrypt.hash(tokens.refresh_token, AUTH.SALT_ROUNDS);
-        await User.updateOne({ _id: user._id }, { refreshToken: hashedRefreshToken });
+        const tokens = await createUserSession(user._id);
 
         return res.status(200).json({
             _id: user._id,
@@ -448,6 +472,7 @@ export const resetPassword = async (req, res) => {
             {
                 "personal_info.password": hashedPassword,
                 $unset: { refreshToken: 1 },
+                $set: { refresh_sessions: [] }, // password reset logs out every device
             }
         );
 
@@ -469,40 +494,134 @@ export const resetPassword = async (req, res) => {
 // ─────────────────────────────────────────────
 // Refresh Token — returns new access token
 // ─────────────────────────────────────────────
+// Rotate a matched session forward under compare-and-swap on its token_hash — the write only lands
+// if the current token_hash is still exactly what we read, so a concurrent refresh can't clobber us.
+// The superseded token_hash is pushed into the grace-hash set (kept valid for the grace window), so
+// every token issued within that window stays redeemable — a racing tab holding an older one is
+// never misread as a replay. Expired grace hashes are pruned on each rotation. Returns the new pair,
+// or null if the CAS lost (caller re-reads and re-evaluates).
+const rotateSessionCAS = async (userId, session, now) => {
+    const tokens = generateTokenPair(userId, session.sid);
+    const graceHashes = (session.grace_hashes || [])
+        .filter(g => new Date(g.exp) > now)
+        .concat([{ hash: session.token_hash, exp: new Date(now.getTime() + AUTH.REFRESH_ROTATION_GRACE_MS) }]);
+    const r = await User.updateOne(
+        { _id: userId, refresh_sessions: { $elemMatch: { sid: session.sid, token_hash: session.token_hash } } },
+        { $set: {
+            'refresh_sessions.$.token_hash': hashToken(tokens.refresh_token),
+            'refresh_sessions.$.grace_hashes': graceHashes,
+            'refresh_sessions.$.last_used_at': now,
+        } }
+    );
+    return r.matchedCount === 1 ? tokens : null;
+};
+
+// True if `th` is a still-valid grace hash for this session (recently superseded, not yet expired).
+const matchesGrace = (session, th, now) =>
+    (session.grace_hashes || []).some(g => new Date(g.exp) > now && safeEqual(th, g.hash));
+
+// Small randomized backoff between CAS retries. Under a burst of concurrent same-token refreshes the
+// losers would otherwise re-read and re-collide in lockstep; jitter spreads them so more win per round.
+const casBackoff = (attempt) => new Promise(r => setTimeout(r, 4 + attempt * 8 + Math.floor(Math.random() * 12)));
+
 export const refreshToken = async (req, res) => {
     try {
         const { refresh_token: token } = req.body;
-
         if (!token) {
             return res.status(401).json({ error: ERRORS.REFRESH_TOKEN_INVALID });
         }
 
-        // Verify JWT signature
+        // Verify JWT signature + expiry
         const decoded = verifyRefreshToken(token);
         if (!decoded) {
             return res.status(401).json({ error: ERRORS.REFRESH_TOKEN_INVALID });
         }
 
-        // Find user and verify stored refresh token matches
-        const user = await User.findById(decoded.id).select('+refreshToken');
-        if (!user || !user.refreshToken) {
-            return res.status(401).json({ error: ERRORS.REFRESH_TOKEN_INVALID });
+        const th = hashToken(token);
+
+        // ── Per-device session token (carries a sid) ────────────────────
+        if (decoded.sid) {
+            // Re-read + CAS in a retry loop: if a concurrent refresh wins the swap first, we re-evaluate
+            // — the token we hold is now in the grace-hash set, so the "loser" becomes a clean grace hit
+            // instead of an orphaned token that would later self-revoke the session.
+            for (let attempt = 0; attempt < AUTH.REFRESH_CAS_MAX_RETRIES; attempt++) {
+                const user = await User.findById(decoded.id).select('+refresh_sessions');
+                if (!user) return res.status(401).json({ error: ERRORS.REFRESH_TOKEN_INVALID });
+                const session = (user.refresh_sessions || []).find(s => s.sid === decoded.sid);
+                if (!session) return res.status(401).json({ error: ERRORS.REFRESH_TOKEN_INVALID });
+
+                const now = new Date();
+                if (safeEqual(th, session.token_hash) || matchesGrace(session, th, now)) {
+                    const tokens = await rotateSessionCAS(decoded.id, session, now);
+                    if (tokens) return res.status(200).json(tokens);
+                    await casBackoff(attempt); // lost the CAS — back off, then re-read and re-evaluate
+                    continue;
+                }
+
+                // Neither the current token nor a still-valid grace hash → replay/theft signal.
+                // Revoke the whole session so a stolen, rotated-out token can't be farmed.
+                await User.updateOne({ _id: decoded.id }, { $pull: { refresh_sessions: { sid: session.sid } } });
+                audit.log(req, 'REFRESH_TOKEN_REUSE', { sid: session.sid, userId: String(decoded.id) });
+                return res.status(401).json({ error: ERRORS.REFRESH_TOKEN_INVALID });
+            }
+            // Exhausted retries while the token stayed VALID (current-or-grace) every time — i.e. we kept
+            // losing the CAS to a storm of concurrent refreshes, NOT a reuse. Signal "retry", not "log
+            // out": the client treats 5xx as transient and re-attempts, whereas a 401 here would nuke a
+            // perfectly good session. The session is left intact.
+            return res.status(503).json({ error: ERRORS.REFRESH_RETRY });
         }
 
-        const isMatch = await bcrypt.compare(token, user.refreshToken);
-        if (!isMatch) {
-            return res.status(401).json({ error: ERRORS.REFRESH_TOKEN_INVALID });
+        // ── Legacy single-session token (pre-sid deploys) → migrate ONCE ─────
+        // We do NOT bcrypt-compare the raw JWT: bcrypt truncates at 72 bytes and every legacy token
+        // for a user shares that prefix, so the compare is security-theatre. The already-verified JWT
+        // signature (proves it was issued to this user) + a one-shot atomic claim of the legacy field
+        // is the real guard.
+        for (let attempt = 0; attempt < AUTH.REFRESH_CAS_MAX_RETRIES; attempt++) {
+            const user = await User.findById(decoded.id).select('+refreshToken +refresh_sessions');
+            if (!user) return res.status(401).json({ error: ERRORS.REFRESH_TOKEN_INVALID });
+            const now = new Date();
+
+            // Already migrated (this legacy token, within grace) — recover by rotating its session.
+            // `migrated_from` is a NON-consuming marker (unlike prev_hash), so any number of concurrent
+            // retries of the same legacy token all recover instead of racing one another out.
+            const migrated = (user.refresh_sessions || []).find(s =>
+                s.migrated_from && s.migrated_at
+                && (now - new Date(s.migrated_at)) < AUTH.REFRESH_ROTATION_GRACE_MS
+                && safeEqual(th, s.migrated_from));
+            if (migrated) {
+                const tokens = await rotateSessionCAS(decoded.id, migrated, now);
+                if (tokens) return res.status(200).json(tokens);
+                await casBackoff(attempt); // another retry rotated it first — re-read and rotate again
+                continue;
+            }
+
+            if (!user.refreshToken) {
+                return res.status(401).json({ error: ERRORS.REFRESH_TOKEN_INVALID });
+            }
+
+            // Atomic one-shot claim: mint a session ONLY while the legacy field is still present, and
+            // $unset it in the SAME write, so a concurrent/duplicate legacy request can't mint a
+            // second session. migrated_from = hash(this legacy token) makes the migration itself
+            // recoverable for the grace window (lost response), handled by the branch above on retry.
+            const sid = crypto.randomUUID();
+            const tokens = generateTokenPair(decoded.id, sid);
+            const entry = { sid, token_hash: hashToken(tokens.refresh_token), migrated_from: th, migrated_at: now, created_at: now, last_used_at: now };
+            const r = await User.updateOne(
+                { _id: decoded.id, refreshToken: user.refreshToken },
+                { $unset: { refreshToken: 1 }, $push: { refresh_sessions: {
+                    $each: [entry], $sort: { last_used_at: -1 }, $slice: AUTH.MAX_REFRESH_SESSIONS,
+                } } }
+            );
+            if (r.modifiedCount === 1) {
+                audit.log(req, 'LEGACY_REFRESH_MIGRATED', { userId: String(decoded.id) });
+                return res.status(200).json(tokens);
+            }
+            // Lost the claim race to a concurrent request — back off, then loop to recover via migrated_from.
+            await casBackoff(attempt);
         }
-
-        // Rotate tokens — issue new pair and invalidate the old refresh token
-        const tokens = generateTokenPair(user._id);
-        const hashedRefreshToken = await bcrypt.hash(tokens.refresh_token, AUTH.SALT_ROUNDS);
-        await User.updateOne({ _id: user._id }, { refreshToken: hashedRefreshToken });
-
-        return res.status(200).json({
-            access_token: tokens.access_token,
-            refresh_token: tokens.refresh_token,
-        });
+        // Exhausted retries mid-migration under contention (session exists but we kept losing the CAS).
+        // Same reasoning as the sid path: transient, so tell the client to retry rather than log out.
+        return res.status(503).json({ error: ERRORS.REFRESH_RETRY });
 
     } catch (err) {
         (req.log || console).error({ err }, '[Refresh Token Error]');
@@ -515,12 +634,32 @@ export const refreshToken = async (req, res) => {
 // ─────────────────────────────────────────────
 export const logout = async (req, res) => {
     try {
-        await User.updateOne(
-            { _id: req.user },
-            { $unset: { refreshToken: 1 } }
-        );
+        // Self-authenticating on the presented refresh token (works even when the access token has
+        // already expired at sign-out time — a common case). Falls back to a Bearer access token for
+        // older clients that don't send a refresh_token. The route has no verifyJWT so an expired
+        // access token can't turn a sign-out into a 401 that skips revocation entirely.
+        const { refresh_token } = req.body || {};
+        const decoded = refresh_token ? verifyRefreshToken(refresh_token) : null;
 
-        audit.log(req, 'LOGOUT', {});
+        if (decoded?.sid) {
+            // Revoke exactly this device's session — possession of its refresh token is the auth.
+            await User.updateOne(
+                { _id: decoded.id },
+                { $pull: { refresh_sessions: { sid: decoded.sid } } }
+            );
+            audit.log(req, 'LOGOUT', { userId: String(decoded.id) });
+            return res.status(200).json({ message: "Logged out successfully" });
+        }
+
+        // Older client: identify via the Bearer access token and clear the legacy single-session field.
+        const authHeader = req.headers['authorization'];
+        const accessTok = authHeader && authHeader.split(' ')[1];
+        const acc = accessTok ? verifyAccessToken(accessTok) : null;
+        if (acc?.id) {
+            await User.updateOne({ _id: acc.id }, { $unset: { refreshToken: 1 } });
+        }
+
+        audit.log(req, 'LOGOUT', acc?.id ? { userId: String(acc.id) } : {});
         return res.status(200).json({ message: "Logged out successfully" });
 
     } catch (err) {
@@ -562,15 +701,14 @@ export const changePassword = async (req, res) => {
             {
                 "personal_info.password": hashedPassword,
                 $unset: { refreshToken: 1 },
+                $set: { refresh_sessions: [] }, // password change logs out every other device
             }
         );
 
         audit.log(req, 'PASSWORD_CHANGED', {});
 
         // Issue fresh tokens for the current session
-        const tokens = generateTokenPair(req.user);
-        const hashedRefreshToken = await bcrypt.hash(tokens.refresh_token, AUTH.SALT_ROUNDS);
-        await User.updateOne({ _id: req.user }, { refreshToken: hashedRefreshToken });
+        const tokens = await createUserSession(req.user);
 
         return res.status(200).json({
             message: "Password changed successfully",

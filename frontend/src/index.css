@@ -1551,10 +1551,11 @@
         right: 0;
         max-height: 70vh;
         background: rgb(var(--c-white));
-        border-radius: 16px 16px 0 0;
+        border-radius: 20px 20px 0 0;
         z-index: 1000;
         display: flex;
         flex-direction: column;
+        box-shadow: 0 -10px 40px rgb(0 0 0 / 0.22);
         animation: slideUp 0.2s ease;
     }
 
@@ -1595,11 +1596,22 @@
     }
 
     .save-modal__close {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
         background: none;
         border: none;
         cursor: pointer;
         color: rgb(var(--c-dark-grey));
-        padding: 4px;
+        transition: background 0.15s, color 0.15s;
+    }
+
+    .save-modal__close:hover {
+        background: rgb(var(--c-grey) / 0.6);
+        color: rgb(var(--c-black));
     }
 
     .save-modal__list {
@@ -1616,17 +1628,54 @@
         font-size: 14px;
     }
 
+    .save-modal__skeleton {
+        display: flex;
+        flex-direction: column;
+        padding: 8px;
+    }
+
+    .save-modal__skeleton-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px;
+    }
+
+    .save-modal__skeleton-bar {
+        height: 12px;
+        border-radius: 6px;
+        background: rgb(var(--c-grey));
+        animation: saveSkeleton 1.2s ease-in-out infinite;
+    }
+
+    .save-modal__skeleton-dot {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        background: rgb(var(--c-grey));
+        flex-shrink: 0;
+        animation: saveSkeleton 1.2s ease-in-out infinite;
+    }
+
+    @keyframes saveSkeleton {
+        0%, 100% { opacity: 0.45; }
+        50%      { opacity: 1; }
+    }
+
     .save-modal__item {
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 10px 20px;
+        padding: 10px 12px;
+        margin: 0 8px;
+        border-radius: 12px;
         cursor: pointer;
-        transition: background 0.1s;
+        transition: background 0.12s;
     }
 
     .save-modal__item:hover {
-        background: rgb(var(--c-grey) / 0.5);
+        background: rgb(var(--c-grey) / 0.55);
     }
 
     .save-modal__checkbox-icon {
@@ -1636,6 +1685,12 @@
         width: 32px;
         height: 32px;
         flex-shrink: 0;
+        color: rgb(var(--c-dark-grey));
+        transition: color 0.12s;
+    }
+
+    .save-modal__item--selected .save-modal__checkbox-icon {
+        color: rgb(var(--c-black));
     }
 
     .save-modal__item-info {
@@ -1669,47 +1724,165 @@
 
     .save-modal__create {
         border-top: 1px solid rgb(var(--c-border));
-        padding: 12px 20px 16px;
+        padding: 14px 20px 18px;
     }
 
-    .save-modal__create-row {
+    /* Collapsed state — the "+ New collection" trigger */
+    .save-modal__new-btn {
         display: flex;
+        align-items: center;
+        justify-content: center;
         gap: 8px;
-        margin-bottom: 8px;
+        width: 100%;
+        padding: 11px;
+        background: transparent;
+        border: 1.5px dashed rgb(var(--c-border));
+        border-radius: 10px;
+        color: rgb(var(--c-black));
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+
+    .save-modal__new-btn:hover {
+        border-color: rgb(var(--c-black));
+        color: rgb(var(--c-black));
+        background: rgb(var(--c-black) / 0.04);
+    }
+
+    /* Expanded state — the create form */
+    .save-modal__create-form {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        animation: saveFormIn 0.18s ease;
+    }
+
+    @keyframes saveFormIn {
+        from { opacity: 0; transform: translateY(6px); }
+        to   { opacity: 1; transform: translateY(0); }
     }
 
     .save-modal__create-input {
-        flex: 1;
-        padding: 8px 12px;
+        width: 100%;
+        padding: 10px 12px;
         border: 1px solid rgb(var(--c-border));
-        border-radius: 8px;
+        border-radius: 10px;
         font-size: 14px;
         background: transparent;
         outline: none;
         color: rgb(var(--c-black));
+        transition: border-color 0.15s;
     }
 
     .save-modal__create-input:focus {
-        border-color: rgb(var(--c-purple));
+        border-color: rgb(var(--c-brand));
+    }
+
+    .save-modal__field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .save-modal__field-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: rgb(var(--c-dark-grey));
+    }
+
+    .save-modal__visibility {
+        position: relative;
+        width: 100%;
+        outline: none;
     }
 
     .save-modal__create-select {
-        padding: 8px 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        padding: 10px 12px;
         border: 1px solid rgb(var(--c-border));
-        border-radius: 8px;
+        border-radius: 10px;
         font-size: 14px;
         background: transparent;
         color: rgb(var(--c-black));
         cursor: pointer;
         outline: none;
+        transition: border-color 0.15s;
     }
 
-    .save-modal__create-select:focus {
-        border-color: rgb(var(--c-purple));
+    .save-modal__create-select:hover {
+        border-color: rgb(var(--c-dark-grey) / 0.5);
     }
 
-    .save-modal__create-select option {
-        background-color: rgb(var(--c-white));
+    .save-modal__visibility:focus-within .save-modal__create-select {
+        border-color: rgb(var(--c-brand));
+    }
+
+    .save-modal__visibility-menu {
+        position: absolute;
+        bottom: calc(100% + 6px);
+        left: 0;
+        right: 0;
+        background: rgb(var(--c-white));
+        border: 1px solid rgb(var(--c-border));
+        border-radius: 10px;
+        box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+        padding: 6px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        z-index: 20;
+    }
+
+    .save-modal__visibility-option {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 10px;
+        border: none;
+        background: transparent;
+        border-radius: 8px;
+        font-size: 14px;
+        color: rgb(var(--c-dark-grey));
+        cursor: pointer;
+        transition: background 0.12s;
+    }
+
+    .save-modal__visibility-option:hover {
+        background: rgb(var(--c-grey) / 0.6);
+    }
+
+    .save-modal__visibility-option.is-active {
+        color: rgb(var(--c-black));
+        font-weight: 600;
+        background: rgb(var(--c-grey) / 0.5);
+    }
+
+    .save-modal__form-actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .save-modal__cancel-btn {
+        padding: 8px 18px;
+        background: transparent;
+        border: none;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 600;
+        color: rgb(var(--c-dark-grey));
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+    }
+
+    .save-modal__cancel-btn:hover {
+        background: rgb(var(--c-grey) / 0.6);
         color: rgb(var(--c-black));
     }
 
@@ -1717,19 +1890,19 @@
         display: inline-flex;
         align-items: center;
         gap: 4px;
-        padding: 8px 16px;
-        background: rgb(var(--c-purple));
-        color: white;
+        padding: 8px 20px;
+        background: rgb(var(--c-brand));
+        color: rgb(var(--c-white));
         border: none;
-        border-radius: 8px;
+        border-radius: 999px;
         font-size: 13px;
         font-weight: 600;
         cursor: pointer;
         transition: opacity 0.15s;
     }
 
-    .save-modal__create-btn:hover { opacity: 0.85; }
-    .save-modal__create-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .save-modal__create-btn:hover { opacity: 0.88; }
+    .save-modal__create-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
     /* ── Poll Voters Modal ──────────────────────── */
     .poll-voters-overlay {

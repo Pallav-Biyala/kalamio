@@ -23,6 +23,8 @@ const AUDIT_EVENTS = {
     EMAIL_VERIFIED: 'info',
     OAUTH_LOGIN: 'info',
     TOKEN_REFRESHED: 'info',
+    REFRESH_TOKEN_REUSE: 'warn',   // rotated-out refresh token replayed → session revoked (theft signal)
+    LEGACY_REFRESH_MIGRATED: 'info',
     // Content
     BLOG_PUBLISHED: 'info',
     BLOG_DELETED: 'info',

@@ -3,6 +3,7 @@ import AnimationWrapper from "../common/page-animation";
 import { Link } from "react-router-dom";
 import { UserContext } from "../App";
 import { removeFromSession } from "../common/session";
+import { revokeSessionOnServer } from "../common/api";
 import Icon from "./Icon";
 
 const UserNavigationPanel = () => {
@@ -10,6 +11,7 @@ const UserNavigationPanel = () => {
     const { userAuth: { username }, setUserAuth } = useContext(UserContext);
 
     const signOutUser = () => {
+        revokeSessionOnServer(); // best-effort: invalidate this device's refresh session server-side
         removeFromSession("user");
         setUserAuth({ access_token: null })
     }

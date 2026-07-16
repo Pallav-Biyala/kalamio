@@ -134,12 +134,19 @@ const PublishForm = () => {
                 navigate("/dashboard/blogs");
             }, 500);
         })
-        .catch(( { response } ) => {
+        .catch((err) => {
             e.target.classList.remove('disable');
             toast.dismiss(loadingToast);
 
-            return toast.error(response.data.error);
-
+            // 413 (article too long), 429, 5xx and offline are surfaced centrally by the api interceptor
+            // with readable, deduped toasts — re-toasting them here would double up. Here we only show
+            // the specific validation message the server returns for ordinary 4xx rejections (missing
+            // title/description/banner/tags, etc.). Optional-chain everything so a missing `response`
+            // (e.g. a bare connection drop) can never throw.
+            const status = err?.response?.status;
+            if (status && status < 500 && ![401, 413, 429].includes(status)) {
+                toast.error(err.response.data?.error || "Something went wrong while publishing. Please try again.");
+            }
         })
 
     }

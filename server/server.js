@@ -60,8 +60,25 @@ server.use(compression());
 // Structured request logging (JSON with request IDs)
 server.use(requestLogger);
 
-// Default body limit — 10kb for most routes (prevents payload abuse)
-server.use(express.json({ limit: '10kb' }));
+// Body parsing. Most endpoints only ever receive small JSON, so we cap them tight (10kb) to blunt
+// payload-abuse. A few routes legitimately carry large bodies — a long-form article's content can
+// reach a couple of MB — and they parse with their own higher limit inside the router (see
+// blog.routes.js `largeBody`). This global parser runs BEFORE the router, so it must skip those
+// routes: otherwise the tight limit would 413 a large article before the route's parser is ever
+// reached (the bug that made "request entity too large" fire on long posts). Legacy `/api/...` paths
+// are covered too, since the `/api → /api/v1` redirect runs after this middleware.
+const LARGE_BODY_ROUTES = new Set([
+    '/api/v1/create-blog',
+    '/api/create-blog',
+]);
+const defaultJsonParser = express.json({ limit: '10kb' });
+server.use((req, res, next) => {
+    // Normalize a trailing slash so /api/v1/create-blog/ is treated the same as the canonical path
+    // (Express's non-strict router matches both to the same handler).
+    const path = req.path.length > 1 ? req.path.replace(/\/+$/, '') : req.path;
+    if (LARGE_BODY_ROUTES.has(path)) return next(); // parsed by the route's own larger limit
+    return defaultJsonParser(req, res, next);
+});
 
 // CORS — restrict origins based on environment
 const allowedOrigins = [

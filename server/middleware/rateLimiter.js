@@ -25,6 +25,17 @@ export const authLimiter = rateLimit({
     message: { error: 'Too many auth attempts. Please try again after 15 minutes.' },
 });
 
+// Token refresh — looser than authLimiter on purpose. Every signed-in user hits this once per
+// ~15 minutes as a matter of course, and shared NAT IPs (offices, campuses) put MANY users behind
+// one bucket — the strict login limit would randomly sign people out. Refresh isn't a
+// brute-forceable credential either: a guess needs a validly-signed JWT to even reach the DB check.
+export const refreshLimiter = rateLimit({
+    ...base,
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 120,                  // ~comfortable for a large office behind one IP
+    message: { error: 'Too many requests. Please try again shortly.' },
+});
+
 // Medium — OTP, email verification (prevent spam)
 export const otpLimiter = rateLimit({
     ...base,

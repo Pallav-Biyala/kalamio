@@ -285,11 +285,18 @@ export const userWrittenPosts = (req, res) => {
         findQuery.$or = [{ title: regex }, { text_content: regex }];
     }
 
+    // `content` is the full article body (up to a couple of MB for long-form posts). List/card
+    // consumers (manage-blogs grid, text-post drafts) never render it, so we omit it by default —
+    // otherwise every page would ship several unused MB. Only the blog editor's draft picker needs it
+    // (to reload a draft for editing) and opts in via include_content.
+    const listFields = " title banner publishedAt blog_id activity des draft type text_content images poll tags -_id ";
+    const fields = req.body?.include_content ? listFields + " content" : listFields;
+
     Post.find(findQuery)
     .skip(skipDocs)
     .limit(maxLimit)
     .sort(sortQuery)
-    .select(" title banner publishedAt blog_id activity des draft type text_content images poll content tags -_id ")
+    .select(fields)
     .then(blogs => {
         return res.status(200).json({ blogs });
     })

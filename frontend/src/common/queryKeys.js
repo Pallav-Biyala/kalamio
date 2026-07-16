@@ -60,6 +60,7 @@ export const queryKeys = {
     user:         (username)        => ['collections', 'user', username],
     detail:       (collectionId)    => ['collections', 'detail', collectionId],
     isSaved:      (blogId)          => ['collections', 'is-saved', blogId],
+    forArticle:   (blogId)          => ['collections', 'article', blogId],
   },
 
   // ── Notifications ─────────────────────────────────────────────

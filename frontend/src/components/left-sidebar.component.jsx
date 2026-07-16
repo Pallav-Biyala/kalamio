@@ -2,6 +2,7 @@ import { useContext, useState } from "react";
 import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
 import { ThemeContext, UserContext } from "../App";
 import { storeInSession, removeFromSession } from "../common/session";
+import { revokeSessionOnServer } from "../common/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../common/queryKeys";
 import lightLogo from "../imgs/logo-light.png";
@@ -84,6 +85,7 @@ const LeftSidebar = () => {
     }
 
     const signOutUser = () => {
+        revokeSessionOnServer(); // best-effort: invalidate this device's refresh session server-side
         removeFromSession("user");
         setUserAuth({ access_token: null });
         navigate("/");

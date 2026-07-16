@@ -1,6 +1,7 @@
 import { io } from 'socket.io-client';
 import { lookInSession } from './session';
 import { queryKeys } from './queryKeys';
+import { ensureFreshToken } from './api';
 
 let socket = null;
 
@@ -32,7 +33,22 @@ export const getSocket = () => {
     const serverUrl = import.meta.env.VITE_SERVER_DOMAIN || 'http://localhost:8080';
 
     socket = io(serverUrl, {
-        auth: { token: access_token },
+        // auth as a FUNCTION: called on EVERY connection attempt (initial + all reconnects), so each
+        // handshake carries a guaranteed-fresh access token. Access tokens only live 15 minutes and
+        // the session persists in localStorage for days, so a page load usually starts with an
+        // expired token — ensureFreshToken() refreshes it (single-flight, shared with axios) before
+        // the socket ever presents it, instead of getting rejected and needing recovery.
+        auth: (cb) => {
+            ensureFreshToken()
+                .then((token) => {
+                    if (token) return cb({ token });
+                    // No refreshable session — fall back to whatever is stored (server will reject,
+                    // and the connect_error recovery below retries with backoff).
+                    const u = lookInSession("user");
+                    try { cb({ token: u ? JSON.parse(u).access_token : '' }); } catch { cb({ token: '' }); }
+                })
+                .catch(() => cb({ token: '' }));
+        },
         transports: ['websocket', 'polling'],
         reconnection: true,
         reconnectionDelay: 1000,
@@ -42,21 +58,27 @@ export const getSocket = () => {
         reconnectionAttempts: Infinity
     });
 
-    // On every reconnect attempt, re-read the (possibly refreshed) token from session so an expired
-    // token can't permanently break real-time after a network blip.
-    socket.io.on('reconnect_attempt', () => {
-        const u = lookInSession("user");
-        if (u) {
-            try { socket.auth = { token: JSON.parse(u).access_token }; } catch { /* keep old auth */ }
-        }
-    });
+    // Auth-rejection recovery. When the server's socket middleware rejects the handshake, Socket.IO
+    // does NOT auto-reconnect: socket.active === false and the manager never schedules a retry, so
+    // without this the socket would stay dead for the whole visit. Retrying re-runs the auth
+    // function above, which refreshes the token — so this recovers from any transient auth failure.
+    // Backoff caps the retries when the session is truly dead (user must re-login).
+    let authRetry = 0;
 
     socket.on('connect', () => {
+        authRetry = 0;
         console.log('[Socket] Connected:', socket.id);
     });
 
     socket.on('connect_error', (err) => {
         console.warn('[Socket] Connection error:', err.message);
+        if (socket.active) return; // transport-level failure — the manager auto-reconnects
+        const delay = Math.min(60_000, 2_000 * 2 ** Math.min(authRetry++, 5));
+        setTimeout(() => {
+            if (!socket || socket.connected) return; // disconnected via logout, or already recovered
+            if (!lookInSession("user")) return;      // logged out — nothing to reconnect with
+            socket.connect(); // the auth function fetches a fresh token for this attempt
+        }, delay);
     });
 
     return socket;

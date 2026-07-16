@@ -121,7 +121,27 @@ const userSchema = mongoose.Schema({
     },
     refreshToken: {
         type: String,
-        select: false, // never exposed in normal queries
+        select: false, // legacy single-session token — migrated into refresh_sessions on first refresh
+    },
+    // Per-device refresh sessions. One entry per signed-in device/browser, so a login on a second
+    // device no longer invalidates the first. `sid` is carried inside the refresh JWT; `grace_hashes`
+    // keeps just-rotated tokens valid for a short grace window (concurrent tabs / lost responses).
+    refresh_sessions: {
+        type: [{
+            _id: false,
+            sid:           { type: String, required: true },
+            token_hash:    { type: String, required: true },
+            // Recently-superseded token hashes, each valid until its `exp`. A SET (not a single
+            // prev_hash) so that any number of concurrent tabs racing on the same token within the
+            // grace window all succeed, instead of the 3rd+ being misread as a replay and revoked.
+            grace_hashes:  { type: [{ _id: false, hash: String, exp: Date }], default: [] },
+            migrated_from: { type: String },   // sha of the legacy token this session migrated from
+            migrated_at:   { type: Date },     // non-consuming migration-grace marker (lost-response retry)
+            created_at:    { type: Date, default: Date.now },
+            last_used_at:  { type: Date, default: Date.now },
+        }],
+        select: false,
+        default: [],
     },
     blogs: {
         type: [ Schema.Types.ObjectId ],

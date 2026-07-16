@@ -4,6 +4,7 @@ import AnimationWrapper from "../common/page-animation";
 import InputBox from "../components/input.component";
 import toast from "react-hot-toast";
 import api from "../common/api";
+import { lookInSession, storeInSession } from "../common/session";
 import { UserContext } from "../App";
 
 const PasswordStrengthBar = ({ password }) => {
@@ -48,7 +49,7 @@ const ChangePassword = () => {
 
     usePageTitle('Change Password');
 
-    let { userAuth: { access_token } } = useContext(UserContext);
+    let { userAuth, userAuth: { access_token }, setUserAuth } = useContext(UserContext);
 
     let changePasswordForm = useRef();
     let passwordRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,20}$/; // regex for password
@@ -84,7 +85,19 @@ const ChangePassword = () => {
         let loadingToast = toast.loading("Updating...");
 
         api.post("/change-password", { currentPassword, newPassword: newPwd })
-        .then(() => {
+        .then(({ data }) => {
+            // The server revokes all sessions and issues a fresh pair for THIS device — persist it, or
+            // the next refresh would present a now-deleted session's token and hard-log-out the very
+            // device that just changed the password.
+            if (data?.access_token) {
+                try {
+                    const s = JSON.parse(lookInSession("user") || "{}");
+                    s.access_token = data.access_token;
+                    if (data.refresh_token) s.refresh_token = data.refresh_token;
+                    storeInSession("user", JSON.stringify(s));
+                    if (userAuth) setUserAuth({ ...userAuth, access_token: data.access_token });
+                } catch { /* keep going — worst case a re-login */ }
+            }
             toast.dismiss(loadingToast);
             e.target.removeAttribute("disabled");
             changePasswordForm.current.reset();

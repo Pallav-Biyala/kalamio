@@ -4,6 +4,7 @@ import usePageTitle from "../common/usePageTitle";
 import { UserContext } from "../App";
 import { ThemeContext } from "../App";
 import { removeFromSession, storeInSession } from "../common/session";
+import { revokeSessionOnServer } from "../common/api";
 import AnimationWrapper from "../common/page-animation";
 import Icon from "../components/Icon";
 import Avatar from "../components/Avatar";
@@ -46,6 +47,7 @@ const YouPage = () => {
     }
 
     const signOutUser = () => {
+        revokeSessionOnServer(); // best-effort: invalidate this device's refresh session server-side
         removeFromSession("user");
         setUserAuth({ access_token: null });
     };

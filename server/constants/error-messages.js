@@ -10,6 +10,7 @@ export const ERRORS = {
     TOKEN_EXPIRED: 'Access token has expired',
     TOKEN_INVALID: 'Access token is invalid',
     REFRESH_TOKEN_INVALID: 'Refresh token is invalid or has been revoked',
+    REFRESH_RETRY: 'Token refresh is temporarily busy, please retry',
 
     // Auth — Registration
     EMAIL_EXISTS: 'An account with this email already exists',
