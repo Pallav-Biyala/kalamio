@@ -5,7 +5,7 @@
  * for supported providers.
  */
 
-export const MAX_EMBEDS = 5;
+export const MAX_EMBEDS = 20;
 
 /**
  * Each provider entry contains:

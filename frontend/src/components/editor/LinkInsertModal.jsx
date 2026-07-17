@@ -49,28 +49,43 @@ const LinkInsertModal = memo(({ editor, onClose }) => {
       return;
     }
 
-    // Auto-prefix https if missing
-    const finalUrl = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    // Auto-prefix https if missing (leave mailto:/tel: alone)
+    const finalUrl = /^(https?:\/\/|mailto:|tel:)/i.test(trimmed) ? trimmed : `https://${trimmed}`;
 
-    // If there's display text and no selection, insert it
-    const { empty } = editor.state.selection;
-    if (text.trim() && empty) {
-      editor
-        .chain()
-        .focus()
-        .insertContent({
-          type: 'text',
-          marks: [{ type: 'link', attrs: { href: finalUrl, target: '_blank' } }],
-          text: text.trim(),
-        })
-        .run();
+    const displayText = text.trim();
+    const linkMark = { type: 'link', attrs: { href: finalUrl, target: '_blank' } };
+    const { empty, from, to } = editor.state.selection;
+
+    if (empty) {
+      if (editor.isActive('link') && !displayText) {
+        // Caret sits inside an existing link and only the URL was changed: update the whole link in
+        // place. (Without this, insertContent would inject the URL as new text mid-word and leave the
+        // original link's href untouched.)
+        editor.chain().focus()
+          .extendMarkRange('link')
+          .setLink({ href: finalUrl, target: '_blank' })
+          .run();
+      } else {
+        // No selection: insert the display text (or, if left blank, the URL itself) as a linked node.
+        editor.chain().focus()
+          .insertContent({ type: 'text', marks: [linkMark], text: displayText || finalUrl })
+          .run();
+      }
     } else {
-      editor
-        .chain()
-        .focus()
-        .extendMarkRange('link')
-        .setLink({ href: finalUrl, target: '_blank' })
-        .run();
+      const selectedText = editor.state.doc.textBetween(from, to, ' ');
+      if (displayText && displayText !== selectedText) {
+        // The user edited the display text while a range was selected — replace the selection with
+        // the new linked text instead of silently discarding the edit.
+        editor.chain().focus()
+          .insertContentAt({ from, to }, { type: 'text', marks: [linkMark], text: displayText })
+          .run();
+      } else {
+        // Keep the selected text as-is and just apply/refresh the link on it.
+        editor.chain().focus()
+          .extendMarkRange('link')
+          .setLink({ href: finalUrl, target: '_blank' })
+          .run();
+      }
     }
 
     onClose();

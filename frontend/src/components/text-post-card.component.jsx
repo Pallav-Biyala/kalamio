@@ -149,7 +149,7 @@ const TextPostCard = ({ content, author, onEdit }) => {
                         </span>
                     </div>
                 </Link>
-                <PostMenu blogId={id} authorUsername={username} postType="text_post" onEdit={onEdit} onSaveToCollection={() => setShowSaveModal(true)} />
+                <PostMenu blogId={id} authorId={content.author?._id} authorUsername={username} postType="text_post" onEdit={onEdit} onSaveToCollection={() => setShowSaveModal(true)} />
             </div>
 
             {/* Text Content */}

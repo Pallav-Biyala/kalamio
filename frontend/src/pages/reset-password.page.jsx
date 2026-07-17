@@ -84,7 +84,7 @@ const ResetPassword = () => {
             newPassword
         })
         .then(({ data }) => {
-            toast.success(data.message || "Password reset successfully!");
+            toast.success(data.message || "Password reset successfully");
             setSuccess(true);
         })
         .catch(({ response }) => {

@@ -119,15 +119,12 @@ const App = () => {
         const socket = getSocket();
         if (!socket) return;
 
+        // Every Activity badge now reads the server-backed unread query, which this bridge
+        // invalidates on `new_notification` — so arrivals AND removals both land. There used to be
+        // an extra listener here that latched userAuth.new_notification_available to true; it could
+        // only ever turn the dot ON, so revoking a like (which deletes the notification) left the
+        // mobile/you-page dot stuck until the tab was visited.
         connectSocketToQueryCache(socket, queryClient);
-
-        // The mobile/you-page Activity dot reads userAuth.new_notification_available (context, not a
-        // query), so flip it on when a notification arrives; it's cleared when the tab is visited.
-        const onNotification = () => setUserAuth(prev =>
-            prev.new_notification_available ? prev : { ...prev, new_notification_available: true }
-        );
-        socket.on("new_notification", onNotification);
-        return () => socket.off("new_notification", onNotification);
     }, [userAuth.access_token, queryClient]);
 
     return (

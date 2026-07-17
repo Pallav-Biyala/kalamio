@@ -1,6 +1,6 @@
 import { useSeo, buildArticleJsonLd, PRODUCTION_ORIGIN } from "../common/useSeo";
 import { createContext, useContext, useEffect, useState } from "react";
-import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
+import { Link, useParams, useNavigate, useLocation, useOutletContext } from "react-router-dom";
 import AnimationWrapper from "../common/page-animation";
 import Loader from "../components/loader.component";
 import { getDay } from "../common/date";
@@ -212,6 +212,17 @@ const BlogPage = () => {
     const isTextPost = type === 'text_post';
     const isDraft = blog.draft;
 
+    // Tell MainLayout which chrome to use: only the ARTICLE read goes sidebar-less (its back button is
+    // inline in the title); text posts keep the normal left sidebar / mobile top bar. Stay quiet until
+    // the query resolves — MainLayout's route-based seed covers the loading window, and reporting early
+    // would misread a not-yet-loaded post as an article.
+    const { setFocusedReading } = useOutletContext() ?? {};
+    const loadedIsTextPost = blogQuery.data ? isTextPost : null;
+    useEffect(() => {
+        if (loadedIsTextPost === null) return;
+        setFocusedReading?.(!loadedIsTextPost);
+    }, [setFocusedReading, loadedIsTextPost]);
+
     // Similar blogs — only fetches when blog data is loaded and has tags
     const { data: similarBlogs } = useSimilarBlogs(blog_id, tags);
 
@@ -412,16 +423,20 @@ const BlogPage = () => {
                         ) : (
                             /* ── Article View (existing) ── */
                             <>
-                                <div className="flex items-center gap-4 mb-6 lg:hidden">
-                                    <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full hover:bg-grey flex items-center justify-center transition-colors -ml-2">
-                                        <Icon name="arrow_back" className="text-xl" />
-                                    </button>
-                                    <span className="font-semibold text-xl text-dark-grey">Article</span>
-                                </div>
-                                
-
                                 <div className="max-w-[800px] mx-auto mt-4 md:mt-8">
-                                    <h1 className="text-4xl md:text-5xl font-extrabold font-inter leading-tight md:leading-[1.1] text-black mb-4 tracking-tight">{title}</h1>
+                                    <h1 className="text-4xl md:text-5xl font-extrabold font-inter leading-tight md:leading-[1.1] text-black mb-4 tracking-tight">
+                                        {/* Inline + align-middle keeps the icon vertically centered on the title's first
+                                            line (symmetric); later lines wrap full-width beneath it. */}
+                                        <button
+                                            onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/"))}
+                                            className="inline-flex align-middle relative -top-[4px] mr-3 w-10 h-10 rounded-2xl bg-black text-white shadow-sm hover:opacity-80 active:scale-95 items-center justify-center transition-all"
+                                            aria-label="Go back"
+                                            title="Go back"
+                                        >
+                                            <Icon name="chevron_left" className="text-2xl" />
+                                        </button>
+                                        {title}
+                                    </h1>
 
                                     {des && (
                                         <p className="text-xl md:text-2xl text-dark-grey leading-relaxed mb-8 font-inter">

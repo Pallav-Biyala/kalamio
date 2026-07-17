@@ -1,9 +1,7 @@
 import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import Icon from '../Icon';
-import { detectEmbed, EMBED_PROVIDERS } from './extensions/embed-registry';
-
-const MAX_EMBEDS = 10;
+import { detectEmbed, EMBED_PROVIDERS, MAX_EMBEDS } from './extensions/embed-registry';
 
 const PROVIDER_CHIPS = [
   { key: 'youtube', icon: 'smart_display', label: 'YouTube', color: '#ff0000' },
@@ -89,12 +87,22 @@ const EmbedInsertModal = memo(({ editor, onClose }) => {
 
     if (result.provider === 'youtube') {
       editor.chain().focus().setYoutubeVideo({ src: trimmedUrl }).run();
-    } else {
-      editor.chain().focus().setEmbed({
-        provider: result.provider,
-        url: trimmedUrl,
-        embedId: result.embedId,
-      }).run();
+      onClose();
+      return;
+    }
+
+    // setEmbed enforces the same MAX_EMBEDS cap internally and returns false if it's hit. Surface
+    // that instead of silently closing with nothing inserted (the old behavior when the modal's cap
+    // disagreed with the node's).
+    const inserted = editor.chain().focus().setEmbed({
+      provider: result.provider,
+      url: trimmedUrl,
+      embedId: result.embedId,
+    }).run();
+
+    if (!inserted) {
+      toast.error(`Embed limit reached (max ${MAX_EMBEDS}).`);
+      return;
     }
 
     onClose();

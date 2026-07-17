@@ -25,11 +25,12 @@ export const useFollowUser = () => {
 
       const previousStatus = queryClient.getQueryData(queryKeys.follow.status(userId));
 
-      // Optimistically set the new follow state
-      queryClient.setQueryData(queryKeys.follow.status(userId), (old) => ({
-        ...old,
-        isFollowing: action === 'follow',
-      }));
+      // Optimistically set the new follow state. This cache holds a BOOLEAN — useFollowStatus's
+      // queryFn returns `data.following` — so the optimistic value must be a boolean too.
+      // Writing `{ ...old, isFollowing }` here produced an object, and every object is truthy:
+      // an unfollow cached `{ isFollowing: false }` and consumers kept reading "following" until
+      // the refetch landed.
+      queryClient.setQueryData(queryKeys.follow.status(userId), action === 'follow');
 
       return { previousStatus, userId };
     },

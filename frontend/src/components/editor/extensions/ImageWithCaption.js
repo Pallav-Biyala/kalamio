@@ -18,6 +18,18 @@ const ImageWithCaption = Image.extend({
   name: 'image',
 
   addAttributes() {
+    // The <img> inside a <figure> match, or the element itself for a bare <img>.
+    const imgEl = (element) => (element.tagName === 'FIGURE' ? element.querySelector('img') : element);
+    const intAttr = (name) => ({
+      default: null,
+      parseHTML: (element) => {
+        const value = imgEl(element)?.getAttribute(name);
+        const parsed = parseInt(value, 10);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+      },
+      renderHTML: (attributes) => (attributes[name] ? { [name]: attributes[name] } : {}),
+    });
+
     return {
       ...this.parent?.(),
       caption: {
@@ -36,6 +48,11 @@ const ImageWithCaption = Image.extend({
           return { 'data-caption': attributes.caption };
         },
       },
+      // Intrinsic pixel size, recorded at upload. The reader emits these on the <img> so the
+      // browser reserves the right box before the bytes arrive (no layout shift). Null on images
+      // uploaded before this existed — the reader just omits the attributes then.
+      width: intAttr('width'),
+      height: intAttr('height'),
     };
   },
 
@@ -66,14 +83,18 @@ const ImageWithCaption = Image.extend({
     ];
   },
 
-  renderHTML({ HTMLAttributes }) {
-    const { caption, ...imgAttrs } = HTMLAttributes;
+  renderHTML({ node, HTMLAttributes }) {
+    // The caption attribute serializes itself to `data-caption` (see addAttributes), so there is no
+    // `caption` key in HTMLAttributes — read the text from the node instead, and drop the stray
+    // data-caption off the <img>. Otherwise the <figcaption> serializes empty and the caption is lost
+    // on DOM serialization (e.g. copy/paste of the image node).
+    const { 'data-caption': _dropCaption, ...imgAttrs } = HTMLAttributes;
 
     return [
       'figure',
       { class: 'image-figure' },
       ['img', imgAttrs],
-      ['figcaption', {}, caption || ''],
+      ['figcaption', {}, node.attrs.caption || ''],
     ];
   },
 
@@ -94,6 +115,10 @@ const ImageWithCaption = Image.extend({
               alt: attrs.alt || '',
               title: attrs.title || '',
               caption: attrs.caption || '',
+              // Must be listed explicitly: this whitelist is what reaches the node, so anything
+              // omitted here is silently dropped no matter what addAttributes declares.
+              width: attrs.width || null,
+              height: attrs.height || null,
             },
           });
         },

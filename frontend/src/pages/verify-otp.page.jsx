@@ -85,7 +85,7 @@ const VerifyOtp = () => {
         .then(({ data }) => {
             storeInSession("user", JSON.stringify(data));
             setUserAuth(data);
-            toast.success("Email verified successfully!");
+            toast.success("Email verified successfully");
             navigate("/", { replace: true });
         })
         .catch(({ response }) => {
@@ -99,7 +99,7 @@ const VerifyOtp = () => {
 
         api.post("/resend-otp", { email })
         .then(({ data }) => {
-            toast.success(data.message || "OTP resent!");
+            toast.success(data.message || "OTP resent");
             setCooldown(60);
             setOtp(["", "", "", "", "", ""]);
             inputRefs.current[0]?.focus();

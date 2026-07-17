@@ -1,4 +1,5 @@
 import TiptapRenderer from './editor/utils/tiptap-renderer';
+import { cdnUrl } from '../common/cdn';
 
 // ── Format Detection ──
 const isTiptapContent = (content) => {
@@ -19,7 +20,9 @@ const cleanHTML = (html = "") => {
 const Img = ({ url, caption }) => {
     return (
         <div>
-            <img src={url} alt={caption || "Blog image"} />
+            {/* cdnUrl: legacy posts are the bulk of existing content — without this their images
+                bypass the edge cache and hit the S3 Mumbai origin directly. */}
+            <img src={cdnUrl(url)} alt={caption || "Blog image"} loading="lazy" decoding="async" />
             {
                 caption.length ? <p className="w-full text-center my-3 md:mb-12 text-base text-dark-grey">{cleanHTML(caption)}</p> : ""
             }

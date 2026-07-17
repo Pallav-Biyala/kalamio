@@ -44,7 +44,7 @@ const UserAuthForm = ( {type} ) => {
             }
         }
         if(!email.length){
-            return toast.error("Enter Email");
+            return toast.error("Enter email");
         }
         if(!emailRegex.test(email)){
             return toast.error("Email is invalid" );
@@ -58,7 +58,7 @@ const UserAuthForm = ( {type} ) => {
 
             if (type === "sign-up") {
                 // Signup returns { message, email } — redirect to OTP verification
-                toast.success(data.message || "OTP sent to your email!");
+                toast.success(data.message || "OTP sent to your email");
                 navigate("/verify-otp", { state: { email: data.email } });
             } else {
                 // Signin — check if email needs verification

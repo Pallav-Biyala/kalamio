@@ -2,10 +2,14 @@ import { useContext, useEffect, useRef, useState } from "react";
 import { Navigate, NavLink, Outlet } from "react-router-dom";
 import { UserContext } from "../App";
 import Icon from "./Icon";
+import { useNewNotification } from "../hooks/queries";
 
 const SideNav = () => {
 
-    let { userAuth: {access_token, new_notification_available} } = useContext(UserContext);
+    let { userAuth: {access_token} } = useContext(UserContext);
+    // Authoritative, server-backed badge — see MobileTopBar for why this isn't a context flag.
+    const { data: notificationData } = useNewNotification();
+    const new_notification_available = notificationData?.new_notification_available;
 
     let page = location.pathname.split("/")[2];
 

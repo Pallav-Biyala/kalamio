@@ -76,13 +76,13 @@ const EditPublicationPage = () => {
     const handleBannerUpload = (e) => {
         let img = e.target.files[0];
         if (img) {
-            let loadingToast = toast.loading("Uploading banner...");
+            let loadingToast = toast.loading("Uploading banner…");
             uploadImage(img)
                 .then((url) => {
                     if (url) {
                         setBanner(url);
                         toast.dismiss(loadingToast);
-                        toast.success("Uploaded 👍");
+                        toast.success("Uploaded");
                     }
                 })
                 .catch((err) => {
@@ -95,13 +95,13 @@ const EditPublicationPage = () => {
     const handleProfilePhotoUpload = (e) => {
         let img = e.target.files[0];
         if (img) {
-            let loadingToast = toast.loading("Uploading profile photo...");
+            let loadingToast = toast.loading("Uploading profile photo…");
             uploadImage(img)
                 .then((url) => {
                     if (url) {
                         setProfilePhoto(url);
                         toast.dismiss(loadingToast);
-                        toast.success("Uploaded 👍");
+                        toast.success("Uploaded");
                     }
                 })
                 .catch((err) => {
@@ -140,7 +140,7 @@ const EditPublicationPage = () => {
                 social_links
             });
 
-            toast.success("Publication updated!");
+            toast.success("Publication updated");
             navigate(`/publication/${data.publication.slug}`);
         } catch (err) {
             toast.error(err.response?.data?.error || "Failed to update publication");

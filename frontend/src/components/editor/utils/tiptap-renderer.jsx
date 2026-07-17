@@ -168,10 +168,22 @@ const renderNode = (node, index) => {
             return <hr key={index} />;
 
         case 'image': {
-            const { src, alt, caption, title } = node.attrs || {};
+            const { src, alt, caption, title, width, height } = node.attrs || {};
             return (
                 <figure key={index} className="blog-image">
-                    <img src={cdnUrl(src)} alt={alt || title || ''} title={title || undefined} />
+                    {/* An article can hold any number of images, so they must not all fetch at once.
+                        width/height are set on upload (see common/image-compress) and reserve the
+                        box before load, so the text below doesn't jump. Older images predate the
+                        attrs and simply omit them. */}
+                    <img
+                        src={cdnUrl(src)}
+                        alt={alt || title || ''}
+                        title={title || undefined}
+                        width={width || undefined}
+                        height={height || undefined}
+                        loading="lazy"
+                        decoding="async"
+                    />
                     {caption && <figcaption>{caption}</figcaption>}
                 </figure>
             );

@@ -120,7 +120,7 @@ const PublishForm = () => {
             return toast.error("Write something in your blog to publish it");
         }
 
-        let loadingToast = toast.loading("Publishing....");
+        let loadingToast = toast.loading("Publishing…");
 
         e.target.classList.add('disable');
 
@@ -137,7 +137,7 @@ const PublishForm = () => {
             clearLocalDraft?.();
 
             toast.dismiss(loadingToast);
-            toast.success("Published 👍");
+            toast.success("Published");
 
             setTimeout(() => {
                 navigate("/dashboard/blogs");
@@ -179,7 +179,7 @@ const PublishForm = () => {
             finalContent = textEditor.getJSON();
         }
 
-        let loadingToast = toast.loading("Saving draft....");
+        let loadingToast = toast.loading("Saving draft…");
 
         e.target.classList.add('disable');
 

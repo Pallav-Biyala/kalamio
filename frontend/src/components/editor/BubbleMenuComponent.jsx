@@ -3,23 +3,30 @@ import { BubbleMenu } from '@tiptap/react';
 import ToolbarButton from './ToolbarButton';
 
 const BubbleMenuComponent = ({ editor }) => {
-  if (!editor) return null;
-
+  // Hooks must run unconditionally — declare the callback before any early return.
   const handleLinkToggle = useCallback(() => {
+    if (!editor) return;
+
     if (editor.isActive('link')) {
       editor.chain().focus().unsetLink().run();
       return;
     }
 
-    const url = window.prompt('Enter URL:');
-    if (url === null) return;
+    const raw = window.prompt('Enter URL:');
+    if (raw === null) return;
+    const url = raw.trim();
     if (url === '') {
       editor.chain().focus().extendMarkRange('link').unsetLink().run();
       return;
     }
 
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+    // Normalize like LinkInsertModal so a bare host ("google.com") isn't stored as a relative link
+    // that 404s on the published article.
+    const finalUrl = /^(https?:\/\/|mailto:|tel:)/i.test(url) ? url : `https://${url}`;
+    editor.chain().focus().extendMarkRange('link').setLink({ href: finalUrl }).run();
   }, [editor]);
+
+  if (!editor) return null;
 
   return (
     <BubbleMenu

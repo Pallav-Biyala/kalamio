@@ -53,7 +53,7 @@ const PublicationMenu = ({ publicationId, ownerId, ownerUsername, isOwner, onSub
     const copyLink = () => {
         const url = window.location.href;
         navigator.clipboard.writeText(url)
-            .then(() => toast.success("Link copied!"))
+            .then(() => toast.success("Link copied"))
             .catch(() => toast.error("Failed to copy"));
         setOpen(false);
     };

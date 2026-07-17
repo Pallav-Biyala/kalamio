@@ -35,7 +35,7 @@ const ForgotPassword = () => {
 
         api.post("/forgot-password", { email: emailVal })
         .then(({ data }) => {
-            toast.success(data.message || "Reset OTP sent!");
+            toast.success(data.message || "Reset OTP sent");
             setSent(true);
         })
         .catch(({ response }) => {

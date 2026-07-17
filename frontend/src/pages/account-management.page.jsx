@@ -46,7 +46,7 @@ const AccountManagementPage = () => {
     const handleReactivate = () => {
         api.post("/settings/reactivate-account")
         .then(() => {
-            toast.success("Account reactivated!");
+            toast.success("Account reactivated");
             setStatus({ ...status, status: 'active', deactivated_at: null, deletion_scheduled_at: null });
         })
         .catch(err => toast.error(err.response?.data?.error || "Failed to reactivate"));
@@ -79,7 +79,7 @@ const AccountManagementPage = () => {
             link.click();
             link.remove();
             window.URL.revokeObjectURL(url);
-            toast.success("Data exported!");
+            toast.success("Data exported");
             setExporting(false);
         })
         .catch(() => {

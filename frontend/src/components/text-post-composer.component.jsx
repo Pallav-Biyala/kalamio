@@ -348,7 +348,7 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId, replyTo }) =>
             if (validOptions.length < 2) return toast.error("Poll needs at least 2 options");
         }
         setPosting(true);
-        const loadingToast = toast.loading(activeEditId ? "Updating..." : "Posting...");
+        const loadingToast = toast.loading(activeEditId ? "Updating…" : "Posting…");
         try {
             if (replyTo) {
                 // Submit as a comment
@@ -364,7 +364,7 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId, replyTo }) =>
                 await api.post("/create-text-post", buildPayload(false));
             }
             toast.dismiss(loadingToast);
-            toast.success("Posted! 🎉");
+            toast.success("Posted");
             resetAndClose();
             if (onPosted) onPosted();
         } catch (err) {
@@ -386,7 +386,7 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId, replyTo }) =>
             toast.error("Can't save an empty draft");
             return;
         }
-        const loadingToast = toast.loading(editingDraftId ? "Updating draft..." : "Saving draft...");
+        const loadingToast = toast.loading(editingDraftId ? "Updating draft…" : "Saving draft…");
         try {
             await api.post("/create-text-post", buildPayload(true));
             toast.dismiss(loadingToast);
@@ -456,7 +456,7 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId, replyTo }) =>
     // ── Delete a draft ──
     const deleteDraft = async (blogId) => {
         setDraftMenuOpen(null);
-        const loadingToast = toast.loading("Deleting...");
+        const loadingToast = toast.loading("Deleting…");
         try {
             await api.post("/delete-blog", { blog_id: blogId });
             toast.dismiss(loadingToast);
@@ -493,7 +493,7 @@ const TextPostComposer = ({ isOpen, onClose, onPosted, editBlogId, replyTo }) =>
             toast.error("Can't save an empty draft");
             return;
         }
-        const loadingToast = toast.loading(editingDraftId ? "Updating draft..." : "Saving draft...");
+        const loadingToast = toast.loading(editingDraftId ? "Updating draft…" : "Saving draft…");
         try {
             await api.post("/create-text-post", buildPayload(true));
             toast.dismiss(loadingToast);

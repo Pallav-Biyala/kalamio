@@ -56,7 +56,7 @@
 }
 
 .block-handle__btn:hover {
-  background: rgb( / );
+  background: rgb(var(--c-grey));
   color: rgb(var(--c-black));
 }
 
@@ -78,7 +78,7 @@
 }
 
 .block-handle__grip:hover {
-  background: rgb( / );
+  background: rgb(var(--c-grey));
   color: rgb(var(--c-black));
 }
 
@@ -92,14 +92,21 @@
   padding: 1.5rem 2rem 3rem 2.5rem;
   outline: none;
   font-size: 1.125rem;
-  line-height: 1.8;
+  line-height: 1.7;
   color: rgb(var(--c-black));
   /* Suppress the native long-press callout menu (iOS/Safari) on the editable text so it doesn't cover
      the editor's own selection (bubble) menu. Text selection itself is unaffected. */
   -webkit-touch-callout: none;
 }
 
+/* First block hugs the top; consecutive blocks don't stack top margins. NOTE: the body line-height
+   and the paragraph gap (margin-bottom) are set in index.css — the `.tiptap-content-area .ProseMirror`
+   typography block there wins the cascade (it's in Tailwind's @layer components), so tune spacing
+   there, not here. */
 .tiptap-content-area .ProseMirror > * + * {
+  margin-top: 0;
+}
+.tiptap-content-area .ProseMirror > *:first-child {
   margin-top: 0;
 }
 
@@ -222,17 +229,17 @@
 }
 
 .toolbar-btn:hover {
-  background: rgb( / );
+  background: rgb(var(--c-grey));
   color: rgb(var(--c-black));
 }
 
 .toolbar-btn--active {
-  background: rgb( / );
+  background: rgb(var(--c-brand) / 0.12);
   color: rgb(var(--c-brand));
 }
 
 .toolbar-btn--active:hover {
-  background: rgb( / );
+  background: rgb(var(--c-brand) / 0.18);
 }
 
 .toolbar-btn:disabled {
@@ -241,57 +248,154 @@
   pointer-events: none;
 }
 
-/* Instant CSS tooltip — no browser delay */
-.toolbar-btn[data-tooltip] {
-  position: relative;
-}
-
-.toolbar-btn[data-tooltip]::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: -28px;
-  left: 50%;
-  transform: translateX(-50%) scale(0.9);
-  padding: 3px 8px;
-  background: rgb(var(--c-black));
-  color: rgb(var(--c-white));
-  font-size: 0.65rem;
-  font-weight: 500;
-  white-space: nowrap;
-  border-radius: 4px;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.1s, transform 0.1s;
-  z-index: 100;
-  line-height: 1.4;
-}
-
-.toolbar-btn[data-tooltip]:hover::after {
-  opacity: 1;
-  transform: translateX(-50%) scale(1);
-}
+/* Toolbar-button tooltips are handled by the global <CustomTooltip> component (App.jsx), which fires
+   on the buttons' [data-tooltip]. A second CSS ::after tooltip used to live here and showed at the same
+   time — the "double tooltip". Removed so there's a single, app-consistent tooltip. */
 
 .toolbar-select {
   height: 32px;
-  padding: 0 8px;
+  padding: 0 30px 0 10px;
   border: 1px solid rgb(var(--c-border));
   border-radius: var(--radius-sm);
-  background: transparent;
+  background-color: transparent;
   color: rgb(var(--c-black));
+  font-family: 'DM Sans', sans-serif;
   font-size: 0.8rem;
   font-weight: 500;
+  line-height: 1;
   cursor: pointer;
   outline: none;
-  transition: border-color 0.15s ease;
-  appearance: auto;
+  flex-shrink: 0;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  /* Custom chevron so the control looks the same across browsers (native arrows vary a lot). */
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23969694' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  background-size: 15px;
 }
 
 .toolbar-select:hover {
   border-color: rgb(var(--c-dark-grey));
+  background-color: rgb(var(--c-grey));
 }
 
-.toolbar-select:focus {
+.toolbar-select:focus,
+.toolbar-select:focus-visible {
   border-color: rgb(var(--c-brand));
+}
+
+/* Keep the native option list on-theme where the browser honors it. */
+.toolbar-select option {
+  background: rgb(var(--c-surface));
+  color: rgb(var(--c-black));
+  font-weight: 500;
+}
+
+/* ── Block-type dropdown (custom; replaces the native <select> so the option list is on-theme) ─── */
+.heading-select {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.heading-select__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  height: 32px;
+  min-width: 118px;
+  padding: 0 6px 0 10px;
+  border: 1px solid rgb(var(--c-border));
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: rgb(var(--c-black));
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.heading-select__trigger:hover {
+  border-color: rgb(var(--c-dark-grey));
+  background: rgb(var(--c-grey));
+}
+
+.heading-select__chevron {
+  font-size: 18px;
+  color: rgb(var(--c-dark-grey));
+  transition: transform 0.15s ease;
+}
+.heading-select__chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.heading-select__menu {
+  z-index: 1000;
+  padding: 6px;
+  background: rgb(var(--c-surface));
+  border: 1px solid rgb(var(--c-border));
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  animation: headingMenuIn 0.14s ease;
+}
+
+@keyframes headingMenuIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.heading-select__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: rgb(var(--c-black));
+  font-family: 'DM Sans', sans-serif;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.heading-select__option:hover {
+  background: rgb(var(--c-grey));
+}
+
+.heading-select__option.is-active {
+  color: rgb(var(--c-brand));
+  background: rgb(var(--c-brand) / 0.1);
+}
+
+.heading-select__check {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* Each option previews its own style (Notion-like affordance). */
+.heading-select__option[data-level="0"] .heading-select__option-label { font-size: 0.9rem;  font-weight: 500; }
+.heading-select__option[data-level="1"] .heading-select__option-label { font-size: 1.4rem;  font-weight: 700; }
+.heading-select__option[data-level="2"] .heading-select__option-label { font-size: 1.2rem;  font-weight: 700; }
+.heading-select__option[data-level="3"] .heading-select__option-label { font-size: 1.05rem; font-weight: 600; }
+.heading-select__option[data-level="4"] .heading-select__option-label { font-size: 0.95rem; font-weight: 600; }
+.heading-select__option[data-level="5"] .heading-select__option-label { font-size: 0.9rem;  font-weight: 600; }
+.heading-select__option[data-level="6"] .heading-select__option-label { font-size: 0.85rem; font-weight: 600; }
+
+@media (max-width: 768px) {
+  .heading-select__trigger { height: 28px; min-width: 104px; font-size: 0.75rem; }
 }
 
 .toolbar-divider {
@@ -368,6 +472,37 @@
   margin-top: 1em;
 }
 
+/* Breathing room under every heading so the following text isn't flush against it. */
+.tiptap-content-area .ProseMirror h1,
+.tiptap-content-area .ProseMirror h2,
+.tiptap-content-area .ProseMirror h3,
+.tiptap-content-area .ProseMirror h4,
+.tiptap-content-area .ProseMirror h5,
+.tiptap-content-area .ProseMirror h6 {
+  margin-bottom: 0.4em;
+}
+
+/* ── Standard heading scale ─────────────────────────────────────
+   The app's global `h2 { text-4xl }` / `h3 { text-3xl }` rules (index.css) made H2 render LARGER than
+   H1 and broke the hierarchy. Re-establish a proper, monotonically-decreasing scale (~1.2 ratio) for
+   the editor AND the published article. Scoped + !important so it wins over those globals without
+   touching other UI headings. */
+.tiptap-content-area .ProseMirror h1, .blog-page-content h1 { font-size: 2.6rem !important; }
+.tiptap-content-area .ProseMirror h2, .blog-page-content h2 { font-size: 2.15rem !important; }
+.tiptap-content-area .ProseMirror h3, .blog-page-content h3 { font-size: 1.8rem !important; }
+.tiptap-content-area .ProseMirror h4, .blog-page-content h4 { font-size: 1.5rem !important; }
+.tiptap-content-area .ProseMirror h5, .blog-page-content h5 { font-size: 1.25rem !important; }
+.tiptap-content-area .ProseMirror h6, .blog-page-content h6 { font-size: 1.05rem !important; }
+
+@media (max-width: 768px) {
+  .tiptap-content-area .ProseMirror h1, .blog-page-content h1 { font-size: 2.1rem !important; }
+  .tiptap-content-area .ProseMirror h2, .blog-page-content h2 { font-size: 1.75rem !important; }
+  .tiptap-content-area .ProseMirror h3, .blog-page-content h3 { font-size: 1.5rem !important; }
+  .tiptap-content-area .ProseMirror h4, .blog-page-content h4 { font-size: 1.3rem !important; }
+  .tiptap-content-area .ProseMirror h5, .blog-page-content h5 { font-size: 1.12rem !important; }
+  .tiptap-content-area .ProseMirror h6, .blog-page-content h6 { font-size: 1rem !important; }
+}
+
 /* ── Lists ──────────────────────────────────────────────────── */
 .tiptap-content-area .ProseMirror ul,
 .tiptap-content-area .ProseMirror ol {
@@ -395,7 +530,7 @@
   border-left: 4px solid rgb(var(--c-brand));
   padding: 0.75em 1.25em;
   margin: 1em 0;
-  background: rgb( / );
+  background: rgb(var(--c-grey));
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   color: rgb(var(--c-dark-grey));
   font-style: italic;
@@ -414,7 +549,7 @@
 
 /* ── Code (Inline) ──────────────────────────────────────────── */
 .tiptap-content-area .ProseMirror code {
-  background: rgb( / );
+  background: rgb(var(--c-grey));
   border-radius: var(--radius-sm);
   padding: 0.15em 0.4em;
   font-size: 0.9em;
@@ -436,7 +571,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 6px 12px;
-  background: rgb( / );
+  background: rgb(var(--c-grey));
   border-bottom: 1px solid rgb(var(--c-border));
 }
 
@@ -467,14 +602,14 @@
 }
 
 .code-block-node-view__copy-btn:hover {
-  background: rgb( / );
+  background: rgb(var(--c-grey));
   color: rgb(var(--c-black));
 }
 
 .code-block-node-view pre {
   margin: 0;
   padding: 1em 1.25em;
-  background: rgb( / );
+  background: rgb(var(--c-grey));
   overflow-x: auto;
   font-size: 0.875rem;
   line-height: 1.6;
@@ -497,9 +632,10 @@
 
 /* ── Links ──────────────────────────────────────────────────── */
 .tiptap-content-area .ProseMirror a {
-  color: rgb(var(--c-brand));
+  color: #3b82f6;
   text-decoration: underline;
   text-underline-offset: 2px;
+  font-size: 0.9em;
   cursor: pointer;
   transition: opacity 0.15s ease;
 }
@@ -530,7 +666,7 @@
 
 .tiptap-content-area .ProseMirror th {
   font-weight: 600;
-  background: rgb( / );
+  background: rgb(var(--c-grey));
 }
 
 .tiptap-content-area .ProseMirror .selectedCell::after {
@@ -540,7 +676,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgb( / );
+  background: rgb(var(--c-brand) / 0.1);
   pointer-events: none;
   z-index: 2;
 }
@@ -593,40 +729,58 @@
 }
 
 .image-node-view__caption:focus {
-  background: rgb( / );
+  background: rgb(var(--c-grey));
   border-radius: var(--radius-sm);
 }
 
-.image-node-view__actions {
+/* Positioning context sized to the image, so the floating delete control sits on the image's corner
+   (the figure stays centered via .image-node-view text-align). */
+.image-node-view__img-wrapper {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+}
+
+/* Floating remove button — absolutely positioned so it NEVER shifts the layout (the old fluctuation
+   came from an unstyled, in-flow button). Always in the DOM; visibility is opacity-only. */
+.image-node-view__delete {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  display: flex;
-  gap: 4px;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.image-node-view:hover .image-node-view__actions {
-  opacity: 1;
-}
-
-.image-node-view__action-btn {
+  top: 10px;
+  right: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border: none;
-  border-radius: var(--radius-sm);
-  background: rgba(0, 0, 0, 0.5);
-  color: white;
+  border-radius: 9999px;
+  /* Solid red so it's clearly visible on any image, light or dark. !important because the editor's
+     global typography rule (.ProseMirror *) otherwise recolors the button and its icon. */
+  background: #dc2626 !important;
+  color: #fff !important;
   cursor: pointer;
+  /* Always visible (desktop + mobile) so it's easy to find without hovering. */
+  opacity: 1;
   transition: background 0.15s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 
-.image-node-view__action-btn:hover {
-  background: rgba(0, 0, 0, 0.7);
+.image-node-view__delete:hover {
+  background: #b91c1c !important;
+}
+
+/* Force the trash icon white regardless of theme (the .ProseMirror * rule would otherwise tint it). */
+.image-node-view__delete svg,
+.image-node-view__delete .material-symbols-rounded {
+  color: #fff !important;
+  stroke: #fff !important;
+}
+
+/* Subtle ring when the node is selected. */
+.image-node-view__figure--selected .image-node-view__img {
+  outline: 2px solid rgb(var(--c-brand));
+  outline-offset: 3px;
 }
 
 /* ── Embed Node (Editor) ────────────────────────────────────── */
@@ -667,7 +821,7 @@
   margin: 0.75em 0;
   border: 1px solid rgb(var(--c-border));
   border-radius: var(--radius-md);
-  background: rgb( / );
+  background: rgb(var(--c-grey));
   transition: border-color 0.15s ease;
 }
 
@@ -707,7 +861,7 @@
 .tiptap-content-area .ProseMirror .mention {
   display: inline;
   padding: 2px 6px;
-  background: rgb( / );
+  background: rgb(var(--c-brand) / 0.12);
   color: rgb(var(--c-brand));
   border-radius: var(--radius-sm);
   font-weight: 500;
@@ -737,7 +891,7 @@
 
 .mention-list__item:hover,
 .mention-list__item--selected {
-  background: rgb( / );
+  background: rgb(var(--c-grey));
 }
 
 .mention-list__name {
@@ -820,7 +974,7 @@
 }
 
 .embed-modal__close:hover {
-  background: rgb( / );
+  background: rgb(var(--c-grey));
   color: rgb(var(--c-black));
 }
 
@@ -840,7 +994,7 @@
   padding: 10px 14px;
   border: 1px solid rgb(var(--c-border));
   border-radius: var(--radius-md);
-  background: rgb( / );
+  background: rgb(var(--c-grey));
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
@@ -877,7 +1031,7 @@
   height: 20px;
   border: none;
   border-radius: 50%;
-  background: rgb( / );
+  background: rgb(var(--c-grey));
   color: rgb(var(--c-dark-grey));
   cursor: pointer;
   flex-shrink: 0;
@@ -885,7 +1039,7 @@
 }
 
 .embed-modal__input-clear:hover {
-  background: rgb( / );
+  background: rgb(var(--c-grey));
 }
 
 /* Detection badge */
@@ -897,7 +1051,7 @@
   padding: 8px 12px;
   border: 1px solid;
   border-radius: var(--radius-sm);
-  background: rgb( / );
+  background: rgb(var(--c-grey));
   font-size: 0.85rem;
   font-weight: 500;
   color: rgb(var(--c-black));
@@ -955,7 +1109,7 @@
   padding: 3px 10px;
   border-radius: var(--radius-full);
   border: 1px solid rgb(var(--c-border));
-  background: rgb( / );
+  background: rgb(var(--c-grey));
   font-size: 0.7rem;
   color: rgb(var(--c-dark-grey));
   white-space: nowrap;
@@ -994,7 +1148,7 @@
 }
 
 .embed-modal__btn--cancel:hover {
-  background: rgb( / );
+  background: rgb(var(--c-grey));
   @apply text-black;
 }
 
@@ -1058,7 +1212,7 @@
   padding: 20px;
   border: 1px dashed rgb(var(--c-border));
   border-radius: var(--radius-md);
-  background: rgb( / );
+  background: rgb(var(--c-grey));
   cursor: default;
 }
 
@@ -1162,7 +1316,7 @@
   border-left: 4px solid rgb(var(--c-brand));
   padding: 0.75em 1.25em;
   margin: 1.25em 0;
-  background: rgb( / );
+  background: rgb(var(--c-grey));
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   font-style: italic;
 }
@@ -1198,7 +1352,7 @@
 .blog-page-content .code-block pre {
   margin: 0;
   padding: 1em 1.25em;
-  background: rgb( / );
+  background: rgb(var(--c-grey));
   overflow-x: auto;
   font-size: 0.875rem;
   line-height: 1.6;
@@ -1209,7 +1363,7 @@
 }
 
 .blog-page-content .inline-code {
-  background: rgb( / );
+  background: rgb(var(--c-grey));
   border-radius: var(--radius-sm);
   padding: 0.15em 0.4em;
   font-size: 0.9em;
@@ -1226,7 +1380,7 @@
 .blog-page-content .mention {
   display: inline;
   padding: 2px 6px;
-  background: rgb( / );
+  background: rgb(var(--c-brand) / 0.12);
   color: rgb(var(--c-brand));
   border-radius: var(--radius-sm);
   font-weight: 500;
@@ -1234,7 +1388,7 @@
 }
 
 .blog-page-content .mention:hover {
-  background: rgb( / );
+  background: rgb(var(--c-brand) / 0.18);
 }
 
 .blog-page-content table {
@@ -1255,7 +1409,7 @@
 
 .blog-page-content th {
   font-weight: 600;
-  background: rgb( / );
+  background: rgb(var(--c-grey));
 }
 
 .blog-page-content .file-download-card {
@@ -1332,11 +1486,11 @@
 }
 
 [data-theme="dark"] .editor-toolbar-sticky {
-  background: rgb( / );
+  background: rgb(var(--c-grey));
 }
 
 [data-theme="dark"] .toolbar-btn:hover {
-  background: rgb( / );
+  background: rgb(var(--c-grey));
 }
 
 [data-theme="dark"] .toolbar-select {
@@ -1348,11 +1502,11 @@
 }
 
 [data-theme="dark"] .tiptap-content-area .ProseMirror code {
-  background: rgb( / );
+  background: rgb(var(--c-grey));
 }
 
 [data-theme="dark"] .code-block-node-view__header {
-  background: rgb( / );
+  background: rgb(var(--c-grey));
 }
 
 [data-theme="dark"] .embed-modal {

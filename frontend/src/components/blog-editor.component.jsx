@@ -176,7 +176,7 @@ const BlogEditor = () => {
     // ── Delete a draft ──
     const deleteDraft = async (blogId) => {
         setDraftMenuOpen(null);
-        const loadingToast = toast.loading("Deleting...");
+        const loadingToast = toast.loading("Deleting…");
         try {
             await api.post("/delete-blog", { blog_id: blogId });
             toast.dismiss(loadingToast);
@@ -213,7 +213,7 @@ const BlogEditor = () => {
             toast.error("Write a title before saving as draft");
             return;
         }
-        const loadingToast = toast.loading(isEditingDraft ? "Updating draft..." : "Saving draft...");
+        const loadingToast = toast.loading(isEditingDraft ? "Updating draft…" : "Saving draft…");
         try {
             const { data } = await api.post("/create-blog", buildDraftPayload());
             // Work is now safely on the server — drop the local safety-net snapshot so this saved draft
@@ -281,13 +281,13 @@ const BlogEditor = () => {
                 return toast.error("Please select an image file (.png, .jpg, .jpeg)");
             }
 
-            let loadingToast = toast.loading("Uploading....");
+            let loadingToast = toast.loading("Uploading…");
 
             uploadImage(img).then((url) => {
                 if(url){
 
                     toast.dismiss(loadingToast);
-                    toast.success("Uploaded 👍");
+                    toast.success("Uploaded");
 
                     setBlog({ ...blog, banner: url })
                 }
@@ -320,6 +320,16 @@ const BlogEditor = () => {
         let img = e.target;
 
         img.src = theme === "light" ? lightBanner : darkBanner;
+    }
+
+    // Clear an uploaded cover back to the default placeholder. A banner is only required at publish
+    // time (see publishBlog), so removing it mid-write is fine — autosave picks up the cleared value
+    // like any other edit. stopPropagation so the click never falls through to the upload <label>.
+    const handleRemoveBanner = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setBlog({ ...blog, banner: "" });
+        toast.success("Cover removed");
     }
 
     const handlePublishEvent = () => {
@@ -481,7 +491,7 @@ const BlogEditor = () => {
                 <Link to="/" className="flex-none w-16" >
                     <img src={ theme === "light" ? darkLogo : lightLogo } alt="Kalamio logo" />
                 </Link>
-                <p className="max-md:hidden text-black line-clamp-1 w-full font-medium">
+                <p className="max-md:hidden text-2xl text-black line-clamp-1 w-full font-medium">
                     { title.length ? title : "New Blog" }
                     {isEditingDraft && <span className="editor-draft-badge">Draft</span>}
                 </p>
@@ -544,14 +554,14 @@ const BlogEditor = () => {
                         <div className="relative aspect-[2/1] md:aspect-video hover:opacity-80 bg-surface border-2 border-dashed border-border rounded-radius-lg overflow-hidden cursor-pointer group transition-all hover:border-brand/40">
                             <label htmlFor="uploadbanner" className="cursor-pointer">
                                 <img
-                                    src={banner}
+                                    src={banner || (theme === "light" ? lightBanner : darkBanner)}
                                     className="z-20"
                                     onError={handleImgError}
                                     />
                                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/10">
                                     <div className="bg-surface/90 backdrop-blur-sm rounded-full py-2 px-5 flex items-center gap-2 shadow-md">
                                         <Icon name="add_photo_alternate" className="text-xl text-dark-grey" />
-                                        <span className="text-sm font-medium">Change Cover</span>
+                                        <span className="text-sm font-medium">{banner ? "Change Cover" : "Add Cover"}</span>
                                     </div>
                                 </div>
                                 <input
@@ -562,10 +572,24 @@ const BlogEditor = () => {
                                     onChange={handleBanner}
                                 />
                             </label>
-                            
+
+                            {/* Remove the uploaded cover (reverts to the default placeholder). Rendered as a
+                                sibling of the upload <label>, so clicking it never opens the file picker. */}
+                            {banner ? (
+                                <button
+                                    type="button"
+                                    onClick={handleRemoveBanner}
+                                    className="absolute top-3 right-3 z-30 w-9 h-9 flex items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 backdrop-blur-sm shadow-md transition-colors"
+                                    title="Remove cover"
+                                    aria-label="Remove cover image"
+                                >
+                                    <Icon name="close" className="text-lg" />
+                                </button>
+                            ) : null}
                         </div>
 
                         <textarea
+                            rows={1}
                             defaultValue={title}
                             placeholder="Blog Title"
                             className="text-4xl md:text-5xl font-extrabold font-inter tracking-tight w-full outline-none resize-none mt-6 md:mt-10 leading-tight md:leading-[1.1] placeholder:opacity-30 bg-transparent border-none focus:ring-0 focus:outline-none overflow-hidden p-0"

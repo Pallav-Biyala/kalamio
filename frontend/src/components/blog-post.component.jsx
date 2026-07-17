@@ -82,7 +82,7 @@ const BlogPostCard = ({ content, author }) => {
                         </span>
                     </div>
                 </Link>
-                <PostMenu blogId={id} authorUsername={username} postType={type || 'blog'} onSaveToCollection={() => setShowSaveModal(true)} />
+                <PostMenu blogId={id} authorId={content.author?._id} authorUsername={username} postType={type || 'blog'} onSaveToCollection={() => setShowSaveModal(true)} />
             </div>
 
             {/* ── Content: Title + Description + Tags (left) | Thumbnail (right) ── */}

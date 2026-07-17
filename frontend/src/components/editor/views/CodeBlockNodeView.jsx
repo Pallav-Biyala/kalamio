@@ -55,7 +55,7 @@ const CodeBlockNodeView = memo(({ node, updateAttributes, extension }) => {
   const handleCopyCode = useCallback(() => {
     const codeText = node.textContent;
     navigator.clipboard.writeText(codeText).then(
-      () => toast.success('Copied to clipboard!'),
+      () => toast.success('Copied'),
       () => toast.error('Failed to copy.')
     );
   }, [node]);

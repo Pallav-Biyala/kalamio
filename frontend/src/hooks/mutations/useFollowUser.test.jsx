@@ -50,9 +50,14 @@ const statusKey = (userId) => queryKeys.follow.status(userId)
 const status = (client, userId) => client.getQueryData(statusKey(userId))
 
 describe('useFollowUser', () => {
-  it('optimistically sets isFollowing:true on a follow action and keeps it on success', async () => {
+  // NOTE ON SHAPE: this cache holds a BOOLEAN. useFollowStatus's queryFn is
+  // `return data.following`, so `true`/`false` is the only thing a real fetch ever writes —
+  // these tests seed booleans to match. (`followsBack` is NOT in here; useFollowsBack owns
+  // its own query key.)
+
+  it('optimistically sets true on a follow action and keeps it on success', async () => {
     const client = makeClient()
-    client.setQueryData(statusKey('u1'), { isFollowing: false })
+    client.setQueryData(statusKey('u1'), false)
     const req = deferred()
     api.post.mockReturnValue(req.promise)
 
@@ -60,47 +65,51 @@ describe('useFollowUser', () => {
     act(() => result.current.mutate({ userId: 'u1', action: 'follow' }))
 
     // onMutate is async (awaits cancelQueries) — wait for the optimistic patch.
-    await waitFor(() => expect(status(client, 'u1')).toEqual({ isFollowing: true }))
+    await waitFor(() => expect(status(client, 'u1')).toBe(true))
 
     await act(async () => req.resolve({ data: {} }))
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     // Server confirmed — the optimistic flag remains true.
-    expect(status(client, 'u1').isFollowing).toBe(true)
+    expect(status(client, 'u1')).toBe(true)
     // The correct endpoint was hit with the user id in the body.
     expect(api.post).toHaveBeenCalledWith('/follow', { user_id: 'u1' })
   })
 
-  it('optimistically sets isFollowing:false on an unfollow action', async () => {
+  it('optimistically sets false on an unfollow action', async () => {
     const client = makeClient()
-    client.setQueryData(statusKey('u2'), { isFollowing: true })
+    client.setQueryData(statusKey('u2'), true)
     const req = deferred()
     api.post.mockReturnValue(req.promise)
 
     const { result } = renderHook(() => useFollowUser(), { wrapper: makeWrapper(client) })
     act(() => result.current.mutate({ userId: 'u2', action: 'unfollow' }))
 
-    await waitFor(() => expect(status(client, 'u2')).toEqual({ isFollowing: false }))
+    await waitFor(() => expect(status(client, 'u2')).toBe(false))
 
     await act(async () => req.resolve({ data: {} }))
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(status(client, 'u2').isFollowing).toBe(false)
+    expect(status(client, 'u2')).toBe(false)
     expect(api.post).toHaveBeenCalledWith('/unfollow', { user_id: 'u2' })
   })
 
-  it('preserves other fields in the cached status while patching isFollowing', async () => {
+  it('writes a falsy boolean on unfollow, never a truthy object', async () => {
+    // Regression: onMutate used to write `{ ...old, isFollowing: action === 'follow' }`.
+    // Spreading a boolean yields {}, so the cache became `{ isFollowing: false }` — an OBJECT,
+    // and every object is truthy. Consumers read `data` directly as the flag, so an unfollow
+    // kept rendering as "Following" until the onSettled refetch corrected it.
     const client = makeClient()
-    client.setQueryData(statusKey('u3'), { isFollowing: false, followsBack: true })
+    client.setQueryData(statusKey('u3'), true)
     const req = deferred()
     api.post.mockReturnValue(req.promise)
 
     const { result } = renderHook(() => useFollowUser(), { wrapper: makeWrapper(client) })
-    act(() => result.current.mutate({ userId: 'u3', action: 'follow' }))
+    act(() => result.current.mutate({ userId: 'u3', action: 'unfollow' }))
 
-    await waitFor(() =>
-      expect(status(client, 'u3')).toEqual({ isFollowing: true, followsBack: true }),
-    )
+    await waitFor(() => expect(status(client, 'u3')).toBe(false))
+    expect(typeof status(client, 'u3')).toBe('boolean')
+    expect(status(client, 'u3')).toBeFalsy()
 
     await act(async () => req.resolve({ data: {} }))
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
@@ -108,7 +117,7 @@ describe('useFollowUser', () => {
 
   it('rolls back to the prior snapshot on error', async () => {
     const client = makeClient()
-    const prior = { isFollowing: false, followsBack: false }
+    const prior = false
     client.setQueryData(statusKey('u4'), prior)
     const req = deferred()
     api.post.mockReturnValue(req.promise)
@@ -117,19 +126,19 @@ describe('useFollowUser', () => {
     act(() => result.current.mutate({ userId: 'u4', action: 'follow' }))
 
     // Optimistic patch applied first.
-    await waitFor(() => expect(status(client, 'u4').isFollowing).toBe(true))
+    await waitFor(() => expect(status(client, 'u4')).toBe(true))
 
     await act(async () => req.reject(new Error('network down')))
     await waitFor(() => expect(result.current.isError).toBe(true))
 
     // Rolled back to the exact prior snapshot.
-    expect(status(client, 'u4')).toEqual(prior)
+    expect(status(client, 'u4')).toBe(prior)
   })
 
   it('a failed follow on one user does not affect a concurrent follow on another', async () => {
     const client = makeClient()
-    client.setQueryData(statusKey('a'), { isFollowing: false })
-    client.setQueryData(statusKey('b'), { isFollowing: false })
+    client.setQueryData(statusKey('a'), false)
+    client.setQueryData(statusKey('b'), false)
 
     const reqA = deferred()
     const reqB = deferred()
@@ -142,8 +151,8 @@ describe('useFollowUser', () => {
     act(() => rA.current.mutate({ userId: 'a', action: 'follow' }))
     act(() => rB.current.mutate({ userId: 'b', action: 'follow' }))
 
-    await waitFor(() => expect(status(client, 'a').isFollowing).toBe(true))
-    await waitFor(() => expect(status(client, 'b').isFollowing).toBe(true))
+    await waitFor(() => expect(status(client, 'a')).toBe(true))
+    await waitFor(() => expect(status(client, 'b')).toBe(true))
 
     // A fails while B succeeds.
     await act(async () => {
@@ -154,7 +163,7 @@ describe('useFollowUser', () => {
     await waitFor(() => expect(rB.current.isSuccess).toBe(true))
 
     // A rolled back; B's optimistic follow survives.
-    expect(status(client, 'a').isFollowing).toBe(false)
-    expect(status(client, 'b').isFollowing).toBe(true)
+    expect(status(client, 'a')).toBe(false)
+    expect(status(client, 'b')).toBe(true)
   })
 })

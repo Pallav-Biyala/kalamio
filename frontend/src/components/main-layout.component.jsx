@@ -1,11 +1,10 @@
-import { useContext, useState } from "react";
+import { useCallback, useContext, useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { ThemeContext, UserContext } from "../App";
 import LeftSidebar from "./left-sidebar.component";
 import BottomTabBar from "./bottom-tab-bar.component";
 import MobileTopBar from "./mobile-top-bar.component";
 import UserNavigationPanel from "./user-navigation.component";
-import Icon from "./Icon";
 import Avatar from "./Avatar";
 import FeedbackButton from "./feedback-button.component";
 import api from "../common/api";
@@ -20,6 +19,20 @@ const MainLayout = () => {
     const location = useLocation();
     const isReadsPage = location.pathname === "/reads";
     const isDashboardOrSettings = location.pathname.startsWith("/dashboard") || location.pathname.startsWith("/settings");
+    // Only the ARTICLE read drops the left sidebar for a focused, distraction-free read (its back button
+    // sits inline in the title); text posts keep the normal chrome. /blog/:id serves both, and the real
+    // type isn't known until the page's query resolves — so seed the first paint from the id convention
+    // (text-post ids are `tp-` prefixed, see textpost.controller) and let blog.page correct it from real
+    // data. Without the seed the sidebar visibly flashes in and out for ~300ms on every article load.
+    const routeSaysArticle = location.pathname.startsWith("/blog/") && !location.pathname.startsWith("/blog/tp-");
+
+    // Scoped to the path it came from, so a stale report can't leak onto the next page (and so
+    // article → text-post, which the route check alone can't catch, still corrects itself).
+    const [focusReport, setFocusReport] = useState({ path: null, focused: null });
+    const focusedReading = focusReport.path === location.pathname ? focusReport.focused : routeSaysArticle;
+    const setFocusedReading = useCallback((focused) => {
+        setFocusReport({ path: window.location.pathname, focused });
+    }, []);
 
     // Check for new notifications
     useEffect(() => {
@@ -165,19 +178,20 @@ const MainLayout = () => {
     };
 
     return (
-        <div className="app-layout">
-            {/* Desktop left sidebar — hidden on mobile */}
-            <LeftSidebar />
+        <div className={"app-layout" + (focusedReading ? " app-layout--reading" : "")}>
+            {/* Desktop left sidebar — hidden on mobile, and removed on the focused article read
+                (the article's inline back button handles navigation there). */}
+            {!focusedReading && <LeftSidebar />}
 
-            {/* Mobile top bar — hidden on desktop and on reads page */}
-            {location.pathname !== "/reads" && <MobileTopBar />}
+            {/* Mobile top bar — hidden on desktop, the reads page, and the focused article read. */}
+            {location.pathname !== "/reads" && !focusedReading && <MobileTopBar />}
 
             {/* Main content area */}
             <main className="app-layout__main">
 
                 {/* Page content */}
                 <div className={"app-layout__content" + (isDashboardOrSettings && location.pathname !== "/settings/profile" ? " app-layout__content--dashboard" : "")}>
-                    <Outlet />
+                    <Outlet context={{ setFocusedReading }} />
                 </div>
             </main>
 

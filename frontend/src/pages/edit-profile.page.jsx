@@ -217,7 +217,7 @@ const EditProfile = () => {
             return toast.error(`Bio should not be more than ${bioLimit} characters`)
         }
 
-        let loadingToast = toast.loading("Updating…..");
+        let loadingToast = toast.loading("Updating…");
         e.target.setAttribute("disabled", true);
 
         api.post("/update-profile", {
@@ -242,7 +242,7 @@ const EditProfile = () => {
 
             toast.dismiss(loadingToast);
             e.target.removeAttribute("disabled");
-            toast.success("Profile Updated");
+            toast.success("Profile updated");
             
             // Redirect to the user's profile page
             setTimeout(() => {

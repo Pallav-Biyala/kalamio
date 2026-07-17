@@ -4,10 +4,16 @@ import { ThemeContext, UserContext } from "../App";
 import lightLogo from "../imgs/logo-light.png";
 import darkLogo from "../imgs/logo-dark.png";
 import Icon from "./Icon";
+import { useNewNotification } from "../hooks/queries";
 
 const MobileTopBar = () => {
 
-    const { userAuth: { access_token, new_notification_available } } = useContext(UserContext);
+    const { userAuth: { access_token } } = useContext(UserContext);
+    // Read the badge from the query, not a context flag: the query is the authoritative value
+    // (server-backed, socket-invalidated, 60s poll), so it also CLEARS when a notification is
+    // removed — e.g. someone revoking a like.
+    const { data: notificationData } = useNewNotification();
+    const new_notification_available = notificationData?.new_notification_available;
     const { theme } = useContext(ThemeContext);
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");

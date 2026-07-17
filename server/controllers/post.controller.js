@@ -218,6 +218,14 @@ export const likePost = async (req, res) => {
                 emitBlogUpdate(req, blog._id, { total_likes: blog.activity.total_likes });
             }
 
+            // The like notification was just deleted, so the author's Activity dot may need to
+            // CLEAR. Only the like path used to emit, which left a revoked like's dot stuck until
+            // the 60s poll. `removed` is the authoritative recipient (blog can be null if the post
+            // went away mid-request).
+            if (String(removed.notification_for) !== String(user_id)) {
+                emitNotification(req, removed.notification_for, { type: "like_removed" });
+            }
+
             return res.status(200).json({ liked_by_user: false });
         }
     } catch (err) {

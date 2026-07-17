@@ -2,15 +2,17 @@ import { useState, useRef, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import Icon from "./Icon";
 import { UserContext } from "../App";
-import { useArticleCollections } from "../hooks/queries";
+import { useArticleCollections, useFollowStatus } from "../hooks/queries";
+import { useFollowUser } from "../hooks/mutations";
 import toast from "react-hot-toast";
 import api from "../common/api";
 
-const PostMenu = ({ blogId, authorUsername, postType, onEdit, onSaveToCollection }) => {
+const PostMenu = ({ blogId, authorId, authorUsername, postType, onEdit, onSaveToCollection }) => {
     const [open, setOpen] = useState(false);
     const menuRef = useRef(null);
     const navigate = useNavigate();
     const { userAuth: { username, access_token } } = useContext(UserContext);
+    const { mutate: followUser } = useFollowUser();
 
     const isOwner = username === authorUsername;
 
@@ -18,6 +20,10 @@ const PostMenu = ({ blogId, authorUsername, postType, onEdit, onSaveToCollection
     // saved, and warms the cache so the Save modal opens instantly instead of loading from scratch.
     const { data: articleCollections } = useArticleCollections(blogId, { enabled: open });
     const isSaved = !!articleCollections?.some(c => c.contains_article);
+
+    // Same deal for follow state: only ask once the menu is open. A feed renders one of these per
+    // card, so an unconditional query here would fire a request per card on every page load.
+    const { data: isFollowing } = useFollowStatus(authorId, undefined, { enabled: open && !isOwner });
 
     // Close on outside click
     useEffect(() => {
@@ -42,7 +48,7 @@ const PostMenu = ({ blogId, authorUsername, postType, onEdit, onSaveToCollection
     const copyLink = () => {
         const url = `${window.location.origin}/blog/${blogId}`;
         navigator.clipboard.writeText(url)
-            .then(() => toast.success("Link copied!"))
+            .then(() => toast.success("Link copied"))
             .catch(() => toast.error("Failed to copy"));
         setOpen(false);
     };
@@ -76,14 +82,23 @@ const PostMenu = ({ blogId, authorUsername, postType, onEdit, onSaveToCollection
             setOpen(false);
             return;
         }
-        api.post("/follow", { username: authorUsername })
-            .then(({ data }) => {
-                toast.success(data.message || `Followed @${authorUsername}`);
-            })
-            .catch((err) => {
-                toast.error(err?.response?.data?.error || "Failed to follow");
-            });
-        setOpen(false);
+        // Goes through the shared mutation so this agrees with FollowButton on the wire format
+        // (/follow takes { user_id }, not a username) and so following from a card also refreshes
+        // the follow state everywhere else on screen.
+        const action = isFollowing ? 'unfollow' : 'follow';
+        followUser(
+            { userId: authorId, action },
+            {
+                onSuccess: () => toast.success(
+                    action === 'follow' ? `Followed @${authorUsername}` : `Unfollowed @${authorUsername}`,
+                ),
+                onError: (err) => toast.error(
+                    err?.response?.data?.error || `Failed to ${action}`,
+                ),
+            },
+        );
+        // Kept open: the label flips to reflect the new state (the mutation patches the status
+        // cache optimistically), so closing would hide the only confirmation the menu gives.
     };
 
     const handleSaveToCollection = () => {
@@ -133,12 +148,14 @@ const PostMenu = ({ blogId, authorUsername, postType, onEdit, onSaveToCollection
                                 <span>Delete</span>
                             </button>
                         </>
-                    ) : (
+                    ) : authorId ? (
+                        // Without an id there is nothing to follow — hide the action rather than
+                        // offer a button that can only fail (same rule as FollowButton).
                         <button className="post-menu__item" onClick={handleFollow}>
-                            <Icon name="person_add" />
-                            <span>Follow</span>
+                            <Icon name={isFollowing ? "person_remove" : "person_add"} />
+                            <span>{isFollowing ? "Following" : "Follow"}</span>
                         </button>
-                    )}
+                    ) : null}
                 </div>
             )}
         </div>

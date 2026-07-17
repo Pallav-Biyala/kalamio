@@ -1,5 +1,5 @@
 import usePageTitle from "../common/usePageTitle";
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import Loader from "../components/loader.component";
@@ -8,7 +8,6 @@ import NoDataMessage from "../components/nodata.component";
 import NotificationCard from "../components/notification-card.component";
 import LoadMoreDataBtn from "../components/load-more.component";
 import Icon from "../components/Icon";
-import { UserContext } from "../App";
 import { queryKeys } from "../common/queryKeys";
 import { useNotifications } from "../hooks/queries";
 import { useDeleteNotification, useMarkNotificationsRead } from "../hooks/mutations";
@@ -21,7 +20,6 @@ const Notifications = () => {
 
     let filters = ['all', 'like', 'comment', 'reply', 'follow', 'subscribe', 'mention', 'poll_vote'];
 
-    const { setUserAuth } = useContext(UserContext);
     const queryClient = useQueryClient();
 
     // TanStack Query hooks
@@ -31,11 +29,11 @@ const Notifications = () => {
     const deleteNotification = useDeleteNotification();
     const markAllRead = useMarkNotificationsRead();
 
-    // Visiting the tab: the server marks notifications seen when the list is fetched, so clear the
-    // Activity badge to match — the context flag (mobile) and the unread query (desktop).
+    // Visiting the tab: the server marks notifications seen when the list is fetched, so refetch the
+    // unread flag to match. Every badge reads this one query now, so this single invalidate clears
+    // them all (it used to also poke a separate context flag for the mobile badge).
     useEffect(() => {
         if (!notificationsQuery.dataUpdatedAt) return;
-        setUserAuth(prev => prev.new_notification_available ? { ...prev, new_notification_available: false } : prev);
         queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unread() });
     }, [notificationsQuery.dataUpdatedAt]);
 

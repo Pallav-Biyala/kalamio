@@ -1,4 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Cormorant+Garamond:wght@700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700;800;900&display=swap');
+/* Reading serif — Literata (Google's book/reading typeface), warm and optimized for long-form body.
+   Loaded separately so a hiccup here can never break the other fonts; the body stack falls back to
+   Merriweather → Charter → Georgia if it doesn't load. */
+@import url('https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;0,7..72,700;1,7..72,400&display=swap');
 @import "./editor-theme.css";
 
 @tailwind base;
@@ -298,19 +302,48 @@
     }
 
     #textEditor *, .blog-page-content *, .tiptap-content-area .ProseMirror *, .tiptap-content-area .ProseMirror {
-        font-family: 'Merriweather', Charter, Georgia, serif !important;
-        word-spacing: 0.25em;
-        font-weight: 300;
+        font-family: 'Literata', 'Merriweather', Charter, Georgia, Cambria, serif !important;
+        font-weight: 400;
+        /* Crisper serif rendering — better kerning + ligatures for a more refined read. */
+        text-rendering: optimizeLegibility;
         color: rgb(var(--c-black) / 0.85);
-        @apply text-xl leading-10 md:text-2xl;
+        @apply text-xl md:text-2xl;
+        /* Tighter, comfortable reading rhythm for the editor + published article. The old `leading-10`
+           (2.5rem ≈ 35px on the 14px root) read as huge "extra space" between lines; 1.7 keeps serif
+           long-form readable without the airiness. !important to win Tailwind's utility line-heights. */
+        line-height: 1.7 !important;
+    }
+
+    /* The rule above sets font-weight:300 on EVERY descendant (incl. <strong>/<b>), which silently
+       flattened bold to look identical to normal text. Restore a real bold weight for the bold mark,
+       in both the editor and the reader. */
+    #textEditor strong, #textEditor b,
+    .blog-page-content strong, .blog-page-content b,
+    .tiptap-content-area .ProseMirror strong, .tiptap-content-area .ProseMirror b {
+        font-weight: 700;
     }
 
     #textEditor p, .blog-page-content p, .tiptap-content-area .ProseMirror p {
-        margin-bottom: 1.5em;
+        margin-bottom: 1em;
     }
 
+    /* In the EDITOR, pressing Enter should read as a plain line break — just the line-height spacing,
+       no extra paragraph gap. (Comes after the rule above so it wins for the editor only; the reader's
+       `.blog-page-content p` keeps its paragraph spacing so published articles stay legible.) */
+    .tiptap-content-area .ProseMirror p {
+        margin-bottom: 0;
+    }
+
+    /* Links — classic blue, underlined and a touch smaller so they clearly read as links. */
     #textEditor a, .blog-page-content a, .tiptap-content-area .ProseMirror a {
-        @apply text-black underline underline-offset-2 hover:opacity-60 transition-opacity;
+        color: #3b82f6;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        font-size: 0.9em;
+        transition: opacity 0.15s ease;
+    }
+    #textEditor a:hover, .blog-page-content a:hover, .tiptap-content-area .ProseMirror a:hover {
+        opacity: 0.7;
     }
 
     #textEditor img, .blog-page-content img {
@@ -405,6 +438,18 @@
     @media (min-width: 1280px) {
         .app-layout {
             grid-template-columns: 260px 1fr;
+        }
+    }
+
+    /* Focused ARTICLE read only (text posts keep the normal chrome): no sidebar → collapse to a single
+       full-width column. Its back button sits inline in the title, so no top bar / reserved header space. */
+    .app-layout--reading {
+        padding-top: 8px; /* override the base 57px that reserved room for the (now removed) header */
+    }
+    @media (min-width: 1024px) {
+        .app-layout--reading {
+            grid-template-columns: 1fr;
+            grid-template-areas: "main";
         }
     }
 

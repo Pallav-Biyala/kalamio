@@ -205,14 +205,20 @@ const EmbedContent = ({ provider, url, embedId, metadata }) => {
                 </div>
             );
 
-        case 'codepen':
+        case 'codepen': {
+            // embedId is stored as "user/penId" (no "/pen/" segment), so the old
+            // embedId.replace('/pen/','/embed/') was a no-op and produced a broken (non-embed) URL.
+            // Build the embed path explicitly, matching the registry's embedUrl: /<user>/embed/<penId>.
+            const [cpUser, cpPen] = String(embedId || '').split('/');
+            if (!cpUser || !cpPen) return <MiniCard url={url} provider={provider} embedId={embedId} />;
             return (
                 <iframe className="lazy-embed__iframe"
-                    src={`https://codepen.io/${embedId.replace('/pen/', '/embed/')}?default-tab=result`}
+                    src={`https://codepen.io/${cpUser}/embed/${cpPen}?default-tab=result`}
                     style={{ width: '100%', height: '400px', border: '1px solid #e2e8f0', borderRadius: '0.5rem' }}
                     title={metadata?.title || 'CodePen embed'} loading="lazy"
                 />
             );
+        }
 
         case 'figma':
             return (
@@ -279,15 +285,27 @@ const EmbedContent = ({ provider, url, embedId, metadata }) => {
                 />
             );
 
-        case 'reddit':
+        case 'reddit': {
+            // redditmedia needs the full /r/<sub>/comments/<id> path, but embedId only holds the post
+            // id (the subreddit was dropped at extract time). Derive the path from the original url,
+            // which LazyEmbed always receives.
+            let redditSrc = null;
+            try {
+                const u = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
+                if (u.pathname && u.pathname !== '/') {
+                    redditSrc = `https://www.redditmedia.com${u.pathname}?ref_source=embed&embed=true&theme=light`;
+                }
+            } catch { /* malformed url → fall back to a card below */ }
+            if (!redditSrc) return <MiniCard url={url} provider={provider} embedId={embedId} />;
             return (
                 <iframe className="lazy-embed__iframe"
-                    src={`https://www.redditmedia.com/${embedId}?embed=true&theme=light`}
+                    src={redditSrc}
                     sandbox="allow-scripts allow-same-origin allow-popups"
                     style={{ width: '100%', minHeight: '320px', border: '1px solid #e2e8f0', borderRadius: '0.5rem' }}
                     title={metadata?.title || 'Reddit embed'}
                 />
             );
+        }
 
         // ── Everything else: minimal card ────────────────────────────
         default:

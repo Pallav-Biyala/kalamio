@@ -8,6 +8,7 @@ import { revokeSessionOnServer } from "../common/api";
 import AnimationWrapper from "../common/page-animation";
 import Icon from "../components/Icon";
 import Avatar from "../components/Avatar";
+import { useNewNotification } from "../hooks/queries";
 
 const MenuLink = ({ to, icon, label, badge, onClick }) => {
     const content = (
@@ -37,7 +38,10 @@ const YouPage = () => {
 
     usePageTitle('You');
 
-    const { userAuth: { access_token, username, fullname, profile_img, new_notification_available }, setUserAuth } = useContext(UserContext);
+    const { userAuth: { access_token, username, fullname, profile_img }, setUserAuth } = useContext(UserContext);
+    // Authoritative, server-backed badge — see MobileTopBar for why this isn't a context flag.
+    const { data: notificationData } = useNewNotification();
+    const new_notification_available = notificationData?.new_notification_available;
     const { theme, setTheme } = useContext(ThemeContext);
     const navigate = useNavigate();
 

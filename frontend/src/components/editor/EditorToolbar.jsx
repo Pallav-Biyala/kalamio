@@ -3,15 +3,14 @@ import toast from 'react-hot-toast';
 import Icon from '../Icon';
 import ToolbarButton from './ToolbarButton';
 import ToolbarDivider from './ToolbarDivider';
-import { uploadImage } from '../../common/aws';
-import LinkInsertModal from './LinkInsertModal';
+import HeadingSelect from './HeadingSelect';
+import { uploadImageWithMeta, uploadFileRaw } from '../../common/aws';
 import SaveStatus from './SaveStatus';
 import EditorStats from './EditorStats';
 
-const EditorToolbar = ({ editor, onEmbedClick, saveStatus, savedAt }) => {
+const EditorToolbar = ({ editor, onEmbedClick, onLinkClick, saveStatus, savedAt }) => {
   const imageInputRef = useRef(null);
   const fileInputRef = useRef(null);
-  const [showLinkModal, setShowLinkModal] = useState(false);
 
   // Horizontal-scroll affordance: the toolbar's scrollbar is hidden, so users can't tell more tools are
   // reachable by scrolling. We watch scroll position + width and show a fade + a scroll chevron on each
@@ -48,8 +47,6 @@ const EditorToolbar = ({ editor, onEmbedClick, saveStatus, savedAt }) => {
     el.scrollBy({ left: dir * Math.max(140, el.clientWidth * 0.7), behavior: 'smooth' });
   }, []);
 
-  if (!editor) return null;
-
   const handleImageUpload = useCallback(async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -59,12 +56,12 @@ const EditorToolbar = ({ editor, onEmbedClick, saveStatus, savedAt }) => {
       return;
     }
 
-    const loadingToast = toast.loading('Uploading image...');
+    const loadingToast = toast.loading('Uploading image…');
     try {
-      const url = await uploadImage(file);
+      const { url, width, height } = await uploadImageWithMeta(file);
       if (url) {
-        editor.chain().focus().setImage({ src: url }).run();
-        toast.success('Image uploaded!', { id: loadingToast });
+        editor.chain().focus().setImage({ src: url, width, height }).run();
+        toast.success('Image uploaded', { id: loadingToast });
       } else {
         toast.error('Upload failed. Please try again.', { id: loadingToast });
       }
@@ -80,9 +77,11 @@ const EditorToolbar = ({ editor, onEmbedClick, saveStatus, savedAt }) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const loadingToast = toast.loading('Uploading file...');
+    const loadingToast = toast.loading('Uploading file…');
     try {
-      const url = await uploadImage(file);
+      // Raw: the card below records the ORIGINAL filename/mimeType/size, so the stored
+      // object has to stay byte-identical to what the user picked.
+      const url = await uploadFileRaw(file);
       if (url) {
         editor.chain().focus().setFileAttachment({
           url: url,
@@ -90,7 +89,7 @@ const EditorToolbar = ({ editor, onEmbedClick, saveStatus, savedAt }) => {
           fileSize: file.size,
           mimeType: file.type,
         }).run();
-        toast.success('File attached!', { id: loadingToast });
+        toast.success('File attached', { id: loadingToast });
       } else {
         toast.error('Upload failed. Please try again.', { id: loadingToast });
       }
@@ -101,29 +100,31 @@ const EditorToolbar = ({ editor, onEmbedClick, saveStatus, savedAt }) => {
     e.target.value = '';
   }, [editor]);
 
-  const handleLinkToggle = useCallback(() => {
-    setShowLinkModal(true);
-  }, []);
-
-  const handleHeadingChange = useCallback((e) => {
-    const level = parseInt(e.target.value, 10);
-    if (level === 0) {
-      editor.chain().focus().setParagraph().run();
-    } else {
-      editor.chain().focus().toggleHeading({ level }).run();
-    }
-  }, [editor]);
-
-  const getCurrentHeadingLevel = () => {
-    for (let i = 1; i <= 6; i++) {
-      if (editor.isActive('heading', { level: i })) return i;
-    }
-    return 0;
-  };
-
   const handleTableInsert = useCallback(() => {
     editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
   }, [editor]);
+
+  // Wipe the whole document back to a single empty paragraph (the true empty state — the placeholder
+  // reappears). It's a single undoable transaction, and the toast offers an explicit Undo, so an
+  // accidental click can't lose the article.
+  const handleClearAll = useCallback(() => {
+    if (editor.isEmpty) return;
+    editor.chain().focus().clearContent(true).run();
+    toast((t) => (
+      <span className="flex items-center gap-3">
+        <span>Editor cleared</span>
+        <button
+          type="button"
+          onClick={() => { editor.chain().focus().undo().run(); toast.dismiss(t.id); }}
+          className="px-3 py-0.5 rounded-full border border-current text-xs font-semibold hover:opacity-70 transition-opacity"
+        >
+          Undo
+        </button>
+      </span>
+    ), { duration: 10000 });
+  }, [editor]);
+
+  if (!editor) return null;
 
   return (
     <div className="editor-toolbar-sticky">
@@ -204,22 +205,9 @@ const EditorToolbar = ({ editor, onEmbedClick, saveStatus, savedAt }) => {
 
         <ToolbarDivider />
 
-        {/* Group 3 — Headings */}
+        {/* Group 3 — Block type */}
         <div className="toolbar-group">
-          <select
-            className="toolbar-heading-select"
-            value={getCurrentHeadingLevel()}
-            onChange={handleHeadingChange}
-            aria-label="Text style"
-          >
-            <option value={0}>Paragraph</option>
-            <option value={1}>Heading 1</option>
-            <option value={2}>Heading 2</option>
-            <option value={3}>Heading 3</option>
-            <option value={4}>Heading 4</option>
-            <option value={5}>Heading 5</option>
-            <option value={6}>Heading 6</option>
-          </select>
+          <HeadingSelect editor={editor} />
         </div>
 
         <ToolbarDivider />
@@ -297,8 +285,8 @@ const EditorToolbar = ({ editor, onEmbedClick, saveStatus, savedAt }) => {
           />
           <ToolbarButton
             icon="link"
-            label={editor.isActive('link') ? 'Remove Link' : 'Insert Link'}
-            onClick={handleLinkToggle}
+            label={editor.isActive('link') ? 'Edit Link' : 'Insert Link'}
+            onClick={onLinkClick}
             isActive={editor.isActive('link')}
           />
           <ToolbarButton
@@ -310,6 +298,18 @@ const EditorToolbar = ({ editor, onEmbedClick, saveStatus, savedAt }) => {
             icon="attach_file"
             label="Attach File"
             onClick={() => fileInputRef.current?.click()}
+          />
+        </div>
+
+        <ToolbarDivider />
+
+        {/* Clear the whole document (reversible — an Undo appears in the toast). Disabled when empty. */}
+        <div className="toolbar-group">
+          <ToolbarButton
+            icon="delete_sweep"
+            label="Clear all"
+            onClick={handleClearAll}
+            isDisabled={editor.isEmpty}
           />
         </div>
 
@@ -349,9 +349,6 @@ const EditorToolbar = ({ editor, onEmbedClick, saveStatus, savedAt }) => {
           <Icon name="chevron_right" />
         </button>
       </div>
-      {showLinkModal && (
-        <LinkInsertModal editor={editor} onClose={() => setShowLinkModal(false)} />
-      )}
     </div>
   );
   };

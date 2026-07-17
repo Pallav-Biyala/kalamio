@@ -82,7 +82,7 @@ const ChangePassword = () => {
 
         e.target.setAttribute("disabled", true);
 
-        let loadingToast = toast.loading("Updating...");
+        let loadingToast = toast.loading("Updating…");
 
         api.post("/change-password", { currentPassword, newPassword: newPwd })
         .then(({ data }) => {
@@ -102,7 +102,7 @@ const ChangePassword = () => {
             e.target.removeAttribute("disabled");
             changePasswordForm.current.reset();
             setNewPassword("");
-            return toast.success("Password Updated");
+            return toast.success("Password updated");
         })
         .catch(({ response }) => {
             toast.dismiss(loadingToast);

@@ -7,6 +7,7 @@ import Comment from '../Schema/Comment.js';
 import Collection from '../Schema/Collection.js';
 import { nanoid } from 'nanoid';
 import sanitizeHtml from 'sanitize-html';
+import { estimateReadTime } from '../utils/read-time.js';
 
 const sanitizeOptions = {
     allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'a', 'b', 'i', 'u', 'strong', 'em', 'ol', 'ul', 'li', 'code', 'pre', 'br', 'span', 'div', 'mark', 'table', 'tr', 'td', 'th', 'tbody', 'thead']),
@@ -15,51 +16,6 @@ const sanitizeOptions = {
         'a': ['href', 'name', 'target'],
         'img': ['src', 'alt', 'title', 'width', 'height']
     }
-};
-
-// Recursively count words in Tiptap JSON nodes
-const countWordsInTiptapNodes = (nodes) => {
-    let words = 0;
-    if (!Array.isArray(nodes)) return 0;
-    for (const node of nodes) {
-        if (node.type === 'text' && node.text) {
-            words += node.text.replace(/<[^>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
-        }
-        if (node.content) {
-            words += countWordsInTiptapNodes(node.content);
-        }
-    }
-    return words;
-};
-
-// Calculate read time from content (supports both EditorJS and Tiptap formats)
-const calculateReadTime = (content, title = '', des = '') => {
-    let totalWords = 0;
-    if (title) totalWords += title.split(/\s+/).filter(Boolean).length;
-    if (des) totalWords += des.split(/\s+/).filter(Boolean).length;
-
-    // Tiptap JSON format
-    if (content && content.type === 'doc' && Array.isArray(content.content)) {
-        totalWords += countWordsInTiptapNodes(content.content);
-    }
-    // Legacy EditorJS format
-    else if (content && content.blocks) {
-        content.blocks.forEach(block => {
-            let text = '';
-            if (block.data) {
-                if (block.data.text) text = block.data.text;
-                if (block.data.caption) text += ' ' + block.data.caption;
-                if (block.data.items) {
-                    text += ' ' + (Array.isArray(block.data.items) ? block.data.items.join(' ') : '');
-                }
-                if (block.data.code) text += ' ' + block.data.code;
-            }
-            text = text.replace(/<[^>]*>/g, ' ');
-            totalWords += text.split(/\s+/).filter(Boolean).length;
-        });
-    }
-
-    return Math.max(1, Math.ceil(totalWords / 200));
 };
 
 // Sanitize Tiptap JSON nodes recursively
@@ -167,7 +123,7 @@ export const createBlog = (req, res) => {
             let updateData = {
                 title, des, banner, content, tags,
                 draft: shouldBeDraft,
-                readTime: calculateReadTime(content, title, des),
+                readTime: estimateReadTime(content, title, des),
                 edited: true
             };
 
@@ -208,7 +164,7 @@ export const createBlog = (req, res) => {
         let blog = new Blog({
             title, des, banner, content, tags, author: authorId, blog_id,
             draft: Boolean(draft),
-            readTime: calculateReadTime(content, title, des),
+            readTime: estimateReadTime(content, title, des),
             publication: publication || undefined,
         })
 

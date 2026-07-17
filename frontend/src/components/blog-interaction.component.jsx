@@ -42,7 +42,7 @@ const BlogInteraction = () => {
     const handleShare = async () => {
         try {
             await navigator.clipboard.writeText(location.href);
-            toast.success("Link copied to clipboard!");
+            toast.success("Link copied");
         } catch {
             toast.error("Failed to copy link");
         }

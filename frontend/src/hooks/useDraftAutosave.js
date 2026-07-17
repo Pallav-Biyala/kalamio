@@ -137,7 +137,19 @@ export const useDraftAutosave = ({ draftKey, blog, enabled, serverEnabled = fals
         const b = blogRef.current;
         if (!enabledRef.current || !key) return;
         if (!blogIsMeaningful(b)) {
-            localBaselineRef.current = blogSignature(b); // cleared: settle, keep any prior snapshot
+            // The editor was emptied. If a snapshot was previously stored for this key, the user has
+            // deliberately cleared their draft — drop that snapshot (and the "saved" timestamp) so the
+            // removed content doesn't resurrect on refresh / reopen, and the indicator stops showing a
+            // stale "Saved". deleteLocalDraft is a no-op when nothing was ever saved (a pristine new
+            // post), so this is safe. localBaseline advances either way so we don't repeat this work on
+            // every subsequent empty render.
+            const clearedSig = blogSignature(b);
+            if (localBaselineRef.current !== clearedSig) {
+                await deleteLocalDraft(key);
+                savedAtRef.current = null;
+                setSavedAt(null);
+            }
+            localBaselineRef.current = clearedSig;
             settle();
             return;
         }

@@ -83,8 +83,8 @@ const getFileIcon = (fileType) => {
 };
 
 const FileAttachmentNodeView = memo(({ node, deleteNode }) => {
-  const { src, fileName, fileSize, fileType } = node.attrs;
-  const icon = useMemo(() => getFileIcon(fileType), [fileType]);
+  const { url, filename, fileSize, mimeType } = node.attrs;
+  const icon = useMemo(() => getFileIcon(mimeType), [mimeType]);
   const formattedSize = useMemo(() => formatFileSize(fileSize), [fileSize]);
 
   const handleDelete = useCallback(
@@ -97,10 +97,10 @@ const FileAttachmentNodeView = memo(({ node, deleteNode }) => {
   );
 
   const handleDownload = useCallback(() => {
-    if (src) {
-      window.open(src, '_blank', 'noopener,noreferrer');
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
     }
-  }, [src]);
+  }, [url]);
 
   return (
     <NodeViewWrapper className="file-attachment-node-view" data-drag-handle="">
@@ -109,14 +109,14 @@ const FileAttachmentNodeView = memo(({ node, deleteNode }) => {
           type="button"
           className="file-attachment-node-view__main"
           onClick={handleDownload}
-          title={`Download ${fileName || 'file'}`}
+          title={`Download ${filename || 'file'}`}
         >
           <div className="file-attachment-node-view__icon">
             <Icon name={icon} className="text-2xl" />
           </div>
           <div className="file-attachment-node-view__info">
             <span className="file-attachment-node-view__name">
-              {fileName || 'Untitled file'}
+              {filename || 'Untitled file'}
             </span>
             <span className="file-attachment-node-view__size">
               {formattedSize}

@@ -1,10 +1,9 @@
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback } from 'react';
 import { NodeViewWrapper } from '@tiptap/react';
 import Icon from '../../Icon';
 
 const ImageNodeView = memo(({ node, updateAttributes, deleteNode, selected }) => {
   const { src, alt, caption } = node.attrs;
-  const [isHovered, setIsHovered] = useState(false);
 
   const handleCaptionChange = useCallback(
     (e) => {
@@ -26,8 +25,6 @@ const ImageNodeView = memo(({ node, updateAttributes, deleteNode, selected }) =>
     <NodeViewWrapper className="image-node-view" data-drag-handle="">
       <figure
         className={`image-node-view__figure ${selected ? 'image-node-view__figure--selected' : ''}`}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
       >
         <div className="image-node-view__img-wrapper">
           <img
@@ -36,17 +33,17 @@ const ImageNodeView = memo(({ node, updateAttributes, deleteNode, selected }) =>
             className="image-node-view__img"
             draggable={false}
           />
-          {(isHovered || selected) && (
-            <button
-              type="button"
-              className="image-node-view__delete"
-              onClick={handleDelete}
-              title="Remove image"
-              aria-label="Remove image"
-            >
-              <Icon name="delete" className="text-base" />
-            </button>
-          )}
+          {/* Always rendered; visibility is CSS-driven (hover on desktop, always-on for touch) so it
+              never reflows the layout and stays reachable on mobile. */}
+          <button
+            type="button"
+            className="image-node-view__delete"
+            onClick={handleDelete}
+            title="Remove image"
+            aria-label="Remove image"
+          >
+            <Icon name="delete" className="text-base" />
+          </button>
         </div>
         <input
           type="text"

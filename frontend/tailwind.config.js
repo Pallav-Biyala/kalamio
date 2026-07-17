@@ -39,7 +39,7 @@ export default {
               headline: ["'Playfair Display'", "serif"],
               inter: ["'Inter'", "sans-serif"],
               gelasio: ["'EB Garamond'", "serif"],
-              merriweather: ["'Playfair Display'", "serif"],
+              merriweather: ["'Literata'", "'Merriweather'", "Charter", "Georgia", "serif"],
             },
             boxShadow: {
                 'xs':   'var(--shadow-xs)',
