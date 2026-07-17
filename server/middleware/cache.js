@@ -101,6 +101,11 @@ export const cacheResponse = ({ ttl = 60, tags = [], key } = {}) =>
  *   (e.g. only add 'publications' when the post has a publication).
  * @param {{ unless?: (req) => boolean }} [opts]
  */
+// Upper bound on how long a write response may wait for its cache invalidation. Normally the
+// Upstash round-trips finish in a few ms (same-region on Cloud Run); if Redis is degraded the
+// response still goes out after this, with the invalidation left running best-effort.
+const INVALIDATE_TIMEOUT_MS = 2000;
+
 export const invalidateCacheOnWrite = (tags = [], { unless } = {}) =>
   function invalidateMiddleware(req, res, next) {
     if (!isCacheEnabled()) return next();
@@ -111,7 +116,17 @@ export const invalidateCacheOnWrite = (tags = [], { unless } = {}) =>
       const skip = typeof unless === 'function' && unless(req);
       if (ok && !skip) {
         const resolved = typeof tags === 'function' ? tags(req) : tags;
-        if (resolved && resolved.length) cacheInvalidateTags(resolved);
+        if (resolved && resolved.length) {
+          // COMPLETE the invalidation before the response leaves — fire-and-forget raced the
+          // client here: the caller's immediate refetch could hit the not-yet-flushed cache, and
+          // on Cloud Run the CPU is throttled once the response is sent, so a background flush
+          // could stall until some later request (racing the very read it was meant to freshen).
+          // cacheInvalidateTags never rejects; Promise.resolve guards a non-promise (e.g. mocks).
+          const invalidation = Promise.resolve(cacheInvalidateTags(resolved));
+          const timeout = new Promise((r) => setTimeout(r, INVALIDATE_TIMEOUT_MS).unref?.());
+          Promise.race([invalidation, timeout]).finally(() => sendJson(body));
+          return res;
+        }
       }
       return sendJson(body);
     };

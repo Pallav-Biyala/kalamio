@@ -38,7 +38,10 @@ const largeBody = express.json({ limit: '10mb' });
 // short TTL. Trending is an expensive aggregation that changes slowly (longer
 // TTL); feeds/counts use shorter TTLs to stay fresh. Caching no-ops if Redis is
 // unconfigured/unreachable.
-router.post("/latest-blogs", cacheResponse({ ttl: 60, tags: ['blogs'] }), asyncHandler(latestPosts));
+// 'feed' is a deliberately NARROW second tag: interaction writes (like/comment/vote) invalidate it
+// so the home feed reflects fresh counts on the next request, WITHOUT flushing the expensive
+// trending aggregation or search caches (those stay 'blogs'-only and ride their slower TTLs).
+router.post("/latest-blogs", cacheResponse({ ttl: 60, tags: ['blogs', 'feed'] }), asyncHandler(latestPosts));
 router.post("/all-latest-blogs-count", cacheResponse({ ttl: 120, tags: ['blogs'] }), asyncHandler(allLatestPostsCount));
 router.get("/trending-blogs", cacheResponse({ ttl: 300, tags: ['blogs'] }), asyncHandler(trendingPosts));
 router.post("/search-blogs", cacheResponse({ ttl: 120, tags: ['blogs'] }), asyncHandler(searchPosts));
@@ -56,7 +59,11 @@ router.post("/create-blog", verifyJWT, largeBody, invalidateCacheOnWrite(blogWri
 router.post("/create-text-post", verifyJWT, invalidateCacheOnWrite(['blogs'], skipDrafts), asyncHandler(createTextPost));
 
 // ── Protected — interactions (type-agnostic) ────────────────────────
-router.post("/like-blog", verifyJWT, validate(likeBlogSchema), asyncHandler(likePost));
+// Likes change activity.total_likes, which every cached feed card renders — without invalidation
+// the Redis-cached /latest-blogs served the OLD count for up to 60s after a like, so a refresh
+// showed a filled heart (per-user status is uncached) with a stale count. Localhost has no Redis,
+// which is why this only ever reproduced on dev/prod. Narrow 'feed' tag: see /latest-blogs above.
+router.post("/like-blog", verifyJWT, validate(likeBlogSchema), invalidateCacheOnWrite(['feed']), asyncHandler(likePost));
 router.post("/isliked-by-user", verifyJWT, asyncHandler(isLikedByUser));
 router.post("/batch-isliked", verifyJWT, asyncHandler(batchIsLiked));
 
@@ -67,7 +74,9 @@ router.post("/delete-blog", verifyJWT, validate(deleteBlogSchema), invalidateCac
 router.post("/bulk-delete-blogs", verifyJWT, invalidateCacheOnWrite(['blogs', 'publications']), asyncHandler(bulkDeleteBlogs));
 
 // ── Protected — text post polls ─────────────────────────────────────
-router.post("/vote-poll", verifyJWT, asyncHandler(votePoll));
+// Poll tallies (poll.options[].votes / total_votes) render on cached feed cards — same stale-cache
+// bug as likes, same narrow 'feed' invalidation. (Trending is unaffected: it excludes text posts.)
+router.post("/vote-poll", verifyJWT, invalidateCacheOnWrite(['feed']), asyncHandler(votePoll));
 router.post("/check-poll-vote", verifyJWT, asyncHandler(checkPollVote));
 router.post("/poll-voters", verifyJWT, asyncHandler(getPollVoters));
 

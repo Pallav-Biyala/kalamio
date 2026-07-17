@@ -7,9 +7,15 @@ import sanitizeHtml from 'sanitize-html';
 
 // Delete comments helper (recursive). `req` is threaded through so the post-decrement count can be
 // broadcast live to everyone viewing the post (blog:<id> room), mirroring addComment's count-up.
-const deleteComments = (_id, req) => {
-    Comment.findOneAndDelete({ _id })
-    .then(comment => {
+// Async and AWAITED all the way down: the delete-comment route invalidates the cached feed when the
+// handler responds, so every activity.total_comments decrement in the cascade must be committed
+// before res.json — a fire-and-forget cascade let the cache flush outrun the DB writes and re-cache
+// the stale count for a full TTL. Side effects that never appear in cached reads (parent pulls,
+// notifications, comment-likes) stay fire-and-forget.
+const deleteComments = async (_id, req) => {
+    try {
+        const comment = await Comment.findOneAndDelete({ _id });
+        if (!comment) return;
 
         if(comment.parent){
             Comment.findOneAndUpdate({ _id: comment.parent }, { $pull: { children: _id } })
@@ -30,27 +36,22 @@ const deleteComments = (_id, req) => {
         // $inc/$pull it's a non-operator key, which MongoDB rejects — the whole update was failing
         // into the catch, so deletes never decremented the count or pulled the ref. { new: true }
         // returns the fresh doc so we can broadcast the decremented count.
-        Post.findOneAndUpdate(
+        const blog = await Post.findOneAndUpdate(
             { _id: comment.blog_id },
             { $pull: { comments: _id }, $inc: { 'activity.total_comments': -1, 'activity.total_parent_comments': comment.parent ? 0 : -1 } },
             { new: true }
-        )
-        .then(blog => {
-            // Push the decremented count so it falls live for other viewers (delete path was the
-            // only engagement mutation missing its emitBlogUpdate).
-            if (blog) emitBlogUpdate(req, blog._id, { total_comments: blog.activity.total_comments });
-            if(comment.children.length){
-                comment.children.map(replies => {
-                    deleteComments(replies, req)
-                })
-            }
-        })
-        .catch(err => console.error('[Comment] Failed to update blog activity:', err.message))
+        ).catch(err => { console.error('[Comment] Failed to update blog activity:', err.message); return null; });
 
-    })
-    .catch(err => {
+        // Push the decremented count so it falls live for other viewers (delete path was the
+        // only engagement mutation missing its emitBlogUpdate).
+        if (blog) emitBlogUpdate(req, blog._id, { total_comments: blog.activity.total_comments });
+
+        if(comment.children.length){
+            await Promise.all(comment.children.map(replies => deleteComments(replies, req)));
+        }
+    } catch (err) {
         console.error('[Comment] deleteComments failed:', err.message);
-    })
+    }
 };
 
 // Add comment
@@ -85,7 +86,11 @@ export const addComment = (req, res) => {
 
         let { comment, commentedAt, children } = commentFile;
 
-        Post.findOneAndUpdate({ _id }, {
+        // Awaited (not fire-and-forget): the route's invalidateCacheOnWrite(['feed']) flushes the
+        // cached feed when res.json fires, so the count increment must be committed BEFORE we
+        // respond — otherwise a concurrent feed request could re-cache the pre-comment count for a
+        // full TTL. Failure still only logs (the comment itself saved fine).
+        await Post.findOneAndUpdate({ _id }, {
             $push: { "comments": commentFile._id },
             $inc: { "activity.total_comments": 1, "activity.total_parent_comments": replying_to ? 0 : 1  }
         }, { new: true })
@@ -246,11 +251,14 @@ export const deleteComment = (req, res) => {
     let { _id } = req.body;
 
     Comment.findOne({ _id })
-    .then(comment => {
+    .then(async comment => {
 
         if(user_id == comment.commented_by.toString() || user_id == comment.blog_author.toString()){
 
-            deleteComments(_id, req)
+            // Awaited so the route's invalidateCacheOnWrite(['feed']) — which fires on res.json —
+            // flushes the cached feed only AFTER the count decrements committed. Also means the
+            // client's post-delete refetch can no longer see not-yet-deleted replies.
+            await deleteComments(_id, req)
 
             return res.status(200).json({ 'status': 'done' });
 
