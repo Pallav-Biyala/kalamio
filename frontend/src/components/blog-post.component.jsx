@@ -29,12 +29,13 @@ const BlogPostCard = ({ content, author }) => {
    const [showSaveModal, setShowSaveModal] = useState(false);
    const [commentsCount, setCommentsCount] = useState(total_comments);
 
-   const [likesCount, setLikesCount] = useState(total_likes);
-
-   // Sync from server when prop changes (feed refetch / tab switch)
-   useEffect(() => {
-       setLikesCount(total_likes);
-   }, [total_likes]);
+   // The like count is read straight from `total_likes` (the query-cache-backed prop), NOT mirrored
+   // into local state. useLikeBlog already patches that cache optimistically and then adopts the
+   // server's authoritative count, so the prop is the single source of truth. A local `likesCount`
+   // useState + a sync effect + an optimistic setter (what this used to be) is a THIRD writer that
+   // races the other two: with instant localhost responses the three converge, but under real
+   // network latency (dev/prod) they land out of order and the displayed count sticks at the wrong
+   // value — which is why the article (reads the prop directly) worked while the feed card didn't.
 
    useEffect(() => {
        setCommentsCount(total_comments);
@@ -53,7 +54,8 @@ const BlogPostCard = ({ content, author }) => {
        // flag, so a quick double-tap raced a like against an unlike on the same post.
        if (likeMutation.isPending) return;
        if(access_token){
-           setLikesCount(prev => isLiked ? prev - 1 : prev + 1);
+           // No local optimistic count here — useLikeBlog.onMutate patches total_likes in the cache,
+           // which flows back through the `content` prop and re-renders this card.
            likeMutation.mutate({ _id, isLikedByUser: isLiked });
        }
        else{
@@ -115,7 +117,7 @@ const BlogPostCard = ({ content, author }) => {
             <div className="feed-card__actions">
                 <button onClick={handleLike} className={`feed-card__action${isLiked ? " feed-card__action--like" : ""}`}>
                     <Icon name={isLiked ? "favorite" : "favorite_border"} />
-                    <span>{likesCount > 0 ? formatCount(likesCount) : "0"}</span>
+                    <span>{total_likes > 0 ? formatCount(total_likes) : "0"}</span>
                 </button>
                 <button 
                     onClick={(e) => {

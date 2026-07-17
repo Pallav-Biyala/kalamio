@@ -35,12 +35,8 @@ const TextPostCard = ({ content, author, onEdit }) => {
     const { data: isLiked = false } = useLikeStatus(_id);
     const likeMutation = useLikeBlog(id);
 
-    const [likesCount, setLikesCount] = useState(total_likes);
-
-    // Sync from server when prop changes (feed refetch / tab switch)
-    useEffect(() => {
-        setLikesCount(total_likes);
-    }, [total_likes]);
+    // Like count comes straight from the query-cache-backed prop (see blog-post.component for the
+    // full rationale) — no local mirror, so it can't race the mutation's cache patch under latency.
 
     useEffect(() => {
         setCommentsCount(total_comments);
@@ -69,7 +65,6 @@ const TextPostCard = ({ content, author, onEdit }) => {
     const handleLike = (e) => {
         e.preventDefault();
         if (access_token) {
-            setLikesCount(prev => isLiked ? prev - 1 : prev + 1);
             likeMutation.mutate({ _id, isLikedByUser: isLiked });
         } else {
             toast.error("Please login to like this post");
@@ -265,7 +260,7 @@ const TextPostCard = ({ content, author, onEdit }) => {
             <div className="feed-card__actions">
                 <button onClick={handleLike} className={`feed-card__action${isLiked ? " feed-card__action--like" : ""}`}>
                     <Icon name={isLiked ? "favorite" : "favorite_border"} />
-                    <span>{likesCount > 0 ? formatCount(likesCount) : "0"}</span>
+                    <span>{total_likes > 0 ? formatCount(total_likes) : "0"}</span>
                 </button>
                 <button 
                     onClick={(e) => {

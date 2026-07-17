@@ -40,13 +40,13 @@ const ReelCard = ({ blog }) => {
     const { data: isSaved } = useIsSaved(blog_id);
     const likeMutation = useLikeBlog(blog_id);
 
-    const [likesCount, setLikesCount] = useState(total_likes);
     const [showFullDes, setShowFullDes] = useState(false);
     const [showSaveModal, setShowSaveModal] = useState(false);
 
+    // Like count reads straight from `total_likes` (query-cache-backed); useLikeBlog patches that
+    // cache optimistically and adopts the server count. No local mirror — see blog-post.component.
     const handleLike = () => {
         if (access_token) {
-            setLikesCount(prev => !isLiked ? prev + 1 : prev - 1);
             likeMutation.mutate({ _id, isLikedByUser: isLiked });
         } else {
             toast.error("Please sign in to like");
@@ -91,7 +91,7 @@ const ReelCard = ({ blog }) => {
                         aria-label="Like"
                     >
                         <Icon name={isLiked ? "favorite" : "favorite_border"} filled={isLiked} />
-                        <span>{formatCount(likesCount)}</span>
+                        <span>{formatCount(total_likes)}</span>
                     </button>
 
                     <Link to={`/blog/${blog_id}`} className="reel-card__action-btn" aria-label="Comments">
