@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useContext } from 'react';
+import { useContext, useRef } from 'react';
 import { UserContext } from '../../App';
 import api from '../../common/api';
 import { queryKeys } from '../../common/queryKeys';
@@ -99,28 +99,34 @@ export const useLikeBlog = (blogId) => {
   const queryClient = useQueryClient();
   const { userAuth: { access_token } } = useContext(UserContext);
 
-  return useMutation({
+  // Monotonic tap counter for THIS card. Every tap gets a sequence number; only
+  // the most-recently-fired tap is allowed to write the server's authoritative
+  // numbers back into the cache. Under latency a like→unlike double-tap fires two
+  // overlapping requests whose responses can land out of order — without this,
+  // the slower (earlier, now-stale) response would stamp its status/count over
+  // the user's final intent. The ref is per-hook-instance = per-card = per-blog.
+  const seqRef = useRef(0);
+
+  const mutation = useMutation({
     mutationFn: ({ _id, isLikedByUser }) =>
       api.post('/like-blog', { _id, isLikedByUser }),
 
-    onMutate: async ({ _id, isLikedByUser }) => {
+    onMutate: ({ _id, isLikedByUser }) => {
+      const seq = ++seqRef.current;
       const delta = isLikedByUser ? -1 : 1;
-
-      // Cancel only the per-id like-status and the single blog-detail query —
-      // both are safe to pause. We deliberately do NOT cancel the shared feed
-      // (infinite) queries: cancelling them would abort in-flight pagination /
-      // initial loads for the whole feed.
-      await Promise.all([
-        queryClient.cancelQueries({ queryKey: queryKeys.likes.status(_id) }),
-        queryClient.cancelQueries({ queryKey: queryKeys.blogs.detail(blogId) }),
-      ]);
 
       // Snapshot only the per-id like-status boolean (per-blog key, so no
       // collision with concurrent likes on other blogs). The COUNT is rolled
-      // back with an inverse delta below rather than a whole-cache snapshot, so
-      // a failed like can't wipe a different blog's still-pending optimistic +1.
+      // back with an inverse delta on error rather than a whole-cache snapshot,
+      // so a failed like can't wipe a different blog's still-pending optimistic +1.
       const previousLikeStatus = queryClient.getQueryData(queryKeys.likes.status(_id));
 
+      // Flip the optimistic status + count SYNCHRONOUSLY and FIRST — before any
+      // awaited work — so a rapid second tap (which reads this value back via
+      // toggle() below) sees the fresh flipped state instead of the pre-click one.
+      // If we awaited cancelQueries first (the old code did), the flip was delayed
+      // and a like→unlike double-tap read the stale "not liked" value twice and
+      // sent two LIKEs, so the unlike never reached the server.
       queryClient.setQueryData(queryKeys.likes.status(_id), !isLikedByUser);
 
       // Optimistically patch total_likes for THIS blog in every blog cache
@@ -131,13 +137,25 @@ export const useLikeBlog = (blogId) => {
         (old) => patchBlogLikes(old, _id, delta),
       );
 
-      return { previousLikeStatus, _id, delta };
+      // Pause the two safe-to-cancel queries WITHOUT awaiting — awaiting would
+      // re-open the stale-read window above. We deliberately do NOT cancel the
+      // shared feed (infinite) queries: cancelling them would abort in-flight
+      // pagination / initial loads for the whole feed.
+      queryClient.cancelQueries({ queryKey: queryKeys.likes.status(_id) });
+      queryClient.cancelQueries({ queryKey: queryKeys.blogs.detail(blogId) });
+
+      return { previousLikeStatus, _id, delta, seq };
     },
 
     // The server is the authority. It answers with the real `liked_by_user` + `total_likes` on
     // every path — including the idempotent no-ops it takes when our `isLikedByUser` guess was
     // wrong — so adopt those numbers rather than keeping the optimistic delta.
-    onSuccess: (response, variables) => {
+    onSuccess: (response, variables, context) => {
+      // Only the most-recently-fired tap may commit authoritative numbers. A
+      // superseded tap's (possibly out-of-order) response is ignored so it can't
+      // overwrite the user's final intent with a stale status/count.
+      if (context && context.seq !== seqRef.current) return;
+
       const { liked_by_user, total_likes } = response?.data || {};
 
       if (typeof liked_by_user === 'boolean') {
@@ -166,7 +184,12 @@ export const useLikeBlog = (blogId) => {
       );
     },
 
-    onSettled: (_data, _error, variables) => {
+    onSettled: (_data, _error, variables, context) => {
+      // Reconcile only after the LAST tap of a burst settles. An intermediate
+      // settle would refetch a mid-sequence server state and clobber the still
+      // in-flight final intent.
+      if (context && context.seq !== seqRef.current) return;
+
       queryClient.invalidateQueries({ queryKey: queryKeys.likes.status(variables._id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.blogs.detail(blogId) });
       // Feeds already carry the durable, optimistic count, so no immediate
@@ -177,4 +200,22 @@ export const useLikeBlog = (blogId) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.blogs.all(), refetchType: 'none' });
     },
   });
+
+  /**
+   * Toggle this blog's like. Reads the FRESHEST like-status from the cache (kept
+   * up to date synchronously by onMutate) instead of a stale render-closure
+   * boolean, so a like immediately followed by an unlike sends the correct
+   * action. It intentionally does NOT drop taps while one is pending: dropping
+   * the second tap (the old `if (isPending) return` guard) is exactly what left a
+   * like→unlike stuck liked on the server — the feed has no socket echo to
+   * reconcile it the way the article page does.
+   *
+   * @param {string} _id — the blog's MongoDB `_id`.
+   */
+  const toggle = (_id) => {
+    const currentlyLiked = queryClient.getQueryData(queryKeys.likes.status(_id)) === true;
+    mutation.mutate({ _id, isLikedByUser: currentlyLiked });
+  };
+
+  return Object.assign(mutation, { toggle });
 };

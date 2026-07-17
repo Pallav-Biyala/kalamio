@@ -76,7 +76,7 @@ describe('useLikeBlog', () => {
     const { result } = renderHook(() => useLikeBlog('a-slug'), { wrapper: makeWrapper(client) })
     act(() => result.current.mutate({ _id: 'A', isLikedByUser: false }))
 
-    // onMutate is async (awaits cancelQueries) — wait for the optimistic patch.
+    // onMutate applies the optimistic patch synchronously — wait is belt-and-braces.
     await waitFor(() => expect(feedLikes(client, 'A')).toBe(6))
     expect(client.getQueryData(queryKeys.likes.status('A'))).toBe(true)
     expect(client.getQueryData(queryKeys.blogs.detail('a-slug')).activity.total_likes).toBe(6)
@@ -228,6 +228,77 @@ describe('useLikeBlog', () => {
 
     expect(feedLikes(client, 'A')).toBe(5)
     expect(feedLikes(client, 'B')).toBe(9) // untouched
+  })
+
+  // ── Regression: rapid like→unlike double-tap under latency ──────────────────
+  //
+  // The feed-card bug. With a slow /like-blog, the user taps like then unlike a moment later
+  // while the first request is still in flight. The old handler dropped the second tap
+  // (`if (isPending) return`) AND read a stale render-closure boolean, so the unlike never
+  // reached the server: the UI showed unliked while the server stayed liked, and (the feed has
+  // no socket echo to reconcile it) the desync survived a refresh. toggle() fixes both — it reads
+  // the freshest cache status and never drops a tap.
+
+  it('toggle() reads the fresh optimistic status so a like→unlike double-tap sends both actions', async () => {
+    const client = makeClient()
+    seedFeed(client, [blog('A', 'a-slug', 5)])
+    client.setQueryData(queryKeys.likes.status('A'), false)
+    // First request stays pending across the second tap (the latency window).
+    const reqLike = deferred()
+    const reqUnlike = deferred()
+    api.post
+      .mockReturnValueOnce(reqLike.promise)
+      .mockReturnValueOnce(reqUnlike.promise)
+
+    const { result } = renderHook(() => useLikeBlog('a-slug'), { wrapper: makeWrapper(client) })
+
+    // Tap 1: like. Reads cache=false → sends isLikedByUser:false.
+    act(() => result.current.toggle('A'))
+    await waitFor(() => expect(client.getQueryData(queryKeys.likes.status('A'))).toBe(true))
+
+    // Tap 2, while tap 1 is STILL pending: must read the freshly-flipped cache=true and
+    // send isLikedByUser:true (unlike) — not drop, not repeat the like.
+    act(() => result.current.toggle('A'))
+    await waitFor(() => expect(client.getQueryData(queryKeys.likes.status('A'))).toBe(false))
+
+    expect(api.post).toHaveBeenCalledTimes(2)
+    expect(api.post).toHaveBeenNthCalledWith(1, '/like-blog', { _id: 'A', isLikedByUser: false })
+    expect(api.post).toHaveBeenNthCalledWith(2, '/like-blog', { _id: 'A', isLikedByUser: true })
+
+    // Both settle in order: end state is unliked, count back to 5.
+    await act(async () => reqLike.resolve({ data: { liked_by_user: true, total_likes: 6 } }))
+    await act(async () => reqUnlike.resolve({ data: { liked_by_user: false, total_likes: 5 } }))
+    await waitFor(() => expect(feedLikes(client, 'A')).toBe(5))
+    expect(client.getQueryData(queryKeys.likes.status('A'))).toBe(false)
+  })
+
+  it('ignores a superseded tap whose response lands AFTER the latest (out-of-order guard)', async () => {
+    const client = makeClient()
+    seedFeed(client, [blog('A', 'a-slug', 5)])
+    client.setQueryData(queryKeys.likes.status('A'), false)
+    const reqLike = deferred()
+    const reqUnlike = deferred()
+    api.post
+      .mockReturnValueOnce(reqLike.promise)
+      .mockReturnValueOnce(reqUnlike.promise)
+
+    const { result } = renderHook(() => useLikeBlog('a-slug'), { wrapper: makeWrapper(client) })
+
+    act(() => result.current.toggle('A'))                          // tap 1: like  (seq 1)
+    await waitFor(() => expect(client.getQueryData(queryKeys.likes.status('A'))).toBe(true))
+    act(() => result.current.toggle('A'))                          // tap 2: unlike (seq 2, latest)
+    await waitFor(() => expect(client.getQueryData(queryKeys.likes.status('A'))).toBe(false))
+
+    // The LATEST tap (unlike) resolves FIRST — commits liked:false / 5.
+    await act(async () => reqUnlike.resolve({ data: { liked_by_user: false, total_likes: 5 } }))
+    await waitFor(() => expect(feedLikes(client, 'A')).toBe(5))
+
+    // The superseded tap (like) resolves LATE with liked:true / 6 — must be IGNORED,
+    // not allowed to stamp the stale liked/6 over the user's final unliked state.
+    await act(async () => reqLike.resolve({ data: { liked_by_user: true, total_likes: 6 } }))
+
+    expect(feedLikes(client, 'A')).toBe(5)
+    expect(client.getQueryData(queryKeys.likes.status('A'))).toBe(false)
   })
 
   it('keeps the optimistic value if the server omits total_likes (older server)', async () => {

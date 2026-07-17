@@ -35,11 +35,11 @@ const BlogInteraction = () => {
     const [showSaveModal, setShowSaveModal] = useState(false);
 
     const handleLike = () => {
-        // Ignore taps while one is in flight — a rapid second click carries the flipped optimistic
-        // flag and races an unlike against the like.
-        if (likeMutation.isPending) return;
         if(access_token){
-            likeMutation.mutate({ _id, isLikedByUser });
+            // toggle() reads the freshest like-status from the cache (not the stale `isLikedByUser`
+            // closure) and never drops a rapid tap, so a like→unlike double-tap reliably reaches the
+            // server. Same robust path the feed cards use.
+            likeMutation.toggle(_id);
         }
         else{
             toast.error("Please login to like this blog");

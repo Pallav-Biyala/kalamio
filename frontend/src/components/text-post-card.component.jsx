@@ -65,7 +65,10 @@ const TextPostCard = ({ content, author, onEdit }) => {
     const handleLike = (e) => {
         e.preventDefault();
         if (access_token) {
-            likeMutation.mutate({ _id, isLikedByUser: isLiked });
+            // toggle() reads the freshest like-status from the cache (not the stale `isLiked`
+            // closure) and never drops a rapid tap, so a like→unlike double-tap reliably reaches
+            // the server instead of leaving the count/icon desynced.
+            likeMutation.toggle(_id);
         } else {
             toast.error("Please login to like this post");
         }

@@ -50,13 +50,12 @@ const BlogPostCard = ({ content, author }) => {
 
    const handleLike = (e) => {
        e.preventDefault();
-       // Ignore taps while one is in flight: the second click would carry the flipped OPTIMISTIC
-       // flag, so a quick double-tap raced a like against an unlike on the same post.
-       if (likeMutation.isPending) return;
        if(access_token){
-           // No local optimistic count here — useLikeBlog.onMutate patches total_likes in the cache,
-           // which flows back through the `content` prop and re-renders this card.
-           likeMutation.mutate({ _id, isLikedByUser: isLiked });
+           // toggle() reads the freshest like-status from the cache (not the stale `isLiked`
+           // closure) and does NOT drop rapid taps — so a like→unlike double-tap reliably reaches
+           // the server. useLikeBlog.onMutate patches total_likes in the cache, which flows back
+           // through the `content` prop and re-renders this card; no local optimistic count here.
+           likeMutation.toggle(_id);
        }
        else{
            toast.error("Please login to like this blog");

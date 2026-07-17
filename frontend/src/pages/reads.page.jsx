@@ -47,7 +47,9 @@ const ReelCard = ({ blog }) => {
     // cache optimistically and adopts the server count. No local mirror — see blog-post.component.
     const handleLike = () => {
         if (access_token) {
-            likeMutation.mutate({ _id, isLikedByUser: isLiked });
+            // toggle() reads the freshest like-status from the cache (not the stale `isLiked`
+            // closure) and never drops a rapid tap — keeps count/icon in sync under latency.
+            likeMutation.toggle(_id);
         } else {
             toast.error("Please sign in to like");
         }
