@@ -164,6 +164,7 @@ const SubscriptionsPage = () => {
                             {blogs.map((blog, i) => (
                                 <AnimationWrapper
                                     key={blog.blog_id || blog._id}
+                                    once={blog.blog_id || blog._id}
                                     transition={{ duration: 0.4, delay: i * 0.04 }}
                                 >
                                     {blog.type === 'text_post' ? (

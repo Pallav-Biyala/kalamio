@@ -103,15 +103,15 @@
    and the paragraph gap (margin-bottom) are set in index.css — the `.tiptap-content-area .ProseMirror`
    typography block there wins the cascade (it's in Tailwind's @layer components), so tune spacing
    there, not here. */
-.tiptap-content-area .ProseMirror > * + * {
+.tiptap-content > * + * {
   margin-top: 0;
 }
-.tiptap-content-area .ProseMirror > *:first-child {
+.tiptap-content > *:first-child {
   margin-top: 0;
 }
 
 /* Placeholder */
-.tiptap-content-area .ProseMirror p.is-editor-empty:first-child::before {
+.tiptap-content p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
   color: rgb(var(--c-dark-grey));
@@ -430,42 +430,42 @@
 }
 
 /* ── Headings ───────────────────────────────────────────────── */
-.tiptap-content-area .ProseMirror h1 {
+.tiptap-content h1 {
   font-size: 2.25rem;
   font-weight: 700;
   line-height: 1.2;
   margin-top: 1.5em;
 }
 
-.tiptap-content-area .ProseMirror h2 {
+.tiptap-content h2 {
   font-size: 1.875rem;
   font-weight: 700;
   line-height: 1.25;
   margin-top: 1.4em;
 }
 
-.tiptap-content-area .ProseMirror h3 {
+.tiptap-content h3 {
   font-size: 1.5rem;
   font-weight: 600;
   line-height: 1.3;
   margin-top: 1.3em;
 }
 
-.tiptap-content-area .ProseMirror h4 {
+.tiptap-content h4 {
   font-size: 1.25rem;
   font-weight: 600;
   line-height: 1.35;
   margin-top: 1.2em;
 }
 
-.tiptap-content-area .ProseMirror h5 {
+.tiptap-content h5 {
   font-size: 1.1rem;
   font-weight: 600;
   line-height: 1.4;
   margin-top: 1.1em;
 }
 
-.tiptap-content-area .ProseMirror h6 {
+.tiptap-content h6 {
   font-size: 1rem;
   font-weight: 600;
   line-height: 1.4;
@@ -473,12 +473,12 @@
 }
 
 /* Breathing room under every heading so the following text isn't flush against it. */
-.tiptap-content-area .ProseMirror h1,
-.tiptap-content-area .ProseMirror h2,
-.tiptap-content-area .ProseMirror h3,
-.tiptap-content-area .ProseMirror h4,
-.tiptap-content-area .ProseMirror h5,
-.tiptap-content-area .ProseMirror h6 {
+.tiptap-content h1,
+.tiptap-content h2,
+.tiptap-content h3,
+.tiptap-content h4,
+.tiptap-content h5,
+.tiptap-content h6 {
   margin-bottom: 0.4em;
 }
 
@@ -487,46 +487,78 @@
    H1 and broke the hierarchy. Re-establish a proper, monotonically-decreasing scale (~1.2 ratio) for
    the editor AND the published article. Scoped + !important so it wins over those globals without
    touching other UI headings. */
-.tiptap-content-area .ProseMirror h1, .blog-page-content h1 { font-size: 2.6rem !important; }
-.tiptap-content-area .ProseMirror h2, .blog-page-content h2 { font-size: 2.15rem !important; }
-.tiptap-content-area .ProseMirror h3, .blog-page-content h3 { font-size: 1.8rem !important; }
-.tiptap-content-area .ProseMirror h4, .blog-page-content h4 { font-size: 1.5rem !important; }
-.tiptap-content-area .ProseMirror h5, .blog-page-content h5 { font-size: 1.25rem !important; }
-.tiptap-content-area .ProseMirror h6, .blog-page-content h6 { font-size: 1.05rem !important; }
+/* Fluid heading scale — interpolates smoothly between a 375px phone and a 1280px desktop with
+   clamp(), instead of the old hard jump at 768px that then froze one size for every phone. Headings
+   shrink MORE than body on the way down (h1 −26%, h6 −7%): a big display size that's right on desktop
+   becomes a wall of type in a ~340px phone column, so larger levels compound the reduction — the
+   documented behaviour of Medium/Substack/Ghost. The clamp() min/max are in rem so they still respond
+   to a reader's browser font-size (the vw term is the accessible Utopia pattern), and because heading
+   MARGINS are in em, the section spacing scales with these sizes for free. Root is 14px. */
+.tiptap-content h1 { font-size: clamp(1.929rem, 1.65rem + 1.039vw, 2.6rem) !important; }
+.tiptap-content h2 { font-size: clamp(1.643rem, 1.433rem + 0.785vw, 2.15rem) !important; }
+.tiptap-content h3 { font-size: clamp(1.429rem, 1.275rem + 0.575vw, 1.8rem) !important; }
+.tiptap-content h4 { font-size: clamp(1.25rem, 1.146rem + 0.387vw, 1.5rem) !important; }
+.tiptap-content h5 { font-size: clamp(1.107rem, 1.048rem + 0.221vw, 1.25rem) !important; }
+.tiptap-content h6 { font-size: clamp(0.979rem, 0.949rem + 0.11vw, 1.05rem) !important; }
 
-@media (max-width: 768px) {
-  .tiptap-content-area .ProseMirror h1, .blog-page-content h1 { font-size: 2.1rem !important; }
-  .tiptap-content-area .ProseMirror h2, .blog-page-content h2 { font-size: 1.75rem !important; }
-  .tiptap-content-area .ProseMirror h3, .blog-page-content h3 { font-size: 1.5rem !important; }
-  .tiptap-content-area .ProseMirror h4, .blog-page-content h4 { font-size: 1.3rem !important; }
-  .tiptap-content-area .ProseMirror h5, .blog-page-content h5 { font-size: 1.12rem !important; }
-  .tiptap-content-area .ProseMirror h6, .blog-page-content h6 { font-size: 1rem !important; }
+/* Size alone doesn't make a heading. The body-typography catch-all in index.css
+   (`#textEditor *, .blog-page-content *, .ProseMirror * { font-weight: 400 }`) sets EVERY
+   descendant to body weight — headings included — so a published H1/H3/H4/H5/H6 rendered as
+   large-but-unbold text, i.e. indistinguishable from a paragraph. Only H2 escaped, by accident of a
+   separate global `h2 { font-bold !important }` rule, which is why the hierarchy looked so random.
+   This is the same antidote already applied to <strong>/<b> for the identical reason. */
+.tiptap-content h1,
+.tiptap-content h2,
+.tiptap-content h3,
+.tiptap-content h4,
+.tiptap-content h5,
+.tiptap-content h6 {
+    font-weight: 700 !important;
 }
 
+/* …and the text INSIDE the heading has to follow it.
+   The published reader wraps every text node in a <span> (tiptap-renderer, `case 'text'`), and the
+   body-typography catch-all in index.css (`.blog-page-content *`) matches those spans too — so the
+   words a reader actually sees were painted at BODY size/weight even though the <h1> around them was
+   correct. The EDITOR puts bare text in its headings (no span), which is exactly why a heading looked
+   right while writing and collapsed into paragraph text once published. Marks (a bold or linked word
+   inside a heading) hit the same wall. So: anything inside a heading inherits that heading. */
+.tiptap-content h1 *,
+.tiptap-content h2 *,
+.tiptap-content h3 *,
+.tiptap-content h4 *,
+.tiptap-content h5 *,
+.tiptap-content h6 * {
+    font-size: inherit !important;
+    font-weight: inherit !important;
+}
+
+/* (The old @media(max-width:768px) heading block is gone — clamp() above handles every width now.) */
+
 /* ── Lists ──────────────────────────────────────────────────── */
-.tiptap-content-area .ProseMirror ul,
-.tiptap-content-area .ProseMirror ol {
+.tiptap-content ul,
+.tiptap-content ol {
   padding-left: 1.5em;
 }
 
-.tiptap-content-area .ProseMirror ul {
+.tiptap-content ul {
   list-style-type: disc;
 }
 
-.tiptap-content-area .ProseMirror ol {
+.tiptap-content ol {
   list-style-type: decimal;
 }
 
-.tiptap-content-area .ProseMirror li {
+.tiptap-content li {
   margin: 0.3em 0;
 }
 
-.tiptap-content-area .ProseMirror li p {
+.tiptap-content li p {
   margin: 0;
 }
 
 /* ── Blockquote ─────────────────────────────────────────────── */
-.tiptap-content-area .ProseMirror blockquote {
+.tiptap-content blockquote {
   border-left: 4px solid rgb(var(--c-brand));
   padding: 0.75em 1.25em;
   margin: 1em 0;
@@ -536,19 +568,19 @@
   font-style: italic;
 }
 
-.tiptap-content-area .ProseMirror blockquote p {
+.tiptap-content blockquote p {
   margin: 0;
 }
 
 /* ── Horizontal Rule ────────────────────────────────────────── */
-.tiptap-content-area .ProseMirror hr {
+.tiptap-content hr {
   border: none;
   border-top: 2px solid rgb(var(--c-border));
   margin: 2em 0;
 }
 
 /* ── Code (Inline) ──────────────────────────────────────────── */
-.tiptap-content-area .ProseMirror code {
+.tiptap-content code {
   background: rgb(var(--c-grey));
   border-radius: var(--radius-sm);
   padding: 0.15em 0.4em;
@@ -624,14 +656,14 @@
 }
 
 /* ── Highlight / Mark ───────────────────────────────────────── */
-.tiptap-content-area .ProseMirror mark {
+.tiptap-content mark {
   background: rgba(255, 217, 0, 0.35);
   padding: 0.1em 0.2em;
   border-radius: 2px;
 }
 
 /* ── Links ──────────────────────────────────────────────────── */
-.tiptap-content-area .ProseMirror a {
+.tiptap-content a {
   color: #3b82f6;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -640,12 +672,12 @@
   transition: opacity 0.15s ease;
 }
 
-.tiptap-content-area .ProseMirror a:hover {
+.tiptap-content a:hover {
   opacity: 0.75;
 }
 
 /* ── Tables ─────────────────────────────────────────────────── */
-.tiptap-content-area .ProseMirror table {
+.tiptap-content table {
   border-collapse: collapse;
   width: 100%;
   margin: 1em 0;
@@ -654,8 +686,8 @@
   border: 1px solid rgb(var(--c-border));
 }
 
-.tiptap-content-area .ProseMirror td,
-.tiptap-content-area .ProseMirror th {
+.tiptap-content td,
+.tiptap-content th {
   border: 1px solid rgb(var(--c-border));
   padding: 0.5em 0.75em;
   min-width: 100px;
@@ -664,12 +696,12 @@
   position: relative;
 }
 
-.tiptap-content-area .ProseMirror th {
+.tiptap-content th {
   font-weight: 600;
   background: rgb(var(--c-grey));
 }
 
-.tiptap-content-area .ProseMirror .selectedCell::after {
+.tiptap-content .selectedCell::after {
   content: '';
   position: absolute;
   top: 0;
@@ -681,7 +713,7 @@
   z-index: 2;
 }
 
-.tiptap-content-area .ProseMirror .column-resize-handle {
+.tiptap-content .column-resize-handle {
   position: absolute;
   right: -2px;
   top: 0;
@@ -691,12 +723,12 @@
   pointer-events: none;
 }
 
-.tiptap-content-area .ProseMirror .tableWrapper {
+.tiptap-content .tableWrapper {
   overflow-x: auto;
   margin: 1em 0;
 }
 
-.tiptap-content-area .ProseMirror table .resize-cursor {
+.tiptap-content table .resize-cursor {
   cursor: col-resize;
 }
 
@@ -858,7 +890,7 @@
 }
 
 /* ── Mentions ───────────────────────────────────────────────── */
-.tiptap-content-area .ProseMirror .mention {
+.tiptap-content .mention {
   display: inline;
   padding: 2px 6px;
   background: rgb(var(--c-brand) / 0.12);
@@ -1312,14 +1344,6 @@
 }
 
 /* ── Reader-Side: Blog Content Styles ───────────────────────── */
-.blog-page-content .blog-blockquote {
-  border-left: 4px solid rgb(var(--c-brand));
-  padding: 0.75em 1.25em;
-  margin: 1.25em 0;
-  background: rgb(var(--c-grey));
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  font-style: italic;
-}
 
 .blog-page-content .blog-image {
   margin: 1.5em 0;
@@ -1362,14 +1386,6 @@
   font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
 }
 
-.blog-page-content .inline-code {
-  background: rgb(var(--c-grey));
-  border-radius: var(--radius-sm);
-  padding: 0.15em 0.4em;
-  font-size: 0.9em;
-  font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  color: rgb(var(--c-brand));
-}
 
 .blog-page-content mark {
   background: rgba(255, 217, 0, 0.35);
@@ -1454,7 +1470,7 @@
 .hljs-deletion { color: #b31d28; background: #ffeef0; }
 
 /* ── YouTube Embed (official extension) ─────────────────────── */
-.tiptap-content-area .ProseMirror .youtube-embed {
+.tiptap-content .youtube-embed {
   position: relative;
   padding-bottom: 56.25%; /* 16:9 */
   height: 0;
@@ -1463,7 +1479,7 @@
   border-radius: var(--radius-md);
 }
 
-.tiptap-content-area .ProseMirror .youtube-embed iframe {
+.tiptap-content .youtube-embed iframe {
   position: absolute;
   top: 0;
   left: 0;
@@ -1501,7 +1517,7 @@
   background: rgb(var(--c-grey));
 }
 
-[data-theme="dark"] .tiptap-content-area .ProseMirror code {
+[data-theme="dark"] .tiptap-content code {
   background: rgb(var(--c-grey));
 }
 

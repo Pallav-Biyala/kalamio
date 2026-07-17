@@ -60,9 +60,12 @@ const RightSidebar = ({ onTrendingClick }) => {
           ) : (
             trendingBlogs?.length ?
                 trendingBlogs.slice(0, 5).map((blog, i) => {
+                // `once`: trending banners are cached — don't replay the fade every time this
+                // sidebar remounts, which looked like the images were reloading.
                 return (
                     <AnimationWrapper
                     key={blog.blog_id}
+                    once={blog.blog_id}
                     transition={{ duration: 0.4, delay: i * 0.05 }}
                     >
                     <MinimalBlogPost blog={blog} index={i} />

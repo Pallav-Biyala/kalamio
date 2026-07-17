@@ -219,7 +219,7 @@ const PublicationPage = () => {
                             {allFeedQuery.isLoading ? <Loader /> :
                                 allBlogs.length ?
                                     allBlogs.map((blog, i) => (
-                                        <AnimationWrapper key={blog.blog_id} transition={{ duration: 0.4, delay: i * 0.04 }}>
+                                        <AnimationWrapper key={blog.blog_id} once={blog.blog_id} transition={{ duration: 0.4, delay: i * 0.04 }}>
                                             {blog.type === 'text_post' ? (
                                                 <TextPostCard content={blog} author={blog.author.personal_info} />
                                             ) : (
@@ -241,7 +241,7 @@ const PublicationPage = () => {
                             {articlesFeedQuery.isLoading ? <Loader /> :
                                 articlesBlogs.length ?
                                     articlesBlogs.map((blog, i) => (
-                                        <AnimationWrapper key={blog.blog_id} transition={{ duration: 0.4, delay: i * 0.04 }}>
+                                        <AnimationWrapper key={blog.blog_id} once={blog.blog_id} transition={{ duration: 0.4, delay: i * 0.04 }}>
                                             <BlogPostCard content={blog} author={blog.author.personal_info} />
                                         </AnimationWrapper>
                                     ))
@@ -259,7 +259,7 @@ const PublicationPage = () => {
                             {textPostsFeedQuery.isLoading ? <Loader /> :
                                 textPostsBlogs.length ?
                                     textPostsBlogs.map((blog, i) => (
-                                        <AnimationWrapper key={blog.blog_id} transition={{ duration: 0.4, delay: i * 0.04 }}>
+                                        <AnimationWrapper key={blog.blog_id} once={blog.blog_id} transition={{ duration: 0.4, delay: i * 0.04 }}>
                                             <TextPostCard content={blog} author={blog.author.personal_info} />
                                         </AnimationWrapper>
                                     ))

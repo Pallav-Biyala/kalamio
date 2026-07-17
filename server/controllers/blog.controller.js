@@ -3,6 +3,7 @@ import Post from '../Schema/Post.js';
 import User from '../Schema/User.js';
 import Publication from '../Schema/Publication.js';
 import Notification from '../Schema/Notification.js';
+import Like from '../Schema/Like.js';
 import Comment from '../Schema/Comment.js';
 import Collection from '../Schema/Collection.js';
 import { nanoid } from 'nanoid';
@@ -119,6 +120,7 @@ export const createBlog = (req, res) => {
             }
 
             const shouldBeDraft = existingBlog.draft ? Boolean(draft) : false;
+            const isPublishing = existingBlog.draft && !shouldBeDraft;
 
             let updateData = {
                 title, des, banner, content, tags,
@@ -127,11 +129,6 @@ export const createBlog = (req, res) => {
                 edited: true
             };
 
-            // If publishing a draft, update publishedAt to now
-            if (existingBlog.draft && !shouldBeDraft) {
-                updateData.publishedAt = new Date();
-            }
-
             // Handle publication change on update
             if (publication !== undefined) {
                 updateData.publication = publication || null;
@@ -139,6 +136,20 @@ export const createBlog = (req, res) => {
 
             const blog = await Blog.findOneAndUpdate({ blog_id, author: authorId }, updateData);
             if (!blog) return res.status(403).json({ error: "You don't have permission to edit this blog" });
+
+            // Stamp the publish time. publishedAt is aliased to Mongoose's createdAt
+            // (Post.js: `timestamps: { createdAt: 'publishedAt' }`), which Mongoose marks IMMUTABLE —
+            // so a normal ODM write silently drops any change to it, and the draft's creation time
+            // leaked through as the published date. Verified against Mongoose 7: neither
+            // `timestamps:false` nor `overwriteImmutable` lifts it. A targeted raw write (just two
+            // Date fields, no casting) reliably sets it, and only runs after ownership is confirmed
+            // above. Direct (non-draft) publishes are unaffected — their createdAt already IS now.
+            if (isPublishing) {
+                await Blog.collection.updateOne(
+                    { _id: blog._id },
+                    { $set: { publishedAt: new Date(), updatedAt: new Date() } },
+                );
+            }
 
             // If publication changed, update counters
             const oldPubId = existingBlog.publication?.toString() || null;
@@ -216,6 +227,8 @@ export const bulkDeleteBlogs = async (req, res) => {
     await Promise.all([
         Comment.deleteMany({ blog_id: { $in: post_ids } }),
         Notification.deleteMany({ blog: { $in: post_ids } }),
+        // Likes are separate records from notifications now — cascade them too.
+        Like.deleteMany({ blog: { $in: post_ids } }),
         Collection.updateMany(
             { 'articles.blog': { $in: post_ids } },
             { $pull: { articles: { blog: { $in: post_ids } } }, $inc: { total_articles: -1 } }

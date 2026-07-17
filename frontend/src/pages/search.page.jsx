@@ -29,7 +29,7 @@ const SearchPage = () => {
                 usersLoading ? <Loader /> :
                     users?.length ?
                         users.map((user, i) => {
-                            return <AnimationWrapper key={user.personal_info.username} transition={{ duration: 1, delay: i*0.08 }}>
+                            return <AnimationWrapper key={user.personal_info.username} once={user.personal_info.username} transition={{ duration: 1, delay: i*0.08 }}>
                                 <UserCard user={user}/>
                             </AnimationWrapper>
                         })
@@ -56,6 +56,7 @@ const SearchPage = () => {
                 return (
                   <AnimationWrapper
                     key={blog.blog_id}
+                    once={blog.blog_id}
                     transition={{ duration: 1, delay: i * 0.1 }}
                   >
                     <BlogPostCard

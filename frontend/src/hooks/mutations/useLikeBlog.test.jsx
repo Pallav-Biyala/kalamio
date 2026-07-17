@@ -162,4 +162,88 @@ describe('useLikeBlog', () => {
     expect(client.getQueryData(queryKeys.likes.status('A'))).toBe(false)
     expect(client.getQueryData(queryKeys.likes.status('B'))).toBe(true)
   })
+
+  // ── Regression: the server is the authority ────────────────────────────────
+  //
+  // The client sends what it BELIEVES the current state is, and that belief is often wrong: the
+  // like-status query may still be loading, may be stale (10 min staleTime), or a rapid second
+  // click carries the flipped optimistic flag. The server then correctly no-ops — and used to
+  // reply without a count, stranding the optimistic +1/-1 on screen (feeds settle with
+  // refetchType:'none') until a refresh "reverted" it. Reproduced live against the real API:
+  // count 5 -> 5 while the client showed 6.
+
+  it('adopts the server total_likes when our guess was wrong (stale false while already liked)', async () => {
+    const client = makeClient()
+    seedFeed(client, [blog('A', 'a-slug', 5)])
+    client.setQueryData(queryKeys.likes.status('A'), false)
+    const req = deferred()
+    api.post.mockReturnValue(req.promise)
+
+    const { result } = renderHook(() => useLikeBlog('a-slug'), { wrapper: makeWrapper(client) })
+    act(() => result.current.mutate({ _id: 'A', isLikedByUser: false }))
+
+    await waitFor(() => expect(feedLikes(client, 'A')).toBe(6)) // optimistic guess: +1
+
+    // Server: it was already liked, so nothing changed — the real count is still 5.
+    await act(async () => req.resolve({ data: { liked_by_user: true, total_likes: 5 } }))
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(feedLikes(client, 'A')).toBe(5)                                  // corrected, not 6
+    expect(client.getQueryData(queryKeys.likes.status('A'))).toBe(true)
+  })
+
+  it('adopts the server total_likes on a no-op unlike (stale true while not liked)', async () => {
+    const client = makeClient()
+    seedFeed(client, [blog('A', 'a-slug', 4)])
+    client.setQueryData(queryKeys.likes.status('A'), true)
+    const req = deferred()
+    api.post.mockReturnValue(req.promise)
+
+    const { result } = renderHook(() => useLikeBlog('a-slug'), { wrapper: makeWrapper(client) })
+    act(() => result.current.mutate({ _id: 'A', isLikedByUser: true }))
+
+    await waitFor(() => expect(feedLikes(client, 'A')).toBe(3)) // optimistic guess: -1
+
+    // Server: there was no like to remove — the real count is still 4.
+    await act(async () => req.resolve({ data: { liked_by_user: false, total_likes: 4 } }))
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(feedLikes(client, 'A')).toBe(4)                                  // corrected, not 3
+    expect(client.getQueryData(queryKeys.likes.status('A'))).toBe(false)
+  })
+
+  it('only corrects the target blog, leaving other blogs untouched', async () => {
+    const client = makeClient()
+    seedFeed(client, [blog('A', 'a-slug', 5), blog('B', 'b-slug', 9)])
+    client.setQueryData(queryKeys.likes.status('A'), false)
+    const req = deferred()
+    api.post.mockReturnValue(req.promise)
+
+    const { result } = renderHook(() => useLikeBlog('a-slug'), { wrapper: makeWrapper(client) })
+    act(() => result.current.mutate({ _id: 'A', isLikedByUser: false }))
+    await waitFor(() => expect(feedLikes(client, 'A')).toBe(6))
+
+    await act(async () => req.resolve({ data: { liked_by_user: true, total_likes: 5 } }))
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(feedLikes(client, 'A')).toBe(5)
+    expect(feedLikes(client, 'B')).toBe(9) // untouched
+  })
+
+  it('keeps the optimistic value if the server omits total_likes (older server)', async () => {
+    const client = makeClient()
+    seedFeed(client, [blog('A', 'a-slug', 5)])
+    client.setQueryData(queryKeys.likes.status('A'), false)
+    const req = deferred()
+    api.post.mockReturnValue(req.promise)
+
+    const { result } = renderHook(() => useLikeBlog('a-slug'), { wrapper: makeWrapper(client) })
+    act(() => result.current.mutate({ _id: 'A', isLikedByUser: false }))
+    await waitFor(() => expect(feedLikes(client, 'A')).toBe(6))
+
+    await act(async () => req.resolve({ data: { liked_by_user: true } })) // no count
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(feedLikes(client, 'A')).toBe(6) // no crash, optimistic value retained
+  })
 })

@@ -1,6 +1,7 @@
 import Comment from '../Schema/Comment.js';
 import Post from '../Schema/Post.js';
 import Notification from '../Schema/Notification.js';
+import Like from '../Schema/Like.js';
 import { emitNotification, emitBlogUpdate } from '../utils/notify.js';
 import sanitizeHtml from 'sanitize-html';
 
@@ -17,6 +18,10 @@ const deleteComments = (_id, req) => {
 
         Notification.findOneAndDelete({ comment: _id })
         .catch(err => console.error('[Comment] Failed to delete notification:', err.message));
+
+        // Likes are their own records now, so a deleted comment needs its likes cascaded too.
+        Like.deleteMany({ comment: _id })
+        .catch(err => console.error('[Comment] Failed to delete likes:', err.message));
 
         Notification.findOneAndUpdate({ reply: _id }, { $unset: { reply: 1 } })
         .catch(err => console.error('[Comment] Failed to unset reply notification:', err.message));
@@ -351,22 +356,38 @@ export const likeComment = async (req, res) => {
             return res.status(400).json({ error: "Comment ID is required" });
         }
 
-        let incrementVal = !isLikedByUser ? 1 : -1;
-
-        let comment = await Comment.findOneAndUpdate(
-            { _id },
-            { $inc: { "activity.total_likes": incrementVal } },
-            { new: true }
-        );
-
-        if (!comment) {
-            return res.status(404).json({ error: "Comment not found" });
-        }
+        // `isLikedByUser` is the CLIENT's belief and can be stale, unresolved, or a rapid second
+        // click's flipped optimistic flag — so the like row, not the flag, drives the counter.
+        // Previously the count was $inc'd unconditionally before any existence check, so a
+        // double-like added +2 and repeat unlikes could drive it negative.
+        const currentLikes = async () => {
+            const doc = await Comment.findById(_id).select("activity.total_likes");
+            return doc?.activity?.total_likes ?? 0;
+        };
 
         if (!isLikedByUser) {
-            // Like — create notification if not already exists
-            let existing = await Notification.findOne({ user: user_id, comment: _id, type: "comment_like" });
-            if (!existing) {
+            // Unique (user, comment) index ⇒ only one of any concurrent likes inserts.
+            const result = await Like.updateOne(
+                { user: user_id, comment: _id },
+                { $setOnInsert: { user: user_id, comment: _id } },
+                { upsert: true },
+            );
+            if ((result.upsertedCount ?? 0) === 0) {
+                return res.status(200).json({ liked_by_user: true, total_likes: await currentLikes() });
+            }
+
+            const comment = await Comment.findOneAndUpdate(
+                { _id },
+                { $inc: { "activity.total_likes": 1 } },
+                { new: true },
+            );
+            if (!comment) {
+                await Like.deleteOne({ user: user_id, comment: _id });
+                return res.status(404).json({ error: "Comment not found" });
+            }
+
+            // Notification is only the author's inbox item now; deleting it can't unlike anything.
+            if (String(comment.commented_by) !== String(user_id)) {
                 await new Notification({
                     type: "comment_like",
                     blog: comment.blog_id,
@@ -374,15 +395,26 @@ export const likeComment = async (req, res) => {
                     notification_for: comment.commented_by,
                     user: user_id
                 }).save();
-                if (String(comment.commented_by) !== String(user_id)) {
-                    emitNotification(req, comment.commented_by, { type: "comment_like" });
-                }
+                emitNotification(req, comment.commented_by, { type: "comment_like" });
             }
             return res.status(200).json({ liked_by_user: true, total_likes: comment.activity.total_likes });
         } else {
-            // Unlike — remove notification
+            const removal = await Like.deleteOne({ user: user_id, comment: _id });
+            if ((removal.deletedCount ?? 0) === 0) {
+                return res.status(200).json({ liked_by_user: false, total_likes: await currentLikes() });
+            }
+
+            const comment = await Comment.findOneAndUpdate(
+                { _id },
+                { $inc: { "activity.total_likes": -1 } },
+                { new: true },
+            );
             await Notification.findOneAndDelete({ user: user_id, comment: _id, type: "comment_like" });
-            return res.status(200).json({ liked_by_user: false, total_likes: comment.activity.total_likes });
+
+            return res.status(200).json({
+                liked_by_user: false,
+                total_likes: comment ? comment.activity.total_likes : await currentLikes(),
+            });
         }
     } catch (err) {
         return res.status(500).json({ error: err.message });
@@ -399,7 +431,8 @@ export const isCommentLiked = async (req, res) => {
             return res.status(400).json({ error: "Comment ID is required" });
         }
 
-        let exists = await Notification.exists({ user: user_id, comment: _id, type: "comment_like" });
+        // Reads the LIKE record — the author's notification is a separate, deletable inbox item.
+        let exists = await Like.exists({ user: user_id, comment: _id });
 
         return res.status(200).json({ result: !!exists });
     } catch (err) {

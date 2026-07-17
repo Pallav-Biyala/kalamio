@@ -129,8 +129,12 @@ const HomePage = () => {
 
   // Helper to render a blog card
   const renderBlogCard = (blog, i) => (
+    // `once`: fade a card in the first time it appears, but never again. Coming back to Home
+    // remounts this list, and replaying the staggered fade over already-cached images looked
+    // exactly like the feed was reloading.
     <AnimationWrapper
       key={blog.blog_id}
+      once={blog.blog_id}
       transition={{ duration: 0.4, delay: i * 0.04 }}
     >
       {blog.type === 'text_post' ? (

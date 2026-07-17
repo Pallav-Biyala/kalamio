@@ -42,8 +42,11 @@ const HeadingSelect = ({ editor }) => {
   }, []);
 
   const apply = useCallback((value) => {
+    // setHeading, NOT toggleHeading: a dropdown SETS a block type, it doesn't toggle one.
+    // toggleHeading un-sets the heading when that level is already active, so picking
+    // "Heading 1" on a block that was already H1 silently turned it back into a paragraph.
     if (value === 0) editor.chain().focus().setParagraph().run();
-    else editor.chain().focus().toggleHeading({ level: value }).run();
+    else editor.chain().focus().setHeading({ level: value }).run();
     setOpen(false);
   }, [editor]);
 

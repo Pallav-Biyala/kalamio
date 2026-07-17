@@ -301,7 +301,16 @@
         @apply font-inter text-3xl leading-loose max-md:text-2xl max-md:leading-normal !important;
     }
 
-    #textEditor *, .blog-page-content *, .tiptap-content-area .ProseMirror *, .tiptap-content-area .ProseMirror {
+    /* Body typography for article content, in BOTH the editor and the published page.
+       `.tiptap-content` is the class both surfaces already share (the editor sets it on ProseMirror
+       via editorProps; tiptap-renderer wraps the published article in it), so one selector covers
+       both — and, critically, at the SAME specificity. The editor used to be scoped as
+       `.tiptap-content-area .ProseMirror *` (0,2,0) while the reader was `.blog-page-content *`
+       (0,1,0): identical content rules like `.tiptap-content code` (0,1,1) therefore LOST in the
+       editor but WON in the reader, so the two surfaces silently drifted apart.
+       `.blog-page-content *` stays for legacy EditorJS posts, which render without a
+       `.tiptap-content` wrapper. */
+    #textEditor *, .blog-page-content *, .tiptap-content *, .tiptap-content {
         font-family: 'Literata', 'Merriweather', Charter, Georgia, Cambria, serif !important;
         font-weight: 400;
         /* Crisper serif rendering — better kerning + ligatures for a more refined read. */
@@ -323,15 +332,13 @@
         font-weight: 700;
     }
 
-    #textEditor p, .blog-page-content p, .tiptap-content-area .ProseMirror p {
+    /* One paragraph gap for BOTH surfaces. The editor used to override this to 0 so that pressing
+       Enter felt like a plain line break — but that made the editor the one place the article did NOT
+       look like itself: every published paragraph gained a gap the writer never saw. Writing and
+       reading now share the rhythm (WYSIWYG); Enter starts a paragraph (with this gap) and
+       Shift+Enter still inserts a bare line break for tight lines, which is the standard split. */
+    #textEditor p, .blog-page-content p, .tiptap-content p {
         margin-bottom: 1em;
-    }
-
-    /* In the EDITOR, pressing Enter should read as a plain line break — just the line-height spacing,
-       no extra paragraph gap. (Comes after the rule above so it wins for the editor only; the reader's
-       `.blog-page-content p` keeps its paragraph spacing so published articles stay legible.) */
-    .tiptap-content-area .ProseMirror p {
-        margin-bottom: 0;
     }
 
     /* Links — classic blue, underlined and a touch smaller so they clearly read as links. */

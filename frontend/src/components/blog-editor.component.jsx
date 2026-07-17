@@ -550,7 +550,7 @@ const BlogEditor = () => {
 
             <AnimationWrapper>
                 <section>
-                    <div className="mx-auto max-w-[900px] w-full">
+                    <div className="mx-auto max-w-[783px] w-full">
                         <div className="relative aspect-[2/1] md:aspect-video hover:opacity-80 bg-surface border-2 border-dashed border-border rounded-radius-lg overflow-hidden cursor-pointer group transition-all hover:border-brand/40">
                             <label htmlFor="uploadbanner" className="cursor-pointer">
                                 <img

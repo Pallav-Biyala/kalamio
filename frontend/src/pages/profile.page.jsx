@@ -233,6 +233,7 @@ const ProfilePage = () => {
                             return (
                                 <AnimationWrapper
                                 key={blog.blog_id || i}
+                                once={blog.blog_id || i}
                                 transition={{ duration: 0.4, delay: i * 0.05 }}
                                 >
                                 {blog.type === 'text_post' ? (
@@ -265,7 +266,7 @@ const ProfilePage = () => {
                             <Loader />
                         ) : publications.length ? (
                             publications.map((pub, i) => (
-                                <AnimationWrapper key={pub._id} transition={{ duration: 0.4, delay: i * 0.05 }}>
+                                <AnimationWrapper key={pub._id} once={pub._id} transition={{ duration: 0.4, delay: i * 0.05 }}>
                                     <div className="pub-profile-card">
                                         <Link to={`/publication/${pub.slug}`} className="pub-profile-card__title">
                                             <Icon name="import_contacts" className="pub-profile-card__icon" />

@@ -23,14 +23,21 @@ const BlogInteraction = () => {
 
     let { userAuth: { username, access_token } } = useContext(UserContext);
 
-    // TanStack Query hooks — cached + shared across all instances
-    const { data: isLikedByUser } = useLikeStatus(_id);
+    // TanStack Query hooks — cached + shared across all instances.
+    // Default to false: while this query is loading `data` is undefined, and sending that put
+    // `isLikedByUser: undefined` on the wire — JSON drops the key, the request fails validation,
+    // and the mutation's onError rolled the optimistic like straight back, so liking a post right
+    // after a refresh looked like the like was being removed.
+    const { data: isLikedByUser = false } = useLikeStatus(_id);
     const { data: isBookmarked } = useIsSaved(blog_id);
     const likeMutation = useLikeBlog(blog_id);
 
     const [showSaveModal, setShowSaveModal] = useState(false);
 
     const handleLike = () => {
+        // Ignore taps while one is in flight — a rapid second click carries the flipped optimistic
+        // flag and races an unlike against the like.
+        if (likeMutation.isPending) return;
         if(access_token){
             likeMutation.mutate({ _id, isLikedByUser });
         }

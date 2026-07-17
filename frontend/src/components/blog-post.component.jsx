@@ -49,6 +49,9 @@ const BlogPostCard = ({ content, author }) => {
 
    const handleLike = (e) => {
        e.preventDefault();
+       // Ignore taps while one is in flight: the second click would carry the flipped OPTIMISTIC
+       // flag, so a quick double-tap raced a like against an unlike on the same post.
+       if (likeMutation.isPending) return;
        if(access_token){
            setLikesCount(prev => isLiked ? prev - 1 : prev + 1);
            likeMutation.mutate({ _id, isLikedByUser: isLiked });

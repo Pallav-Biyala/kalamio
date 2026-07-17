@@ -1,6 +1,7 @@
 import Post from '../Schema/Post.js';
 import User from '../Schema/User.js';
 import Notification from '../Schema/Notification.js';
+import Like from '../Schema/Like.js';
 import Comment from '../Schema/Comment.js';
 import Publication from '../Schema/Publication.js';
 import { escapeRegex } from '../utils/helpers.js';
@@ -185,32 +186,58 @@ export const likePost = async (req, res) => {
         return res.status(400).json({ error: "Blog ID is required" });
     }
 
+    // `isLikedByUser` is what the CLIENT believes the current state is, and it is not trustworthy:
+    // its status query may not have resolved yet, may be stale (10 min staleTime), or a second
+    // rapid click may carry the flipped optimistic value. This handler is therefore idempotent —
+    // it reconciles against the DB rather than blindly toggling — and EVERY response carries the
+    // authoritative `total_likes` so the client can replace its optimistic guess with the truth.
+    // Without that, a no-op branch left the client showing a +1 the server never applied, which
+    // survived on screen (feeds settle with refetchType:'none') until a refresh "reverted" it.
+    const currentLikes = async () => {
+        const doc = await Post.findById(_id).select("activity.total_likes");
+        return doc?.activity?.total_likes ?? 0;
+    };
+
     try {
         if (!isLikedByUser) {
-            // LIKE — only count + notify if there wasn't already a like from this user.
-            const existing = await Notification.findOne({ user: user_id, blog: _id, type: "like" });
-            if (existing) {
-                return res.status(200).json({ liked_by_user: true });
+            // LIKE. The upsert is the idempotency guarantee: the unique (user, blog) index means
+            // only ONE of any number of concurrent/duplicate likes can insert, so the count can
+            // never be double-incremented by a double-tap or a retry.
+            const result = await Like.updateOne(
+                { user: user_id, blog: _id },
+                { $setOnInsert: { user: user_id, blog: _id } },
+                { upsert: true },
+            );
+            const isNewLike = (result.upsertedCount ?? 0) > 0;
+
+            if (!isNewLike) {
+                // Already liked — our caller's flag was stale. Report the truth, change nothing.
+                return res.status(200).json({ liked_by_user: true, total_likes: await currentLikes() });
             }
 
             const blog = await Post.findOneAndUpdate({ _id }, { $inc: { "activity.total_likes": 1 } }, { new: true });
             if (!blog) {
+                // Post vanished between the like and the increment — don't strand the row.
+                await Like.deleteOne({ user: user_id, blog: _id });
                 return res.status(404).json({ error: "Blog not found" });
             }
 
-            await new Notification({ type: "like", blog: _id, notification_for: blog.author, user: user_id }).save();
-
-            emitBlogUpdate(req, blog._id, { total_likes: blog.activity.total_likes });
+            // The notification is now only an inbox item for the author. Deleting it no longer
+            // destroys the like, so a self-like simply gets no notification at all.
             if (String(blog.author) !== String(user_id)) {
+                await new Notification({ type: "like", blog: _id, notification_for: blog.author, user: user_id }).save();
                 emitNotification(req, blog.author, { type: "like" });
             }
 
-            return res.status(200).json({ liked_by_user: true });
+            emitBlogUpdate(req, blog._id, { total_likes: blog.activity.total_likes });
+
+            return res.status(200).json({ liked_by_user: true, total_likes: blog.activity.total_likes });
         } else {
-            // UNLIKE — only decrement if a like actually existed.
-            const removed = await Notification.findOneAndDelete({ user: user_id, blog: _id, type: "like" });
-            if (!removed) {
-                return res.status(200).json({ liked_by_user: false });
+            // UNLIKE — only decrement if a like actually existed (deletedCount is the source of
+            // truth, so a repeated unlike can't drive the count negative).
+            const removal = await Like.deleteOne({ user: user_id, blog: _id });
+            if ((removal.deletedCount ?? 0) === 0) {
+                return res.status(200).json({ liked_by_user: false, total_likes: await currentLikes() });
             }
 
             const blog = await Post.findOneAndUpdate({ _id }, { $inc: { "activity.total_likes": -1 } }, { new: true });
@@ -218,15 +245,18 @@ export const likePost = async (req, res) => {
                 emitBlogUpdate(req, blog._id, { total_likes: blog.activity.total_likes });
             }
 
-            // The like notification was just deleted, so the author's Activity dot may need to
-            // CLEAR. Only the like path used to emit, which left a revoked like's dot stuck until
-            // the 60s poll. `removed` is the authoritative recipient (blog can be null if the post
-            // went away mid-request).
-            if (String(removed.notification_for) !== String(user_id)) {
-                emitNotification(req, removed.notification_for, { type: "like_removed" });
+            // Retract the author's inbox item too, and tell them so their Activity dot can CLEAR
+            // (only the like path used to emit, so a revoked like left the dot stuck until the
+            // 60s poll).
+            const removedNotification = await Notification.findOneAndDelete({ user: user_id, blog: _id, type: "like" });
+            if (removedNotification && String(removedNotification.notification_for) !== String(user_id)) {
+                emitNotification(req, removedNotification.notification_for, { type: "like_removed" });
             }
 
-            return res.status(200).json({ liked_by_user: false });
+            return res.status(200).json({
+                liked_by_user: false,
+                total_likes: blog ? blog.activity.total_likes : await currentLikes(),
+            });
         }
     } catch (err) {
         console.error('[Post] likePost failed:', err.message);
@@ -241,9 +271,12 @@ export const isLikedByUser = (req, res) => {
 
     let { _id } = req.body;
 
-    Notification.exists({ user: user_id, type: "like", blog: _id })
-    .then(result => {
-        return res.status(200).json({ result });
+    // Reads the LIKE, not the author's notification — the two are separate records now.
+    Like.exists({ user: user_id, blog: _id })
+    .then(found => {
+        // Mongoose `exists` resolves to a doc stub or null; send a real boolean so callers can't
+        // be fooled by a truthy object.
+        return res.status(200).json({ result: !!found });
     })
     .catch(err => {
         return res.status(500).json({ error: err.message });
@@ -418,6 +451,10 @@ export const deletePost = (req, res) => {
         Notification.deleteMany({ blog: blog._id })
             .catch(err => req.log?.error({ err }, 'notification delete error'));
 
+        // Likes are their own records now, so they need their own cascade.
+        Like.deleteMany({ blog: blog._id })
+            .catch(err => req.log?.error({ err }, 'like delete error'));
+
         Comment.deleteMany({ blog_id: blog._id })
             .catch(err => req.log?.error({ err }, 'comments delete error'));
 
@@ -447,10 +484,10 @@ export const batchIsLiked = (req, res) => {
         return res.status(200).json({ likedBlogs: [] });
     }
 
-    Notification.find({ user: user_id, type: "like", blog: { $in: blog_ids } })
+    Like.find({ user: user_id, blog: { $in: blog_ids } })
     .select("blog")
-    .then(notifications => {
-        let likedBlogs = notifications.map(n => n.blog.toString());
+    .then(likes => {
+        let likedBlogs = likes.map(l => l.blog.toString());
         return res.status(200).json({ likedBlogs });
     })
     .catch(err => {

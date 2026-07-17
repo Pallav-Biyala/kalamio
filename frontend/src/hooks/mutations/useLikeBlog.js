@@ -55,6 +55,36 @@ const patchBlogLikes = (data, targetId, delta) => {
 };
 
 /**
+ * Same traversal as `patchBlogLikes`, but SETS an absolute count instead of applying a delta.
+ *
+ * Used to accept the server's authoritative `total_likes`. The optimistic delta is only a guess:
+ * the client sends what it *thinks* the current state is, and when that guess is wrong (status
+ * query still loading, stale, or a rapid second click) the server correctly no-ops — leaving the
+ * optimistic +1/-1 stranded on screen until a refresh "reverted" it. Writing the real number on
+ * success makes any wrong guess self-correct immediately.
+ */
+const setBlogLikes = (data, targetId, total) => {
+  if (!data) return data;
+
+  const set = (blog) =>
+    blog && blog._id === targetId
+      ? { ...blog, activity: { ...blog.activity, total_likes: total } }
+      : blog;
+
+  if (Array.isArray(data.pages)) {
+    return {
+      ...data,
+      pages: data.pages.map((page) =>
+        page && Array.isArray(page.blogs) ? { ...page, blogs: page.blogs.map(set) } : page,
+      ),
+    };
+  }
+  if (Array.isArray(data)) return data.map(set);
+  if (data._id) return set(data);
+  return data;
+};
+
+/**
  * Optimistic mutation for liking or unliking a blog post.
  *
  * Patches the like-status boolean AND the `total_likes` count across every blog
@@ -102,6 +132,23 @@ export const useLikeBlog = (blogId) => {
       );
 
       return { previousLikeStatus, _id, delta };
+    },
+
+    // The server is the authority. It answers with the real `liked_by_user` + `total_likes` on
+    // every path — including the idempotent no-ops it takes when our `isLikedByUser` guess was
+    // wrong — so adopt those numbers rather than keeping the optimistic delta.
+    onSuccess: (response, variables) => {
+      const { liked_by_user, total_likes } = response?.data || {};
+
+      if (typeof liked_by_user === 'boolean') {
+        queryClient.setQueryData(queryKeys.likes.status(variables._id), liked_by_user);
+      }
+      if (typeof total_likes === 'number') {
+        queryClient.setQueriesData(
+          { queryKey: queryKeys.blogs.all() },
+          (old) => setBlogLikes(old, variables._id, total_likes),
+        );
+      }
     },
 
     onError: (_error, _variables, context) => {
