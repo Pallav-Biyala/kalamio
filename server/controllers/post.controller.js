@@ -384,10 +384,21 @@ export const deletePost = (req, res) => {
         { deletedAt: new Date() },
         { new: true }
     )
-    .then(blog => {
+    .then(async blog => {
 
         if(!blog) {
             return res.status(403).json({ error: "You do not have permission to delete this blog" });
+        }
+
+        // Deleting a counted post (published article in a publication) must release its
+        // total_posts slot: feeds/counts exclude deleted posts immediately (soft-delete
+        // pre-hooks), but the counter was never decremented — so the publication overcounted
+        // forever, and the route's 'publications' cache flush just re-cached the wrong number.
+        // Awaited so the flush (fires on res.json) sees the committed decrement. Double-delete
+        // safe: the soft-delete filter on findOneAndUpdate means a re-delete never reaches here.
+        if (blog.publication && !blog.draft && blog.type !== 'text_post') {
+            await Publication.findByIdAndUpdate(blog.publication, { $inc: { total_posts: -1 } })
+                .catch(err => req.log?.error({ err }, 'publication count update error'));
         }
 
         // Collect all S3 image URLs from the post

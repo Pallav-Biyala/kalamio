@@ -57,6 +57,16 @@ export const createBlog = (req, res) => {
 
     let { title, banner, content, des, tags, draft, id, publication } = req.body;
 
+    // `publication` must be an ObjectId string, or null/'' to detach (undefined = unchanged).
+    // Reject anything else BEFORE any write: a NUMBER passes bson's lenient ObjectId constructor,
+    // so a garbage id used to commit onto the post and the counter half-applied (-1 on the old
+    // publication) before the Publication update threw — corrupted doc + drifted count + no cache
+    // flush (non-2xx).
+    if (publication != null && publication !== '' &&
+        !(typeof publication === 'string' && /^[0-9a-fA-F]{24}$/.test(publication))) {
+        return res.status(400).json({ error: "Invalid publication id" });
+    }
+
     // Sanitize basic strings
     title = title ? sanitizeHtml(title, sanitizeOptions) : '';
     des = des ? sanitizeHtml(des, sanitizeOptions) : '';
@@ -151,16 +161,30 @@ export const createBlog = (req, res) => {
                 );
             }
 
-            // If publication changed, update counters
+            // Publication counters. A post counts toward a publication's total_posts only while it
+            // is PUBLISHED in it (the create path increments only when `publication && !draft`), so
+            // compare the post's COUNTED state before vs after the edit — not the raw ids:
+            //   • `publication === undefined` means the client omitted the field (unchanged) — the
+            //     raw derivation treated it as a REMOVAL and decremented a publication the post was
+            //     still in;
+            //   • publishing a draft INTO a publication has equal old/new ids, so an id-only compare
+            //     silently skipped the +1 and the publication stayed undercounted forever;
+            //   • a draft-only edit was never counted to begin with, so changing its publication
+            //     must not touch counters (it used to -1 an increment that never happened).
             const oldPubId = existingBlog.publication?.toString() || null;
-            const newPubId = (publication || null)?.toString?.() || publication || null;
+            const newPubId = publication === undefined
+                ? oldPubId // field not sent → publication unchanged
+                : ((publication || null)?.toString?.() || publication || null);
 
-            if (oldPubId !== newPubId) {
-                if (oldPubId) {
-                    await Publication.findByIdAndUpdate(oldPubId, { $inc: { total_posts: -1 } });
+            const oldCounted = !existingBlog.draft ? oldPubId : null;
+            const newCounted = !shouldBeDraft ? newPubId : null;
+
+            if (oldCounted !== newCounted) {
+                if (oldCounted) {
+                    await Publication.findByIdAndUpdate(oldCounted, { $inc: { total_posts: -1 } });
                 }
-                if (newPubId) {
-                    await Publication.findByIdAndUpdate(newPubId, { $inc: { total_posts: 1 } });
+                if (newCounted) {
+                    await Publication.findByIdAndUpdate(newCounted, { $inc: { total_posts: 1 } });
                 }
             }
 
@@ -215,12 +239,23 @@ export const bulkDeleteBlogs = async (req, res) => {
         return res.status(400).json({ error: "blog_ids must be a non-empty array" });
     }
 
-    // Find only posts owned by this user
-    const posts = await Post.find({ blog_id: { $in: blog_ids }, author: user_id }).select('_id');
+    // Find only posts owned by this user (publication/draft/type needed for counter release below)
+    const posts = await Post.find({ blog_id: { $in: blog_ids }, author: user_id }).select('_id publication draft type');
     const post_ids = posts.map(p => p._id);
 
     if (post_ids.length === 0) {
         return res.status(200).json({ deleted_count: 0 });
+    }
+
+    // Release publication total_posts slots for counted posts (published articles — recalc.js's
+    // rule), aggregated per publication. Deletes without this left publications overcounted
+    // forever, with the route's cache flush re-caching the stale number fresh.
+    const pubDecrements = new Map();
+    for (const p of posts) {
+        if (p.publication && !p.draft && p.type !== 'text_post') {
+            const key = p.publication.toString();
+            pubDecrements.set(key, (pubDecrements.get(key) || 0) + 1);
+        }
     }
 
     // Cascade delete all related data in parallel
@@ -233,7 +268,10 @@ export const bulkDeleteBlogs = async (req, res) => {
             { 'articles.blog': { $in: post_ids } },
             { $pull: { articles: { blog: { $in: post_ids } } }, $inc: { total_articles: -1 } }
         ),
-        Post.deleteMany({ _id: { $in: post_ids } })
+        Post.deleteMany({ _id: { $in: post_ids } }),
+        ...Array.from(pubDecrements, ([pubId, n]) =>
+            Publication.findByIdAndUpdate(pubId, { $inc: { total_posts: -n } })
+        ),
     ]);
 
     // Update user: decrement total_posts and remove blog refs

@@ -14,6 +14,13 @@ export const createTextPost = (req, res) => {
 
     let { text_content, images, poll, draft, id, publication } = req.body;
 
+    // `publication` must be an ObjectId string, or null/'' to detach (undefined = unchanged) —
+    // same early guard as create-blog so a malformed value can't cast garbage onto the post.
+    if (publication != null && publication !== '' &&
+        !(typeof publication === 'string' && /^[0-9a-fA-F]{24}$/.test(publication))) {
+        return res.status(400).json({ error: "Invalid publication id" });
+    }
+
     // Sanitize text content (strip all HTML)
     text_content = text_content ? sanitizeHtml(text_content, { allowedTags: [], allowedAttributes: {} }) : '';
 
@@ -80,9 +87,9 @@ export const createTextPost = (req, res) => {
             const post = await TextPost.findOneAndUpdate({ blog_id, author: authorId }, updateData);
             if (!post) return res.status(403).json({ error: "You don't have permission to edit this post" });
 
-            // If publication changed, text posts no longer update total_posts
-            const oldPubId = existingPost.publication?.toString() || null;
-            const newPubId = (publication || null)?.toString?.() || publication || null;
+            // Text posts don't affect Publication.total_posts (only articles are counted). Their
+            // appearance in the cached publication feed is handled by the route's postWriteTags
+            // invalidation (see blog.routes.js).
 
             return res.status(200).json({ id: blog_id });
         })

@@ -53,10 +53,16 @@ router.post("/get-blog", validate(getBlogSchema), asyncHandler(getPost));
 const skipDrafts = { unless: (req) => req.body?.draft === true };
 
 // ── Protected — type-specific create ────────────────────────────────
-// A post inside a publication also invalidates the publications cache.
-const blogWriteTags = (req) => (req.body?.publication ? ['blogs', 'publications'] : ['blogs']);
-router.post("/create-blog", verifyJWT, largeBody, invalidateCacheOnWrite(blogWriteTags, skipDrafts), asyncHandler(createBlog));
-router.post("/create-text-post", verifyJWT, invalidateCacheOnWrite(['blogs'], skipDrafts), asyncHandler(createTextPost));
+// A post inside a publication also invalidates the publications cache. The NEW publication is in
+// the body, but a REMOVED one (an edit that detaches the post) only exists on the previous version
+// of the post — so any EDIT (body.id present) conservatively invalidates 'publications' too.
+// Keying off the new value alone left the old publication's cached total_posts/post list stale for
+// its full 300s TTL after a removal. Edits are rare and the publication reads are cheap indexed
+// queries, so the occasional needless flush is negligible. Applies to BOTH post types: text posts
+// render in the cached /publication/blogs feed even though they don't affect total_posts.
+const postWriteTags = (req) => (req.body?.publication || req.body?.id ? ['blogs', 'publications'] : ['blogs']);
+router.post("/create-blog", verifyJWT, largeBody, invalidateCacheOnWrite(postWriteTags, skipDrafts), asyncHandler(createBlog));
+router.post("/create-text-post", verifyJWT, invalidateCacheOnWrite(postWriteTags, skipDrafts), asyncHandler(createTextPost));
 
 // ── Protected — interactions (type-agnostic) ────────────────────────
 // Likes change activity.total_likes, which every cached feed card renders — without invalidation

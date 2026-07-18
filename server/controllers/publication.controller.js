@@ -307,9 +307,17 @@ export const addBlogToPublication = async (req, res) => {
             return res.status(404).json({ error: "Blog not found or not authored by you" });
         }
 
+        // A post contributes to total_posts only while it's a PUBLISHED ARTICLE (recalc.js is the
+        // ground truth: draft:false, type ≠ text_post). Drafts and text posts link/unlink freely
+        // but must NOT move the counter — a draft +1'd here got +1'd AGAIN when create-blog's
+        // publish edit counted it (double-count), and text posts are never counted at all.
+        const counted = !blog.draft && blog.type !== 'text_post';
+
         // If blog is already in a different publication, update counts
         if (blog.publication && blog.publication.toString() !== publication_id) {
-            await Publication.findByIdAndUpdate(blog.publication, { $inc: { total_posts: -1 } });
+            if (counted) {
+                await Publication.findByIdAndUpdate(blog.publication, { $inc: { total_posts: -1 } });
+            }
         }
 
         // Link blog to publication
@@ -317,7 +325,7 @@ export const addBlogToPublication = async (req, res) => {
         blog.publication = publication_id;
         await blog.save();
 
-        if (!wasAlreadyLinked) {
+        if (!wasAlreadyLinked && counted) {
             await Publication.findByIdAndUpdate(publication_id, { $inc: { total_posts: 1 } });
         }
 
@@ -351,7 +359,11 @@ export const removeBlogFromPublication = async (req, res) => {
         blog.publication = undefined;
         await blog.save();
 
-        await Publication.findByIdAndUpdate(pub_id, { $inc: { total_posts: -1 } });
+        // Same counted-state rule as add-blog: only a published article ever contributed +1, so
+        // only that releases a slot — unlinking a draft used to -1 a count that was never added.
+        if (!blog.draft && blog.type !== 'text_post') {
+            await Publication.findByIdAndUpdate(pub_id, { $inc: { total_posts: -1 } });
+        }
 
         return res.status(200).json({ unlinked: true });
 

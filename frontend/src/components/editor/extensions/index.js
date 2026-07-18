@@ -11,8 +11,8 @@ import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
 import CharacterCount from '@tiptap/extension-character-count';
 import Youtube from '@tiptap/extension-youtube';
-import Color from '@tiptap/extension-color';
 import TextStyle from '@tiptap/extension-text-style';
+import ThemeAwareColor from './ThemeAwareColor';
 import Dropcursor from '@tiptap/extension-dropcursor';
 import { common, createLowlight } from 'lowlight';
 
@@ -40,7 +40,10 @@ export function getExtensions({ mentionSuggestion } = {}) {
     Underline,
     Highlight.configure({ multicolor: true }),
     TextAlign.configure({ types: ['heading', 'paragraph'] }),
-    Color,
+    // ThemeAwareColor = the stock Color extension that drops pasted black/white so text follows the
+    // light/dark theme instead of staying a pinned colour (there's no colour picker; colour only
+    // ever arrives via paste). See extensions/ThemeAwareColor.
+    ThemeAwareColor,
     TextStyle,
 
     // ── Links ───────────────────────────────────────────────────────────

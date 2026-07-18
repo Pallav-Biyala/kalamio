@@ -2,6 +2,7 @@ import LazyEmbed from './LazyEmbed';
 import { common, createLowlight } from 'lowlight';
 import { toHtml } from 'hast-util-to-html';
 import { cdnUrl } from '../../../common/cdn';
+import { isThemeText } from './themeColor';
 
 const lowlight = createLowlight(common);
 
@@ -54,7 +55,9 @@ const renderMarks = (textNode) => {
                     </a>
                 );
             case 'textStyle': {
-                if (mark.attrs?.color) {
+                // Skip a pinned black/white colour (baked into older pasted content) so the
+                // published text follows the reader's theme — mirrors the editor's ThemeAwareColor.
+                if (mark.attrs?.color && !isThemeText(mark.attrs.color)) {
                     return <span style={{ color: mark.attrs.color }}>{content}</span>;
                 }
                 return content;
