@@ -21,6 +21,17 @@ describe('isThemeText', () => {
     }
   });
 
+  it('handles the exotic formats a raw stored value could carry (percentage, hex-alpha, named near-white)', () => {
+    // Percentage rgb(), 4-/8-digit hex (alpha ignored), and near-white CSS names → follow theme.
+    for (const c of ['rgb(0%, 0%, 0%)', 'rgb(100%,100%,100%)', '#000f', '#000000ff', '#ffffff00', 'whitesmoke', 'gainsboro', 'snow', 'ivory']) {
+      expect(isThemeText(c), c).toBe(true);
+    }
+    // Mid greys / real colours in those same formats are still kept.
+    for (const c of ['rgb(50%, 20%, 20%)', '#33333380', 'silver', 'gray']) {
+      expect(isThemeText(c), c).toBe(false);
+    }
+  });
+
   it('KEEPS genuine colours (saturated, or mid greys a writer might mean)', () => {
     for (const c of [
       'rgb(255, 0, 0)', 'red', '#e11d48', 'rgb(59, 130, 246)', // brand-ish

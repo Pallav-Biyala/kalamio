@@ -37,30 +37,50 @@ export const isThemeText = (color) => {
   return max <= 40 || min >= 216;
 };
 
+// The CSS named colours that are achromatic AND near an extreme — the only names (besides
+// black/white) whose classification would differ from "unknown → keep". Mid greys (silver, gray,
+// dimgray…) resolve to the same keep-decision whether named or not, so they need no entry. On the
+// paste path the browser already normalises every name to rgb() before parseHTML; this map only
+// matters for a raw name that somehow reached the render path unnormalised.
+const NAMED = {
+  black: { r: 0, g: 0, b: 0 },
+  white: { r: 255, g: 255, b: 255 },
+  whitesmoke: { r: 245, g: 245, b: 245 },
+  gainsboro: { r: 220, g: 220, b: 220 },
+  snow: { r: 255, g: 250, b: 250 },
+  ivory: { r: 255, g: 255, b: 240 },
+  ghostwhite: { r: 248, g: 248, b: 255 },
+  floralwhite: { r: 255, g: 250, b: 240 },
+};
+
+// A single rgb() channel: "0", "255", or a percentage "0%" / "100%". NaN if unparseable.
+const channel = (tok) =>
+  tok.endsWith('%') ? Math.round((parseFloat(tok) / 100) * 255) : Number(tok);
+
 /**
- * Parse the CSS colour formats that actually reach this code into {r,g,b} (0–255), or null.
+ * Parse the CSS colour formats that reach this code into {r,g,b} (0–255), or null.
  * Paste/HTML load goes through the browser first, which normalises `element.style.color` to
- * `rgb(...)`/`rgba(...)`; stored content keeps whatever was saved (also rgb, occasionally hex).
+ * `rgb(...)`; stored content keeps whatever was saved. Alpha is ignored throughout — a mostly
+ * transparent black is still "black" for theme purposes.
  */
 const parseRgb = (input) => {
   const c = input.trim();
 
-  if (c === 'black') return { r: 0, g: 0, b: 0 };
-  if (c === 'white') return { r: 255, g: 255, b: 255 };
+  if (NAMED[c]) return NAMED[c];
 
-  // rgb() / rgba() — comma-, space-, or slash-separated; alpha (if any) is ignored.
+  // rgb()/rgba() — comma-, space-, or slash-separated; numeric or percentage; alpha ignored.
   const fn = c.match(/^rgba?\(([^)]+)\)$/);
   if (fn) {
-    const [r, g, b] = fn[1].split(/[,\s/]+/).filter(Boolean).map(Number);
+    const [r, g, b] = fn[1].split(/[,\s/]+/).filter(Boolean).slice(0, 3).map(channel);
     if ([r, g, b].every((n) => Number.isFinite(n))) return { r, g, b };
     return null;
   }
 
-  // #rgb / #rrggbb
-  const hex = c.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/);
+  // #rgb / #rgba / #rrggbb / #rrggbbaa (3-/4-digit shorthand expanded; alpha bytes ignored).
+  const hex = c.match(/^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/);
   if (hex) {
     let h = hex[1];
-    if (h.length === 3) h = h.split('').map((x) => x + x).join('');
+    if (h.length === 3 || h.length === 4) h = h.split('').map((x) => x + x).join('');
     return {
       r: parseInt(h.slice(0, 2), 16),
       g: parseInt(h.slice(2, 4), 16),
