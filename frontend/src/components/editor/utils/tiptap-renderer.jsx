@@ -193,8 +193,11 @@ const renderNode = (node, index) => {
         }
 
         case 'table':
+            // `tableWrapper` is Tiptap's own class name and the only one the stylesheet
+            // styles (`.tiptap-content .tableWrapper` → overflow-x: auto). The hyphenated
+            // variant matched no rule, so wide tables were clipped on mobile with no scroll.
             return (
-                <div key={index} className="table-wrapper">
+                <div key={index} className="tableWrapper">
                     <table>
                         <tbody>
                             {node.content?.map((child, i) => renderNode(child, i))}
@@ -266,9 +269,12 @@ const renderNode = (node, index) => {
                 >
                     <span style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        width: '2.5rem', height: '2.5rem', background: '#f1f5f9',
+                        width: '2.5rem', height: '2.5rem', background: 'rgb(var(--c-surface))',
+                        // --c-surface sits only a few channels off the page background, so the
+                        // chip needs the border to stay visible in the dark (default) theme.
+                        border: '1px solid rgb(var(--c-border))',
                         borderRadius: '0.375rem', fontSize: '0.65rem', fontWeight: 700,
-                        color: '#475569',
+                        color: 'rgb(var(--c-black))',
                     }}>
                         {extension}
                     </span>
@@ -277,14 +283,14 @@ const renderNode = (node, index) => {
                             {filename || 'Download file'}
                         </div>
                         {(fileSize || mimeType) && (
-                            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.1rem' }}>
+                            <div style={{ fontSize: '0.75rem', color: 'rgb(var(--c-dark-grey))', marginTop: '0.1rem' }}>
                                 {mimeType && <span>{mimeType}</span>}
                                 {mimeType && fileSize ? ' · ' : ''}
                                 {fileSize && <span>{formatFileSize(fileSize)}</span>}
                             </div>
                         )}
                     </div>
-                    <span style={{ fontSize: '1.1rem', color: '#94a3b8' }}>↓</span>
+                    <span style={{ fontSize: '1.1rem', color: 'rgb(var(--c-dark-grey))' }}>↓</span>
                 </a>
             );
         }

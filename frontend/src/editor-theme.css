@@ -841,7 +841,7 @@
 
 .embed-node-view.ProseMirror-selectednode {
   border-color: rgb(var(--c-brand));
-  box-shadow: 0 0 0 3px rgba(var(--c-brand), 0.15);
+  box-shadow: 0 0 0 3px rgb(var(--c-brand) / 0.15);
 }
 
 /* ── File Attachment Node ───────────────────────────────────── */
@@ -1366,24 +1366,36 @@
   text-align: center;
 }
 
-.blog-page-content .code-block {
+/* tiptap-renderer emits `<pre class="code-block">` — the <pre> IS the .code-block, so the old
+   `.code-block pre` / `.code-block pre code` descendant selectors matched nothing and none of the
+   block styling ever landed. What DID match set `overflow: hidden`, and <pre> doesn't wrap, so any
+   line wider than the column was silently truncated with no scrollbar: `overflow-x: auto` is the
+   part that actually fixes the clipping.
+   font-family/line-height need !important only because index.css's body-typography catch-all
+   (`.blog-page-content *`) declares the reading serif and 1.7 leading as !important; specificity
+   alone can't beat an !important, and code set in a serif at body leading isn't code. */
+.blog-page-content pre.code-block {
   margin: 1.25em 0;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  border: 1px solid rgb(var(--c-border));
-}
-
-.blog-page-content .code-block pre {
-  margin: 0;
   padding: 1em 1.25em;
+  border-radius: var(--radius-md);
+  border: 1px solid rgb(var(--c-border));
   background: rgb(var(--c-grey));
   overflow-x: auto;
   font-size: 0.875rem;
-  line-height: 1.6;
+  font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace !important;
+  line-height: 1.6 !important;
 }
 
-.blog-page-content .code-block pre code {
-  font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+/* Inside a <pre>, the inline-code "chip" styling from `.tiptap-content code` (grey pill background,
+   padding, brand colour, 0.9em) renders as a box inside a box, so it's reset here. Two classes plus
+   two elements (0,2,2) outranks that rule's (0,1,1) — no !important needed except for the serif. */
+.blog-page-content pre.code-block code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+  line-height: inherit;
+  color: rgb(var(--c-black));
+  font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace !important;
 }
 
 
@@ -1446,28 +1458,67 @@
   box-shadow: var(--shadow-sm);
 }
 
-/* ── Syntax Highlighting (Lowlight) ─────────────────────────── */
-.hljs-comment,
-.hljs-quote { color: #6a737d; font-style: italic; }
-.hljs-keyword,
-.hljs-selector-tag { color: #d73a49; }
-.hljs-string,
-.hljs-attr { color: #032f62; }
-.hljs-number,
-.hljs-literal { color: #005cc5; }
-.hljs-built_in,
-.hljs-builtin-name { color: #6f42c1; }
-.hljs-function .hljs-title { color: #6f42c1; }
-.hljs-type,
-.hljs-class .hljs-title { color: #6f42c1; }
-.hljs-tag { color: #22863a; }
-.hljs-name { color: #22863a; }
-.hljs-attribute { color: #6f42c1; }
-.hljs-symbol,
-.hljs-bullet { color: #005cc5; }
-.hljs-meta { color: #735c0f; }
-.hljs-addition { color: #22863a; background: #f0fff4; }
-.hljs-deletion { color: #b31d28; background: #ffeef0; }
+/* ── Syntax Highlighting (Lowlight) ───────────────────────────
+   Two things are going on in this block.
+
+   1) Every rule is scoped to a content wrapper via `:is()`. Bare `.hljs-*` is (0,1,0), exactly the
+      same specificity as index.css's body-typography catch-all
+      (`#textEditor *, .blog-page-content *, .tiptap-content *`), which paints every descendant
+      `rgb(var(--c-black) / 0.85)` — and since editor-theme.css is @imported at the TOP of index.css,
+      the catch-all always comes later and won on source order. Result: light-theme readers saw
+      monochrome code. `:is(.blog-page-content, .tiptap-content)` takes the specificity of its most
+      specific argument (one class), so these are (0,2,0) and win outright — no !important.
+
+   2) DARK is the default palette, not light. Dark theme is the attribute-less default here (App.jsx
+      only ever sets data-theme="light" and removes the attribute for dark), so the previous
+      `[data-theme="dark"]` overrides were unreachable and dark-theme readers got the light GitHub
+      palette on the dark code background — #032f62 strings on #282827 is ~1.3:1, i.e. invisible.
+      The dark palette is therefore unprefixed and light is the `[data-theme="light"]` override,
+      which is how every other themed value in this codebase works. */
+:is(.blog-page-content, .tiptap-content) .hljs-comment,
+:is(.blog-page-content, .tiptap-content) .hljs-quote { color: #8b949e; font-style: italic; }
+:is(.blog-page-content, .tiptap-content) .hljs-keyword,
+:is(.blog-page-content, .tiptap-content) .hljs-selector-tag { color: #ff7b72; }
+:is(.blog-page-content, .tiptap-content) .hljs-string,
+:is(.blog-page-content, .tiptap-content) .hljs-attr { color: #a5d6ff; }
+:is(.blog-page-content, .tiptap-content) .hljs-number,
+:is(.blog-page-content, .tiptap-content) .hljs-literal { color: #79c0ff; }
+:is(.blog-page-content, .tiptap-content) .hljs-built_in,
+:is(.blog-page-content, .tiptap-content) .hljs-builtin-name { color: #d2a8ff; }
+:is(.blog-page-content, .tiptap-content) .hljs-function .hljs-title { color: #d2a8ff; }
+:is(.blog-page-content, .tiptap-content) .hljs-type,
+:is(.blog-page-content, .tiptap-content) .hljs-class .hljs-title { color: #d2a8ff; }
+:is(.blog-page-content, .tiptap-content) .hljs-tag { color: #7ee787; }
+:is(.blog-page-content, .tiptap-content) .hljs-name { color: #7ee787; }
+:is(.blog-page-content, .tiptap-content) .hljs-attribute { color: #d2a8ff; }
+:is(.blog-page-content, .tiptap-content) .hljs-symbol,
+:is(.blog-page-content, .tiptap-content) .hljs-bullet { color: #79c0ff; }
+:is(.blog-page-content, .tiptap-content) .hljs-meta { color: #ff7b72; }
+:is(.blog-page-content, .tiptap-content) .hljs-addition { color: #aff5b4; background: rgba(46, 160, 67, 0.15); }
+:is(.blog-page-content, .tiptap-content) .hljs-deletion { color: #ffdcd7; background: rgba(248, 81, 73, 0.15); }
+
+/* Light theme: the GitHub Light palette, on the light code background. */
+[data-theme="light"] :is(.blog-page-content, .tiptap-content) .hljs-comment,
+[data-theme="light"] :is(.blog-page-content, .tiptap-content) .hljs-quote { color: #6a737d; }
+[data-theme="light"] :is(.blog-page-content, .tiptap-content) .hljs-keyword,
+[data-theme="light"] :is(.blog-page-content, .tiptap-content) .hljs-selector-tag { color: #d73a49; }
+[data-theme="light"] :is(.blog-page-content, .tiptap-content) .hljs-string,
+[data-theme="light"] :is(.blog-page-content, .tiptap-content) .hljs-attr { color: #032f62; }
+[data-theme="light"] :is(.blog-page-content, .tiptap-content) .hljs-number,
+[data-theme="light"] :is(.blog-page-content, .tiptap-content) .hljs-literal { color: #005cc5; }
+[data-theme="light"] :is(.blog-page-content, .tiptap-content) .hljs-built_in,
+[data-theme="light"] :is(.blog-page-content, .tiptap-content) .hljs-builtin-name { color: #6f42c1; }
+[data-theme="light"] :is(.blog-page-content, .tiptap-content) .hljs-function .hljs-title { color: #6f42c1; }
+[data-theme="light"] :is(.blog-page-content, .tiptap-content) .hljs-type,
+[data-theme="light"] :is(.blog-page-content, .tiptap-content) .hljs-class .hljs-title { color: #6f42c1; }
+[data-theme="light"] :is(.blog-page-content, .tiptap-content) .hljs-tag { color: #22863a; }
+[data-theme="light"] :is(.blog-page-content, .tiptap-content) .hljs-name { color: #22863a; }
+[data-theme="light"] :is(.blog-page-content, .tiptap-content) .hljs-attribute { color: #6f42c1; }
+[data-theme="light"] :is(.blog-page-content, .tiptap-content) .hljs-symbol,
+[data-theme="light"] :is(.blog-page-content, .tiptap-content) .hljs-bullet { color: #005cc5; }
+[data-theme="light"] :is(.blog-page-content, .tiptap-content) .hljs-meta { color: #735c0f; }
+[data-theme="light"] :is(.blog-page-content, .tiptap-content) .hljs-addition { color: #22863a; background: #f0fff4; }
+[data-theme="light"] :is(.blog-page-content, .tiptap-content) .hljs-deletion { color: #b31d28; background: #ffeef0; }
 
 /* ── YouTube Embed (official extension) ─────────────────────── */
 .tiptap-content .youtube-embed {
@@ -1494,64 +1545,12 @@
   border-top: 1px solid rgb(var(--c-brand));
 }
 
-/* ══════════════════════════════════════════════════════════════
-   Dark Theme Overrides
-   ══════════════════════════════════════════════════════════════ */
-[data-theme="dark"] .tiptap-editor-wrapper {
-  background: rgb(var(--c-surface));
-}
-
-[data-theme="dark"] .editor-toolbar-sticky {
-  background: rgb(var(--c-grey));
-}
-
-[data-theme="dark"] .toolbar-btn:hover {
-  background: rgb(var(--c-grey));
-}
-
-[data-theme="dark"] .toolbar-select {
-  color: rgb(var(--c-white));
-}
-
-[data-theme="dark"] .bubble-menu {
-  background: rgb(var(--c-grey));
-}
-
-[data-theme="dark"] .tiptap-content code {
-  background: rgb(var(--c-grey));
-}
-
-[data-theme="dark"] .code-block-node-view__header {
-  background: rgb(var(--c-grey));
-}
-
-[data-theme="dark"] .embed-modal {
-  background: rgb(var(--c-grey));
-}
-
-[data-theme="dark"] .mention-list {
-  background: rgb(var(--c-grey));
-}
-
-/* Dark theme syntax highlighting */
-[data-theme="dark"] .hljs-comment,
-[data-theme="dark"] .hljs-quote { color: #8b949e; }
-[data-theme="dark"] .hljs-keyword,
-[data-theme="dark"] .hljs-selector-tag { color: #ff7b72; }
-[data-theme="dark"] .hljs-string,
-[data-theme="dark"] .hljs-attr { color: #a5d6ff; }
-[data-theme="dark"] .hljs-number,
-[data-theme="dark"] .hljs-literal { color: #79c0ff; }
-[data-theme="dark"] .hljs-built_in,
-[data-theme="dark"] .hljs-builtin-name { color: #d2a8ff; }
-[data-theme="dark"] .hljs-function .hljs-title { color: #d2a8ff; }
-[data-theme="dark"] .hljs-type,
-[data-theme="dark"] .hljs-class .hljs-title { color: #d2a8ff; }
-[data-theme="dark"] .hljs-tag { color: #7ee787; }
-[data-theme="dark"] .hljs-name { color: #7ee787; }
-[data-theme="dark"] .hljs-attribute { color: #d2a8ff; }
-[data-theme="dark"] .hljs-addition { color: #aff5b4; background: rgba(46, 160, 67, 0.15); }
-[data-theme="dark"] .hljs-deletion { color: #ffdcd7; background: rgba(248, 81, 73, 0.15); }
+/* The "Dark Theme Overrides" block that used to sit here was entirely dead: dark is the
+   attribute-less default (App.jsx removes data-theme for dark, sets "light" for light), so
+   `[data-theme="dark"]` never matched. Every rule in it also merely restated `rgb(var(--c-grey))` /
+   `rgb(var(--c-surface))` / `rgb(var(--c-white))` — values the tokens already resolve per theme, so
+   the unprefixed rules above cover both themes on their own. The syntax-highlighting half of that
+   block moved up into the Lowlight section, where it is now the default palette. */
 
 /* ── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 768px) {

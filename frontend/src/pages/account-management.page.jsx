@@ -120,7 +120,7 @@ const AccountManagementPage = () => {
                 {/* Data Export */}
                 <div className="account-mgmt__card">
                     <div className="account-mgmt__card-header">
-                        <Icon name="download" className="text-xl" style={{ color: 'rgb(var(--c-purple))' }} />
+                        <Icon name="download" className="text-xl" style={{ color: 'rgb(var(--c-brand-accent))' }} />
                         <h2>Download Your Data</h2>
                     </div>
                     <p className="text-sm text-dark-grey mb-4">

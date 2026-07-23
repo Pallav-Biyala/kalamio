@@ -115,7 +115,9 @@ const PostMenu = ({ blogId, authorId, authorUsername, postType, onEdit, onSaveTo
         <div className="post-menu" ref={menuRef}>
             <button
                 className="feed-card__menu"
-                aria-label="More options"
+                aria-label="Post options"
+                aria-expanded={open}
+                aria-haspopup="menu"
                 onClick={() => setOpen(!open)}
             >
                 <Icon name="more_horiz" />

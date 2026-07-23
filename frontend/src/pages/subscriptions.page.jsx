@@ -9,6 +9,7 @@ import { queryKeys } from "../common/queryKeys";
 import AnimationWrapper from "../common/page-animation";
 import Loader from "../components/loader.component";
 import NoDataMessage from "../components/nodata.component";
+import NetworkError from "../components/network-error.component";
 import LoadMoreDataBtn from "../components/load-more.component";
 import BlogPostCard from "../components/blog-post.component";
 import TextPostCard from "../components/text-post-card.component";
@@ -26,14 +27,17 @@ const SubscriptionsPage = () => {
 
     // Redirect to signin if not logged in
     useEffect(() => {
-        if (access_token === null) return; // still loading
+        // `undefined` = session not restored from storage yet; `null` = definitively logged out
+        // (App.jsx sets `{ access_token: null }`). Treating `null` as "still loading" meant the
+        // redirect never fired for logged-out users and the page spun forever.
+        if (access_token === undefined) return; // still loading
         if (!access_token) {
             navigate("/signin");
         }
     }, [access_token]);
 
     // Fetch subscribed publications
-    const { data: publications } = useQuery({
+    const { data: publications, isError: pubsError, refetch: refetchPubs } = useQuery({
         queryKey: queryKeys.subscribe.mySubscriptions(),
         queryFn: async () => {
             const { data } = await api.post("/my-subscriptions");
@@ -78,7 +82,8 @@ const SubscriptionsPage = () => {
 
     const blogs = feedQuery.data?.blogs || [];
 
-    if (!access_token) return <Loader />;
+    if (access_token === undefined) return <Loader />;
+    if (!access_token) return null; // logged out — the effect above is redirecting to /signin
 
     return (
         <AnimationWrapper>
@@ -86,7 +91,9 @@ const SubscriptionsPage = () => {
 
                 {/* ── Publication Avatars Row ──────────────── */}
                 <div className="subscriptions-page__pubs-row">
-                    {publications === undefined ? (
+                    {pubsError ? (
+                        <div className="py-4 w-full"><NetworkError onRetry={() => refetchPubs()} /></div>
+                    ) : publications === undefined ? (
                         <div className="py-4 w-full flex justify-center"><Loader /></div>
                     ) : publications.length === 0 ? (
                         <div className="subscriptions-page__empty-pubs">
@@ -159,6 +166,10 @@ const SubscriptionsPage = () => {
                 <div className="subscriptions-page__feed">
                     {feedQuery.isLoading ? (
                         <Loader />
+                    ) : feedQuery.isError ? (
+                        // Without this the empty-state below claimed "Your subscription feed is
+                        // empty" whenever the request merely failed.
+                        <NetworkError onRetry={() => feedQuery.refetch()} />
                     ) : blogs.length ? (
                         <>
                             {blogs.map((blog, i) => (

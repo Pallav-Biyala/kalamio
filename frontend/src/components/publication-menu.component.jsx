@@ -4,6 +4,8 @@ import Icon from "./Icon";
 import { UserContext } from "../App";
 import toast from "react-hot-toast";
 import api from "../common/api";
+import { useSubscribeStatus } from "../hooks/queries";
+import { useSubscribeAction } from "../hooks/mutations";
 
 const PublicationMenu = ({ publicationId, ownerId, ownerUsername, isOwner, onSubscribeChange }) => {
     const [open, setOpen] = useState(false);
@@ -11,9 +13,13 @@ const PublicationMenu = ({ publicationId, ownerId, ownerUsername, isOwner, onSub
     const navigate = useNavigate();
     const { userAuth: { access_token } } = useContext(UserContext);
 
-    const [isSubscribed, setIsSubscribed] = useState(false);
+    // Subscription state is shared with SubscribeButton via the TanStack cache,
+    // so both controls always read/write the same source of truth.
+    const { data: subscribeStatus } = useSubscribeStatus(publicationId);
+    const subscribeMutation = useSubscribeAction();
+    const isSubscribed = !!subscribeStatus;
+
     const [isFollowing, setIsFollowing] = useState(false);
-    const [loadingSub, setLoadingSub] = useState(false);
     const [loadingFollow, setLoadingFollow] = useState(false);
 
     // Close on outside click
@@ -36,19 +42,15 @@ const PublicationMenu = ({ publicationId, ownerId, ownerUsername, isOwner, onSub
         return () => document.removeEventListener("keydown", handleKey);
     }, [open]);
 
-    // Fetch initial states if not owner
+    // Fetch initial follow state if not owner (subscription state comes from the shared query)
     useEffect(() => {
         if (!access_token || isOwner) return;
-
-        api.post("/is-subscribed", { publication_id: publicationId })
-            .then(({ data }) => setIsSubscribed(data.subscribed))
-            .catch(() => setIsSubscribed(false));
 
         api.post("/is-following", { user_id: ownerId })
             .then(({ data }) => setIsFollowing(data.following))
             .catch(() => setIsFollowing(false));
 
-    }, [access_token, publicationId, ownerId, isOwner]);
+    }, [access_token, ownerId, isOwner]);
 
     const copyLink = () => {
         const url = window.location.href;
@@ -63,28 +65,28 @@ const PublicationMenu = ({ publicationId, ownerId, ownerUsername, isOwner, onSub
         navigate(`/dashboard/edit-publication/${window.location.pathname.split("/").pop()}`);
     };
 
-    const handleSubscribeToggle = async () => {
+    const handleSubscribeToggle = () => {
         if (!access_token) {
             toast.error("Please sign in to subscribe");
             setOpen(false);
             return;
         }
 
-        if (loadingSub) return;
-        setLoadingSub(true);
+        if (subscribeMutation.isPending) return;
 
         const newState = !isSubscribed;
-        setIsSubscribed(newState);
 
-        try {
-            const endpoint = newState ? "/subscribe" : "/unsubscribe";
-            await api.post(endpoint, { publication_id: publicationId });
-            onSubscribeChange?.(newState);
-        } catch (err) {
-            setIsSubscribed(!newState);
-        } finally {
-            setLoadingSub(false);
-        }
+        subscribeMutation.mutate(
+            { publicationId, action: newState ? "subscribe" : "unsubscribe" },
+            {
+                // Same single delta the SubscribeButton reports, so the header
+                // subscriber count is never adjusted twice for one action.
+                onSuccess: () => onSubscribeChange?.(newState),
+                onError: () => toast.error(newState ? "Failed to subscribe" : "Failed to unsubscribe")
+            }
+        );
+
+        setOpen(false);
     };
 
     const handleFollowToggle = async () => {
@@ -137,7 +139,7 @@ const PublicationMenu = ({ publicationId, ownerId, ownerUsername, isOwner, onSub
                         </>
                     ) : (
                         <>
-                            <button className="post-menu__item" onClick={handleSubscribeToggle} disabled={loadingSub}>
+                            <button className="post-menu__item" onClick={handleSubscribeToggle} disabled={subscribeMutation.isPending}>
                                 <Icon name={isSubscribed ? "notifications_active" : "notifications"} />
                                 <span>{isSubscribed ? "Unsubscribe" : "Subscribe"}</span>
                             </button>

@@ -48,6 +48,26 @@ const BlogPostCard = ({ content, author }) => {
        return n;
    };
 
+   const handleShare = async (e) => {
+       e.preventDefault();
+       e.stopPropagation();
+       // Same URL shape and toast copy as PostMenu's "Copy link" so sharing is consistent app-wide.
+       const url = `${window.location.origin}/blog/${id}`;
+       if(navigator.share){
+           try {
+               await navigator.share({ title, url });
+               return;
+           } catch (err) {
+               // Dismissing the native share sheet rejects with AbortError — that's not a failure,
+               // so stay silent rather than falling through to the clipboard path.
+               if (err?.name === "AbortError") return;
+           }
+       }
+       navigator.clipboard.writeText(url)
+           .then(() => toast.success("Link copied"))
+           .catch(() => toast.error("Failed to copy"));
+   }
+
    const handleLike = (e) => {
        e.preventDefault();
        if(access_token){
@@ -99,7 +119,7 @@ const BlogPostCard = ({ content, author }) => {
                     {tags && tags.length > 0 && (
                         <div className="feed-card__tags" onClick={(e) => e.preventDefault()}>
                             {tags.slice(0, 3).map((tag, i) => (
-                                <span key={i} className="feed-card__tag" onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(`/search/${tag}`); }} role="link" tabIndex={0}>#{tag}</span>
+                                <span key={i} className="feed-card__tag" onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate(`/search/${encodeURIComponent(tag)}`); }} role="link" tabIndex={0}>#{tag}</span>
                             ))}
                         </div>
                     )}
@@ -130,10 +150,15 @@ const BlogPostCard = ({ content, author }) => {
                     <Icon name="chat_bubble_outline" />
                     <span>{commentsCount > 0 ? commentsCount : "0"}</span>
                 </button>
-                <span className="feed-card__action feed-card__action--share">
+                <button
+                    type="button"
+                    onClick={handleShare}
+                    aria-label="Share post"
+                    className="feed-card__action feed-card__action--share"
+                >
                     <Icon name="ios_share" />
                     <span className="hidden sm:inline">Share</span>
-                </span>
+                </button>
             </div>
 
             {/* Comment Modal */}

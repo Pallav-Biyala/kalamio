@@ -67,8 +67,10 @@ const BlogInteraction = () => {
             <div className="flex gap-4 sm:gap-6 justify-between flex-wrap py-1">
                 <div className="flex gap-2.5 items-center">
 
-                    <button 
+                    <button
                         onClick={handleLike}
+                        aria-label="Like"
+                        aria-pressed={isLikedByUser}
                         className={"w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-90 " + ( isLikedByUser ? "bg-red/10 text-red" : "bg-grey hover:bg-grey/80" )}
                     >
                         <Icon name={isLikedByUser ? "favorite" : "favorite_border"} className="text-[18px]" />
@@ -84,6 +86,7 @@ const BlogInteraction = () => {
                                 setTimeout(() => commentBox.click(), 400);
                             }
                         }}
+                        aria-label="Comment"
                         className="w-8 h-8 rounded-full flex items-center justify-center bg-grey hover:bg-grey/80 transition-colors ml-2"
                     >
                         <Icon name="chat_bubble" className="text-[18px]" />

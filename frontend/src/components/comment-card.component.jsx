@@ -6,6 +6,7 @@ import { BlogContext } from "../pages/blog.page";
 import api from "../common/api";
 import Icon from "./Icon";
 import Avatar from "./Avatar";
+import ConfirmModal from "./confirm-modal.component";
 import { Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../common/queryKeys";
@@ -24,7 +25,11 @@ const CommentCard = ({ index, commentData, isTextPost = false, onReplyDeleted })
     let { userAuth: { access_token, username, profile_img: my_profile_img, fullname: my_fullname } } = useContext(UserContext)
     const [ isReplying, setReplying ] = useState(false);
     const [ replyText, setReplyText ] = useState("");
+    const [ showDeleteConfirm, setShowDeleteConfirm ] = useState(false);
+    const [ isDeleting, setIsDeleting ] = useState(false);
+    const [ showDiscardConfirm, setShowDiscardConfirm ] = useState(false);
     const replyTextareaRef = useRef(null);
+    const replyModalRef = useRef(null);
     const navigate = useNavigate();
     const queryClient = useQueryClient();
 
@@ -103,8 +108,16 @@ const CommentCard = ({ index, commentData, isTextPost = false, onReplyDeleted })
     const isOwner = username === commented_by_username || username === blog_author;
 
     // ── Delete comment ──
-    const deletComment = () => {
+    // Deletion is irreversible and cascades to every nested reply, so every entry point
+    // routes through the confirm dialog below instead of firing the request directly.
+    const requestDeleteComment = () => {
         setShowMenu(false);
+        setShowDeleteConfirm(true);
+    }
+
+    const deletComment = () => {
+        if (isDeleting) return;
+        setIsDeleting(true);
         api.post("/delete-comment", { _id })
         .then(() => {
             const isParent = commentData.childrenLevel == 0;
@@ -145,8 +158,16 @@ const CommentCard = ({ index, commentData, isTextPost = false, onReplyDeleted })
 
             // Invalidate feed queries so other tabs/views get updated count
             queryClient.invalidateQueries({ queryKey: queryKeys.blogs.all() });
+
+            setShowDeleteConfirm(false);
+            setIsDeleting(false);
+            toast.success(commentData.childrenLevel == 0 ? "Comment deleted" : "Reply deleted");
         })
-        .catch(() => {})
+        .catch(() => {
+            setIsDeleting(false);
+            setShowDeleteConfirm(false);
+            toast.error("Couldn't delete. Please try again.");
+        })
     }
 
     // ── Copy link ──
@@ -201,6 +222,52 @@ const CommentCard = ({ index, commentData, isTextPost = false, onReplyDeleted })
             replyTextareaRef.current.focus();
         }
     }, [isReplying]);
+
+    // Closing the reply modal must not silently destroy typed text — confirm first.
+    const closeReplyModal = () => {
+        setShowDiscardConfirm(false);
+        setReplying(false);
+        setReplyText("");
+    }
+
+    const requestCloseReplyModal = () => {
+        if (replyText.trim().length) {
+            return setShowDiscardConfirm(true);
+        }
+        closeReplyModal();
+    }
+
+    // Escape closes the reply modal (through the same discard guard).
+    useEffect(() => {
+        if (!isReplying) return;
+        const handleKey = (e) => {
+            // While the discard confirmation is up it owns Escape.
+            if (e.key === "Escape" && !showDiscardConfirm) {
+                e.stopPropagation();
+                requestCloseReplyModal();
+            }
+        };
+        window.addEventListener("keydown", handleKey);
+        return () => window.removeEventListener("keydown", handleKey);
+    }, [isReplying, showDiscardConfirm, replyText]);
+
+    // Keep Tab focus inside the reply dialog instead of letting it walk the page behind.
+    const handleReplyModalKeyDown = (e) => {
+        if (e.key !== "Tab" || !replyModalRef.current) return;
+        const focusable = replyModalRef.current.querySelectorAll(
+            'button:not([disabled]), textarea, input, select, a[href], [tabindex]:not([tabindex="-1"])'
+        );
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    }
 
     const handleReplySubmit = () => {
         if (!replyText.trim().length) return;
@@ -351,7 +418,7 @@ const CommentCard = ({ index, commentData, isTextPost = false, onReplyDeleted })
                         <span>Copy link</span>
                     </button>
                     {isOwner ? (
-                        <button className="comment-card__dropdown-item comment-card__dropdown-item--danger" onClick={deletComment}>
+                        <button className="comment-card__dropdown-item comment-card__dropdown-item--danger" onClick={requestDeleteComment}>
                             <Icon name="delete" />
                             <span>Delete</span>
                         </button>
@@ -519,8 +586,16 @@ const CommentCard = ({ index, commentData, isTextPost = false, onReplyDeleted })
 
             {/* Reply Modal */}
             {isReplying && (
-                <div className="comment-modal-overlay" onClick={() => { setReplying(false); setReplyText(""); }}>
-                    <div className="reply-modal" onClick={e => e.stopPropagation()}>
+                <div className="comment-modal-overlay" onClick={requestCloseReplyModal}>
+                    <div
+                        className="reply-modal"
+                        ref={replyModalRef}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Leave a reply"
+                        onClick={e => e.stopPropagation()}
+                        onKeyDown={handleReplyModalKeyDown}
+                    >
                         {/* Parent comment context */}
                         <div className="reply-modal__row">
                             <div className="reply-modal__left">
@@ -568,7 +643,7 @@ const CommentCard = ({ index, commentData, isTextPost = false, onReplyDeleted })
                         <div className="reply-modal__footer">
                             <div></div>
                             <div className="reply-modal__actions">
-                                <button className="reply-modal__cancel-btn" onClick={() => { setReplying(false); setReplyText(""); }}>
+                                <button className="reply-modal__cancel-btn" onClick={requestCloseReplyModal}>
                                     Cancel
                                 </button>
                                 <button 
@@ -583,6 +658,27 @@ const CommentCard = ({ index, commentData, isTextPost = false, onReplyDeleted })
                     </div>
                 </div>
             )}
+
+            <ConfirmModal
+                isOpen={showDeleteConfirm}
+                variant="danger"
+                title={commentData.childrenLevel == 0 ? "Delete this comment?" : "Delete this reply?"}
+                message={`This can't be undone.${replyCount > 0 ? ` Its ${replyCount} ${replyCount === 1 ? "reply" : "replies"} will also be deleted.` : ""}`}
+                confirmLabel={isDeleting ? "Deleting..." : "Delete"}
+                onConfirm={deletComment}
+                onCancel={() => { if (!isDeleting) setShowDeleteConfirm(false); }}
+            />
+
+            <ConfirmModal
+                isOpen={showDiscardConfirm}
+                variant="danger"
+                title="Discard this reply?"
+                message="Your typed reply will be lost."
+                confirmLabel="Discard"
+                cancelLabel="Keep editing"
+                onConfirm={closeReplyModal}
+                onCancel={() => setShowDiscardConfirm(false)}
+            />
         </div>
     )
 }

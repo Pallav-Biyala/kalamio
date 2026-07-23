@@ -11,6 +11,7 @@ import LoadMoreDataBtn from "../components/load-more.component";
 import { useSearchParams } from "react-router-dom";
 import { useUserBlogs } from "../hooks/queries";
 import { useBulkDeleteBlogs } from "../hooks/mutations";
+import ConfirmModal from "../components/confirm-modal.component";
 
 const SORT_OPTIONS = [
     { value: "newest", label: "Newest First" },
@@ -26,6 +27,7 @@ const ManageBlogs = () => {
     const [ query, setQuery ] = useState("");
     const [ sort, setSort ] = useState("newest");
     const [ selectedBlogs, setSelectedBlogs ] = useState(new Set());
+    const [ showBulkDeleteConfirm, setShowBulkDeleteConfirm ] = useState(false);
 
     let activeTab = useSearchParams()[0].get("tab");
 
@@ -80,9 +82,11 @@ const ManageBlogs = () => {
 
     const handleBulkDelete = () => {
         if (selectedBlogs.size === 0) return;
+        setShowBulkDeleteConfirm(true);
+    };
 
-        const confirmMsg = `Delete ${selectedBlogs.size} blog${selectedBlogs.size > 1 ? 's' : ''}? This cannot be undone.`;
-        if (!window.confirm(confirmMsg)) return;
+    const confirmBulkDelete = () => {
+        setShowBulkDeleteConfirm(false);
 
         bulkDelete.mutate(
             { blog_ids: Array.from(selectedBlogs) },
@@ -94,6 +98,16 @@ const ManageBlogs = () => {
 
     return (
         <>
+            <ConfirmModal
+                isOpen={showBulkDeleteConfirm}
+                title={`Delete ${selectedBlogs.size} blog${selectedBlogs.size > 1 ? 's' : ''}?`}
+                message={`The selected blog${selectedBlogs.size > 1 ? 's' : ''} will be permanently deleted along with all reads, likes and comments. This cannot be undone.`}
+                confirmLabel="Delete"
+                variant="danger"
+                onConfirm={confirmBulkDelete}
+                onCancel={() => setShowBulkDeleteConfirm(false)}
+            />
+
             <h1 className="max-md:hidden">Manage Blogs</h1>
 
             <div className="relative max-md:mt-5 md:mt-8 mb-6">

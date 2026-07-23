@@ -82,11 +82,18 @@ const FILL_WHEN_ACTIVE = new Set(['bookmark']);
 const Icon = ({ name, className = '', filled = false, ariaLabel = '', onClick = null, style = {} }) => {
   const LucideIcon = ICONS[name] || CircleHelp;
   const solid = ALWAYS_FILLED.has(name) || (filled && FILL_WHEN_ACTIVE.has(name));
+  // Icons are DECORATIVE by default. Falling back to `aria-label={name}` made every one of the ~370
+  // call sites announce its raw internal name ("favorite_border", "more_horiz", "ios_share") — noise
+  // on decorative glyphs and a duplicate announcement on buttons that already have visible text.
+  // Pass `ariaLabel` only when the icon itself is the sole carrier of meaning; otherwise the label
+  // belongs on the surrounding button.
+  const a11yProps = ariaLabel
+    ? { role: 'img', 'aria-label': ariaLabel }
+    : { 'aria-hidden': 'true', focusable: 'false' };
   return (
     <LucideIcon
       className={`material-symbols-rounded ${className}`.trim()}
-      role="img"
-      aria-label={ariaLabel || name}
+      {...a11yProps}
       onClick={onClick}
       style={style}
       fill={solid ? 'currentColor' : 'none'}

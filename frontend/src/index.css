@@ -55,6 +55,23 @@
     --c-surface:      36  36  35;
     --c-border:       55  55  53;
 
+    /* Marks active/selected/focused things across the app (saved bookmark,
+       selected option, focus rings, collection inputs). Aliased to --c-brand
+       so the app and the editor share ONE accent and can never drift apart —
+       monochrome today, and a single knob if a brand colour is ever wanted. */
+    --c-brand-accent: var(--c-brand);
+
+    /* Status hues only — deliberately NOT accents. Kept coloured because
+       success/warning/danger must stay distinguishable even in a
+       monochrome UI (matches how --c-red is already used). */
+    --c-green:        22 163  74;
+    /* Structural aliases — kept as var() so they can never drift from the
+       token they mirror. --c-orange is the warning hue; --c-bg/--c-primary
+       are the page background and body text. */
+    --c-orange:      var(--c-warning);
+    --c-bg:          var(--c-white);
+    --c-primary:     var(--c-black);
+
     /* Elevation shadows */
     --shadow-xs:   0 1px 2px rgb(0 0 0 / 0.3);
     --shadow-sm:   0 1px 3px rgb(0 0 0 / 0.4), 0 1px 2px rgb(0 0 0 / 0.3);
@@ -87,6 +104,11 @@
     --c-surface:     247 247 245;
     --c-border:      225 225 222;
 
+    /* --c-brand-accent is not re-declared: it follows --c-brand, which this
+       block already flips. Only the success hue goes deeper, so white button
+       labels stay legible on the light ground. */
+    --c-green:        21 128  61;
+
     --shadow-xs:   0 1px 2px rgb(0 0 0 / 0.05);
     --shadow-sm:   0 1px 3px rgb(0 0 0 / 0.08), 0 1px 2px rgb(0 0 0 / 0.04);
     --shadow-md:   0 4px 6px rgb(0 0 0 / 0.06), 0 2px 4px rgb(0 0 0 / 0.04);
@@ -110,15 +132,25 @@
         @apply m-0 p-0 box-border text-base;
     }
 
+    /* Keyboard focus indicator. Was a 1px ring at 20% alpha — well under the WCAG 3:1 non-text
+       contrast bar — so it read as no indicator at all. Now 2px at full opacity on --c-black (the
+       TEXT token, so it inverts with the theme and stays legible on both grounds).
+       `outline` rather than a Tailwind ring on purpose: rings are box-shadows, which get clipped by
+       every `overflow: hidden` ancestor (cards, modals, the sidebar) and would silently vanish on
+       exactly the controls that need them. Outline is never clipped and follows border-radius. */
     *:focus-visible {
-        @apply ring-1 outline-none;
-        --tw-ring-color: rgb(var(--c-black) / 0.2);
+        outline: 2px solid rgb(var(--c-black));
+        outline-offset: 2px;
         border-color: rgb(var(--c-black) / 0.4);
     }
 
+    /* Form fields used to have the indicator removed outright (`ring-0` + `border-color: inherit`),
+       leaving keyboard users with nothing. They get the same outline, pulled inward so it hugs the
+       field's own border instead of floating off it, plus a solid border for a second cue. */
     input:focus-visible, textarea:focus-visible, select:focus-visible {
-        @apply ring-0 outline-none;
-        border-color: inherit;
+        outline: 2px solid rgb(var(--c-black));
+        outline-offset: 1px;
+        border-color: rgb(var(--c-black));
     }
 
     html{
@@ -293,11 +325,19 @@
     }
 
     /* ── Typography ──────────────────────────────── */
-    #textEditor h2, h2{
+    /* Scoped to the writing/reading surfaces ONLY. These used to include a bare
+       `h2`/`h3` selector, which — with !important — hit every heading in the app
+       and beat the component rules that asked for 13-22px, so settings cards,
+       modal titles and sidebar section labels all rendered at article size.
+       The !important stays because these must still outrank the
+       `#textEditor *, .blog-page-content *, .tiptap-content *` serif catch-all
+       below; each selector here is one level more specific than its `*`
+       counterpart, so the heading wins on specificity. */
+    #textEditor h2, .tiptap-content h2, .blog-page-content h2 {
         @apply font-inter text-4xl leading-normal font-bold max-md:text-3xl max-md:leading-snug !important;
     }
 
-    #textEditor h3, h3 {
+    #textEditor h3, .tiptap-content h3, .blog-page-content h3 {
         @apply font-inter text-3xl leading-loose max-md:text-2xl max-md:leading-normal !important;
     }
 
@@ -310,7 +350,17 @@
        editor but WON in the reader, so the two surfaces silently drifted apart.
        `.blog-page-content *` stays for legacy EditorJS posts, which render without a
        `.tiptap-content` wrapper. */
-    #textEditor *, .blog-page-content *, .tiptap-content *, .tiptap-content {
+    /* The `:where(:not(...))` excludes code from the serif catch-all: `<code>`, `<pre>` and anything
+       inside them keep the monospace face set by editor-theme.css (`.tiptap-content code`,
+       `.code-block-node-view pre code`), which this rule's !important would otherwise beat at any
+       specificity. It MUST stay wrapped in `:where()` — a bare `:not(pre, code, pre *, code *)` adds
+       the specificity of its heaviest argument, which would push this selector past the
+       `#textEditor h2` / `.blog-page-content h2` heading rules above and flip headings back to serif.
+       `:where()` contributes zero, so the specificity here is byte-for-byte what it was. */
+    #textEditor *:where(:not(pre, code, pre *, code *)),
+    .blog-page-content *:where(:not(pre, code, pre *, code *)),
+    .tiptap-content *:where(:not(pre, code, pre *, code *)),
+    .tiptap-content {
         font-family: 'Literata', 'Merriweather', Charter, Georgia, Cambria, serif !important;
         font-weight: 400;
         /* Crisper serif rendering — better kerning + ligatures for a more refined read. */
@@ -1096,7 +1146,7 @@
     }
 
     .manage-blogs__sort-select:focus {
-        outline: 2px solid rgb(var(--c-purple));
+        outline: 2px solid rgb(var(--c-brand-accent));
         outline-offset: -1px;
     }
 
@@ -1141,17 +1191,38 @@
     }
 
     /* ── Analytics Dashboard ──────────────────────── */
-    .analytics__cards {
+    /* Class names here track analytics.page.jsx exactly (`__overview`, `__growth-chart`,
+       `__growth-bar-wrap`, `__post-*`). They had drifted to a different set (`__cards`,
+       `__growth`, a table-based top-post list), so the page rendered unstyled. */
+    .analytics__title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 22px;
+        font-weight: 700;
+        color: rgb(var(--c-black));
+    }
+
+    .analytics__title-icon {
+        width: 22px;
+        height: 22px;
+        color: rgb(var(--c-dark-grey));
+    }
+
+    .analytics__overview {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
         gap: 14px;
         margin: 24px 0;
     }
 
+    /* Grid, not flex: the JSX has no wrapper around value+label, so the icon claims column 1
+       across both rows and the two text lines stack in column 2. */
     .analytics__card {
-        display: flex;
+        display: grid;
+        grid-template-columns: auto 1fr;
         align-items: center;
-        gap: 12px;
+        column-gap: 12px;
         padding: 16px;
         background: rgb(var(--c-white));
         border: 1px solid rgb(var(--c-border));
@@ -1164,20 +1235,18 @@
         box-shadow: 0 4px 12px rgb(0 0 0 / 0.06);
     }
 
+    /* The icon IS the <svg> (lucide), so the tile is padding on the SVG itself — under the global
+       `box-border` the 40px box leaves a 20px glyph. `--card-color` is set inline per stat card;
+       it drives the glyph via currentColor, with the text token as fallback. */
     .analytics__card-icon {
-        width: 42px;
-        height: 42px;
+        width: 40px;
+        height: 40px;
+        padding: 10px;
         border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        background: rgb(var(--c-grey));
+        color: var(--card-color, rgb(var(--c-black)));
         flex-shrink: 0;
-    }
-
-    .analytics__card-data {
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
+        grid-row: 1 / span 2;
     }
 
     .analytics__card-value {
@@ -1199,6 +1268,9 @@
     }
 
     .analytics__section-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
         font-size: 16px;
         font-weight: 600;
         color: rgb(var(--c-black));
@@ -1206,7 +1278,9 @@
     }
 
     /* Growth Chart */
-    .analytics__growth {
+    /* The fixed height is load-bearing: each bar sets `height: N%`, which only resolves against a
+       definite height. */
+    .analytics__growth-chart {
         display: flex;
         align-items: flex-end;
         gap: 12px;
@@ -1217,14 +1291,18 @@
         margin-bottom: 32px;
     }
 
-    .analytics__growth-bar-wrapper {
+    /* Grid, not flex column: row 1 (`1fr`) is a definite track, so the bar's percentage height is a
+       percentage of the TRACK, not of the whole wrapper. In a flex column the bar's percentage
+       would include the space the count/label occupy, so a 100% bar would push them out of view. */
+    .analytics__growth-bar-wrap {
         flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 6px;
+        min-width: 0;
         height: 100%;
-        justify-content: flex-end;
+        display: grid;
+        grid-template-rows: 1fr auto auto;
+        align-items: end;
+        justify-items: center;
+        gap: 6px;
     }
 
     .analytics__growth-count {
@@ -1236,7 +1314,7 @@
     .analytics__growth-bar {
         width: 100%;
         max-width: 48px;
-        background: linear-gradient(to top, rgb(var(--c-purple)), rgb(var(--c-purple) / 0.6));
+        background: linear-gradient(to top, rgb(var(--c-brand-accent)), rgb(var(--c-brand-accent) / 0.6));
         border-radius: 6px 6px 2px 2px;
         min-height: 8px;
         transition: height 0.5s ease-out;
@@ -1248,64 +1326,69 @@
         white-space: nowrap;
     }
 
-    /* Top Posts Table */
-    .analytics__table-wrap {
-        overflow-x: auto;
+    /* Top Posts — a list of <Link> rows, not a table. */
+    .analytics__top-posts {
+        display: flex;
+        flex-direction: column;
         border: 1px solid rgb(var(--c-border));
         border-radius: 12px;
+        overflow: hidden;
     }
 
-    .analytics__table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 13px;
-    }
-
-    .analytics__table thead {
-        background: rgb(var(--c-grey));
-    }
-
-    .analytics__table th {
-        padding: 10px 14px;
-        font-weight: 600;
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: rgb(var(--c-dark-grey));
-        white-space: nowrap;
-    }
-
-    .analytics__table td {
+    .analytics__post-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
         padding: 12px 14px;
-        border-top: 1px solid rgb(var(--c-border));
+        text-decoration: none;
         color: rgb(var(--c-black));
+        transition: background 0.15s;
     }
 
-    .analytics__table tbody tr:hover {
+    .analytics__post-row:not(:last-child) {
+        border-bottom: 1px solid rgb(var(--c-border));
+    }
+
+    .analytics__post-row:hover {
         background: rgb(var(--c-grey) / 0.5);
     }
 
-    .analytics__post-link {
+    .analytics__post-rank {
+        width: 28px;
+        flex-shrink: 0;
+        font-size: 13px;
+        font-weight: 700;
+        color: rgb(var(--c-dark-grey));
+    }
+
+    .analytics__post-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .analytics__post-title {
+        font-size: 14px;
+        font-weight: 600;
         color: rgb(var(--c-black));
-        font-weight: 500;
-        text-decoration: none;
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .analytics__post-meta {
         display: flex;
         align-items: center;
-        gap: 6px;
-    }
-
-    .analytics__post-link:hover {
-        text-decoration: underline;
-    }
-
-    .analytics__post-badge {
-        font-size: 10px;
-        font-weight: 600;
-        padding: 2px 6px;
-        background: rgb(var(--c-grey));
-        border-radius: 4px;
+        flex-wrap: wrap;
+        gap: 12px;
+        font-size: 12px;
         color: rgb(var(--c-dark-grey));
-        flex-shrink: 0;
+    }
+
+    .analytics__post-meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
     }
 
     /* ── Blocked Users ───────────────────────────── */
@@ -1546,8 +1629,20 @@
     }
 
     .privacy__option--active {
-        border-color: rgb(var(--c-purple));
-        background: rgb(var(--c-purple) / 0.04);
+        border-color: rgb(var(--c-brand-accent));
+        background: rgb(var(--c-brand-accent) / 0.04);
+    }
+
+    /* The real radio is sr-only (1px, clipped), so its own focus ring is invisible. Hoist the
+       indicator onto the label the user actually sees, matching the global 2px outline treatment
+       so it stays legible on both themes (--c-black is the TEXT token and inverts with them). */
+    .privacy__option:has(input:focus-visible) {
+        outline: 2px solid rgb(var(--c-black));
+        outline-offset: 2px;
+    }
+
+    .privacy__option input:focus-visible {
+        outline: none;
     }
 
     .privacy__option-radio {
@@ -1563,14 +1658,14 @@
     }
 
     .privacy__option--active .privacy__option-radio {
-        border-color: rgb(var(--c-purple));
+        border-color: rgb(var(--c-brand-accent));
     }
 
     .privacy__option-radio-dot {
         width: 9px;
         height: 9px;
         border-radius: 50%;
-        background: rgb(var(--c-purple));
+        background: rgb(var(--c-brand-accent));
     }
 
     .privacy__toggle-row {
@@ -2141,7 +2236,7 @@
 
     /* ── Feed Card Saved State ───────────────────── */
     .feed-card__action--saved {
-        color: rgb(var(--c-purple)) !important;
+        color: rgb(var(--c-brand-accent)) !important;
     }
 
     /* ── Saved Page Grid ─────────────────────────── */
@@ -2195,7 +2290,7 @@
     }
 
     .saved-collection-card:hover {
-        border-color: rgb(var(--c-purple) / 0.4);
+        border-color: rgb(var(--c-brand-accent) / 0.4);
         box-shadow: 0 4px 12px rgb(var(--c-black) / 0.06);
     }
 
@@ -2373,7 +2468,7 @@
         color: rgb(var(--c-black));
     }
 
-    .collection-detail__edit-input:focus { border-color: rgb(var(--c-purple)); }
+    .collection-detail__edit-input:focus { border-color: rgb(var(--c-brand-accent)); }
 
     .collection-detail__edit-textarea {
         padding: 10px 14px;
@@ -2386,7 +2481,7 @@
         color: rgb(var(--c-black));
     }
 
-    .collection-detail__edit-textarea:focus { border-color: rgb(var(--c-purple)); }
+    .collection-detail__edit-textarea:focus { border-color: rgb(var(--c-brand-accent)); }
 
     .collection-detail__edit-actions {
         display: flex;
@@ -2812,7 +2907,7 @@
     }
 
     .feed-card:hover {
-        background: rgba(var(--c-grey), 0.45);
+        background: rgb(var(--c-grey) / 0.45);
     }
 
 
@@ -3938,14 +4033,19 @@
         width: 36px;
         height: 36px;
         border-radius: 50%;
-        background: rgba(var(--c-black), 0.45);
-        color: rgb(var(--c-white));
+        /* Deliberately theme-independent: this sits on top of a user-uploaded
+           banner photo, whose brightness has nothing to do with the app theme.
+           A themed scrim would flip to a near-white circle in dark mode and
+           disappear over light banners, so the scrim stays dark and the icon
+           stays white in both themes. */
+        background: rgb(0 0 0 / 0.45);
+        color: #fff;
         z-index: 20;
         backdrop-filter: blur(8px);
         transition: background 0.2s;
     }
     .publication-header__back-btn:active {
-        background: rgba(var(--c-black), 0.7);
+        background: rgb(0 0 0 / 0.7);
     }
     .publication-header__back-btn i {
         font-size: 20px;
@@ -5868,7 +5968,7 @@
 }
 .subscriptions-page__pub-chip.active .subscriptions-page__pub-avatar {
     border-color: rgb(var(--c-brand));
-    box-shadow: 0 0 0 3px rgba(var(--c-brand), 0.15);
+    box-shadow: 0 0 0 3px rgb(var(--c-brand) / 0.15);
 }
 .subscriptions-page__pub-avatar img {
     width: 100%;
@@ -6218,7 +6318,7 @@
     padding: 8px 12px;
     border-bottom: 1px solid rgb(var(--c-border));
     gap: 8px;
-    background: rgba(var(--c-black), 0.02);
+    background: rgb(var(--c-black) / 0.02);
     border-radius: 12px 12px 0 0;
 }
 
@@ -6249,7 +6349,7 @@
 }
 
 .mention-dropdown__close:hover {
-    background: rgba(var(--c-black), 0.05);
+    background: rgb(var(--c-black) / 0.05);
     color: rgb(var(--c-black));
 }
 
@@ -6270,7 +6370,7 @@
 
 .mention-dropdown__item:hover,
 .mention-dropdown__item.active {
-    background: rgba(var(--c-black), 0.05);
+    background: rgb(var(--c-black) / 0.05);
 }
 
 .mention-dropdown__avatar {
@@ -7404,7 +7504,7 @@
 }
 
 .editor-drafts__search-clear:hover {
-    background: rgba(var(--c-dark-grey), 0.15);
+    background: rgb(var(--c-dark-grey) / 0.15);
 }
 
 /* ── List ── */
@@ -7537,7 +7637,7 @@
 }
 
 .editor-drafts__item-menu:hover {
-    background: rgba(var(--c-dark-grey), 0.15);
+    background: rgb(var(--c-dark-grey) / 0.15);
     color: rgb(var(--c-black));
 }
 
@@ -7584,7 +7684,7 @@
     border-radius: 6px;
     font-size: 11px;
     font-weight: 600;
-    background: rgba(var(--c-brand), 0.12);
+    background: rgb(var(--c-brand) / 0.12);
     color: rgb(var(--c-brand));
     vertical-align: middle;
     letter-spacing: 0.3px;

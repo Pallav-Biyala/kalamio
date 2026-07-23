@@ -66,19 +66,21 @@ const PrivacySettingsPage = () => {
                 {/* Who Can Message Me */}
                 <div className="privacy__section">
                     <div className="privacy__section-header">
-                        <Icon name="chat" className="text-xl" style={{ color: 'rgb(var(--c-purple))' }} />
+                        <Icon name="chat" className="text-xl" style={{ color: 'rgb(var(--c-brand-accent))' }} />
                         <h2>Who Can Message Me</h2>
                     </div>
                     <div className="privacy__options">
                         {MESSAGING_OPTIONS.map(({ value, label, desc }) => (
                             <label key={value} className={`privacy__option ${settings?.who_can_message === value ? 'privacy__option--active' : ''}`}>
+                                {/* sr-only, not `hidden`: keeps the input focusable and in the
+                                    accessibility tree while the custom radio below draws the visuals. */}
                                 <input
                                     type="radio"
                                     name="who_can_message"
                                     value={value}
                                     checked={settings?.who_can_message === value}
                                     onChange={() => updateSetting('who_can_message', value)}
-                                    className="hidden"
+                                    className="sr-only"
                                 />
                                 <div className="privacy__option-radio">
                                     {settings?.who_can_message === value && <div className="privacy__option-radio-dot" />}
@@ -95,7 +97,7 @@ const PrivacySettingsPage = () => {
                 {/* Profile Visibility */}
                 <div className="privacy__section">
                     <div className="privacy__section-header">
-                        <Icon name="visibility" className="text-xl" style={{ color: 'rgb(var(--c-blue))' }} />
+                        <Icon name="visibility" className="text-xl" style={{ color: 'rgb(var(--c-brand-accent))' }} />
                         <h2>Profile Visibility</h2>
                     </div>
                     <div className="privacy__options">
@@ -107,7 +109,7 @@ const PrivacySettingsPage = () => {
                                     value={value}
                                     checked={settings?.show_profile === value}
                                     onChange={() => updateSetting('show_profile', value)}
-                                    className="hidden"
+                                    className="sr-only"
                                 />
                                 <div className="privacy__option-radio">
                                     {settings?.show_profile === value && <div className="privacy__option-radio-dot" />}
@@ -124,7 +126,7 @@ const PrivacySettingsPage = () => {
                 {/* Toggle Options */}
                 <div className="privacy__section">
                     <div className="privacy__section-header">
-                        <Icon name="tune" className="text-xl" style={{ color: 'rgb(var(--c-green))' }} />
+                        <Icon name="tune" className="text-xl" style={{ color: 'rgb(var(--c-brand-accent))' }} />
                         <h2>Display Preferences</h2>
                     </div>
 

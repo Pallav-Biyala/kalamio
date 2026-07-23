@@ -9,6 +9,7 @@ import Avatar from "./Avatar";
 import Icon from "./Icon";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../common/queryKeys";
+import ConfirmModal from "./confirm-modal.component";
 
 const CommentField = ({ action, index = undefined, replyingTo = undefined, setReplying, defaultOpen = false, onClose, customBlogData, onCommentPosted }) => {
 
@@ -22,7 +23,10 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
 
     const [ comment, setComment ] = useState("");
     const [ showModal, setShowModal ] = useState(defaultOpen);
+    const [ isSubmitting, setIsSubmitting ] = useState(false);
+    const [ showDiscardConfirm, setShowDiscardConfirm ] = useState(false);
     const textareaRef = useRef(null);
+    const modalRef = useRef(null);
 
     // Mentions state
     const [ mentionQuery, setMentionQuery ] = useState("");
@@ -134,6 +138,10 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
 
     const handleComment = () => {
 
+        // In-flight guard — a second Enter/click while the POST is pending would
+        // otherwise create a duplicate comment.
+        if(isSubmitting) return;
+
         if(!access_token){
             return toast.error("login first to leave a comment");
         }
@@ -147,11 +155,13 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
         let _id = blogData._id;
         let blog_author = blogData.author._id;
 
+        setIsSubmitting(true);
+
         api.post("/add-comment", {
             _id, blog_author, comment, replying_to: replyingTo
         })
         .then(({ data }) => {
-            
+
             setComment("");
             setShowModal(false);
             if (onClose) onClose();
@@ -205,6 +215,9 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
         .catch(err => {
             toast.error(err.message || "Failed to post comment");
         })
+        .finally(() => {
+            setIsSubmitting(false);
+        })
 
     }
 
@@ -216,10 +229,61 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
     };
 
     const closeModal = () => {
+        setShowDiscardConfirm(false);
         setShowModal(false);
         setComment("");
         if (onClose) onClose();
     };
+
+    // Dismiss gesture (overlay click / Escape / Cancel). Never throws away a typed
+    // draft silently — asks first when there is something to lose.
+    const requestClose = () => {
+        if (isSubmitting) return;
+        if (comment.trim().length) {
+            setShowDiscardConfirm(true);
+            return;
+        }
+        closeModal();
+    };
+
+    // Escape closes the modal (via the draft-safe path) and Tab is trapped inside it.
+    useEffect(() => {
+        if (!showModal || isReply) return;
+
+        const handleKeyDown = (e) => {
+            // While the discard confirmation is up it owns Escape.
+            if (showDiscardConfirm) return;
+
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                if (showMentions) {
+                    setShowMentions(false);
+                } else {
+                    requestClose();
+                }
+                return;
+            }
+
+            if (e.key === 'Tab' && modalRef.current) {
+                const focusable = modalRef.current.querySelectorAll(
+                    'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+                );
+                if (!focusable.length) return;
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (e.shiftKey && document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                } else if (!e.shiftKey && document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [showModal, isReply, showMentions, showDiscardConfirm, comment, isSubmitting]);
 
     if(!blogData) return null;
 
@@ -242,7 +306,7 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
                         onClick={handleCursorMove}
                         onKeyUp={handleCursorMove}
                         onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey && comment.trim().length > 0) {
+                            if (e.key === 'Enter' && !e.shiftKey && comment.trim().length > 0 && !isSubmitting) {
                                 e.preventDefault();
                                 handleComment();
                             }
@@ -317,9 +381,9 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
                         <button 
                             onClick={handleComment}
                             className="comment-input__submit"
-                            disabled={!comment.trim().length}
+                            disabled={!comment.trim().length || isSubmitting}
                         >
-                            Reply
+                            {isSubmitting ? "Posting…" : "Reply"}
                         </button>
                     </div>
                 </div>
@@ -348,8 +412,16 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
                 anchors to that ancestor (not the viewport), which caused the corner→center
                 glitch; at <body> it centers smoothly like the text-post composer. */}
             {showModal && createPortal(
-                <div className="comment-modal-overlay" onClick={closeModal}>
-                    <div className="reply-modal" onClick={e => e.stopPropagation()}>
+                <>
+                <div className="comment-modal-overlay" onClick={requestClose}>
+                    <div
+                        className="reply-modal"
+                        ref={modalRef}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Leave a comment"
+                        onClick={e => e.stopPropagation()}
+                    >
                         {/* Parent Row - Blog author context */}
                         <div className="reply-modal__row">
                             <div className="reply-modal__left">
@@ -398,7 +470,7 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
                                     onClick={handleCursorMove}
                                     onKeyUp={handleCursorMove}
                                     onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey && comment.trim().length > 0) {
+                                        if (e.key === 'Enter' && !e.shiftKey && comment.trim().length > 0 && !isSubmitting) {
                                             e.preventDefault();
                                             handleComment();
                                         }
@@ -463,20 +535,31 @@ const CommentField = ({ action, index = undefined, replyingTo = undefined, setRe
                                 </button>
                             </div>
                             <div className="reply-modal__actions">
-                                <button className="reply-modal__cancel-btn" onClick={closeModal}>
+                                <button className="reply-modal__cancel-btn" onClick={requestClose}>
                                     Cancel
                                 </button>
-                                <button 
+                                <button
                                     className="reply-modal__post-btn"
                                     onClick={handleComment}
-                                    disabled={!comment.trim().length}
+                                    disabled={!comment.trim().length || isSubmitting}
                                 >
-                                    Post
+                                    {isSubmitting ? "Posting…" : "Post"}
                                 </button>
                             </div>
                         </div>
                     </div>
-                </div>,
+                </div>
+                <ConfirmModal
+                    isOpen={showDiscardConfirm}
+                    title="Discard comment?"
+                    message="You have unsaved text. Closing now will discard it."
+                    confirmLabel="Discard"
+                    cancelLabel="Keep editing"
+                    variant="danger"
+                    onConfirm={closeModal}
+                    onCancel={() => setShowDiscardConfirm(false)}
+                />
+                </>,
                 document.body
             )}
         </>

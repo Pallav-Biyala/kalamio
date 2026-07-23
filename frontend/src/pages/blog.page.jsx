@@ -447,7 +447,7 @@ const BlogPage = () => {
                                     {tags && tags.length > 0 && (
                                         <div className="flex flex-wrap gap-2 mb-8">
                                             {tags.map((tag, i) => (
-                                                <span key={i} className="text-xs font-medium px-3 py-1 rounded-full text-dark-grey bg-grey hover:text-black transition-colors cursor-pointer" onClick={() => navigate(`/search/${tag}`)} role="link" tabIndex={0}>#{tag}</span>
+                                                <span key={i} className="text-xs font-medium px-3 py-1 rounded-full text-dark-grey bg-grey hover:text-black transition-colors cursor-pointer" onClick={() => navigate(`/search/${encodeURIComponent(tag)}`)} role="link" tabIndex={0}>#{tag}</span>
                                             ))}
                                         </div>
                                     )}

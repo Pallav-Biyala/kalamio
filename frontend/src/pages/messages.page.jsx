@@ -73,6 +73,23 @@ const MessagesPage = () => {
         .catch(() => {});
     }, [searchParams, access_token]);
 
+    // Flip the OPEN conversation out of "pending request" so the composer unlocks immediately —
+    // used both when the other user accepts (socket) and when we accept from the request bar.
+    const applyRequestAccepted = useCallback((conversationId) => {
+        setActiveConv(prev => (prev && String(prev._id) === String(conversationId))
+            ? { ...prev, request_status: 'accepted' }
+            : prev);
+        fetchConversations();
+    }, [fetchConversations]);
+
+    // Declined requests are gone — close the chat and go back to the list instead of stranding
+    // the user on a conversation that no longer exists.
+    const handleRequestDeclined = useCallback(() => {
+        setActiveConv(null);
+        setShowSidebar(true);
+        fetchConversations();
+    }, [fetchConversations]);
+
     // Socket.IO: listen for new messages to update conversation list
     useEffect(() => {
         if (!access_token) return;
@@ -88,10 +105,7 @@ const MessagesPage = () => {
         // only refreshes the list, not the selected conversation, so flip its status directly) and
         // refresh the list so it moves from Requests → Chats.
         const handleRequestAccepted = (data) => {
-            setActiveConv(prev => (prev && String(prev._id) === String(data.conversation_id))
-                ? { ...prev, request_status: 'accepted' }
-                : prev);
-            fetchConversations();
+            applyRequestAccepted(data.conversation_id);
         };
 
         socket.on('new_message', handleNewMessage);
@@ -101,7 +115,7 @@ const MessagesPage = () => {
             socket.off('new_message', handleNewMessage);
             socket.off('request_accepted', handleRequestAccepted);
         };
-    }, [access_token, fetchConversations]);
+    }, [access_token, fetchConversations, applyRequestAccepted]);
 
     const handleSelectConversation = (conv) => {
         setActiveConv(conv);
@@ -178,6 +192,8 @@ const MessagesPage = () => {
                     conversation={activeConv}
                     onConversationUpdate={handleConversationUpdate}
                     onConversationCreated={handleConversationCreated}
+                    onRequestAccepted={applyRequestAccepted}
+                    onRequestDeclined={handleRequestDeclined}
                 />
             </div>
         </div>

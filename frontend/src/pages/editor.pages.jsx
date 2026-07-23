@@ -1,9 +1,10 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { UserContext } from "../App";
-import { Navigate, useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, useParams, useNavigate, useSearchParams, Link } from "react-router-dom";
 import BlogEditor from "../components/blog-editor.component";
 import PublishForm from "../components/publish-form.component";
 import Loader from "../components/loader.component";
+import Icon from "../components/Icon";
 import api from "../common/api";
 import { toast } from "react-hot-toast";
 import { useDraftAutosave, blogIsMeaningful, blogSignature } from "../hooks/useDraftAutosave";
@@ -54,6 +55,13 @@ const Editor = () => {
     // When the hydrated content was last saved, so the indicator shows "Saved · Xm ago" immediately on
     // reopen instead of staying blank until the first edit.
     const [ hydratedSavedAt, setHydratedSavedAt ] = useState(null);
+    // Set when loading an EXISTING draft fails, so we can render an explicit in-editor error state
+    // instead of handing null to BlogEditor (which threw and dead-ended in the global ErrorBoundary).
+    // Shape: { status } — the HTTP status, so a deleted/unknown draft (404) reads differently from a
+    // network/server failure. Never set for a brand-new post (no fetch happens).
+    const [ loadError, setLoadError ] = useState(null);
+    // Bumped by "Try again" to re-run the load effect.
+    const [ reloadKey, setReloadKey ] = useState(0);
 
     let { userAuth: {access_token, username} } = useContext(UserContext);
 
@@ -80,7 +88,8 @@ const Editor = () => {
     // Autosave engine: local safety net always, plus server sync for existing drafts (Phase A + B).
     // Enabled only after hydration so it never re-saves loaded content as if it were a user edit.
     const { saveStatus, savedAt, clearLocalDraft } = useDraftAutosave({
-        draftKey, blog, enabled: !loading && !!draftKey,
+        // Never autosave while the draft failed to load — the editor state is a placeholder, not the user's work.
+        draftKey, blog, enabled: !loading && !loadError && !!draftKey,
         serverEnabled, serverContentSig, serverSave, hydratedSavedAt,
     });
 
@@ -101,8 +110,8 @@ const Editor = () => {
                         navigate("/");
                         return;
                     }
-                } catch {
-                    if (!cancelled) { setBlog(null); setLoading(false); }
+                } catch (err) {
+                    if (!cancelled) { setLoadError({ status: err?.response?.status ?? null }); setLoading(false); }
                     return;
                 }
             }
@@ -149,7 +158,15 @@ const Editor = () => {
 
         return () => { cancelled = true; };
 
-    }, [])
+    }, [reloadKey])
+
+    // "Try again" on the load-error state: clear the error and re-run the load effect in place, so the
+    // user never has to refresh (which previously just re-ran the same failing fetch into a crash).
+    const retryLoad = () => {
+        setLoadError(null);
+        setLoading(true);
+        setReloadKey(k => k + 1);
+    };
 
     // Keep the URL's ?step in sync with the current phase so a refresh / back / forward stays put.
     // `replace` so stepping between phases doesn't pile up history entries.
@@ -172,6 +189,32 @@ const Editor = () => {
                 access_token === null ? <Navigate to="/signin" />
                 :
                 loading ? <Loader /> :
+                loadError ?
+                    // A 404 means the draft is gone (deleted, or a bad id) — a Retry could never succeed,
+                    // so it only gets a way back. Anything else is a network/server failure worth retrying.
+                    <div className="network-error">
+                        <div className="network-error__icon-wrap">
+                            <Icon name={loadError.status === 404 ? "search_off" : "cloud_off"} className="network-error__icon" />
+                        </div>
+                        <h3 className="network-error__title">
+                            { loadError.status === 404 ? "Draft not found" : "Couldn't load this draft" }
+                        </h3>
+                        <p className="network-error__subtitle">
+                            {
+                                loadError.status === 404
+                                    ? "It may have been deleted, or this link isn't valid anymore."
+                                    : "Something went wrong while loading it. Check your connection and try again."
+                            }
+                        </p>
+                        { loadError.status !== 404 &&
+                            <button className="network-error__retry" onClick={retryLoad}>
+                                <Icon name="refresh" className="text-base" />
+                                Try again
+                            </button>
+                        }
+                        <Link to="/dashboard/blogs?tab=draft" className="link underline mt-2">Back to drafts</Link>
+                    </div>
+                :
                 editorState == "editor" ? <BlogEditor/> : <PublishForm/>
             }
         </EditorContext.Provider>

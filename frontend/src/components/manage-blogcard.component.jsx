@@ -5,6 +5,7 @@ import { UserContext } from "../App";
 import Icon from "./Icon";
 import { cdnUrl } from "../common/cdn";
 import { useDeleteBlog } from "../hooks/mutations";
+import ConfirmModal from "./confirm-modal.component";
 
 const BlogStats = ({ stats }) => {
     return (
@@ -28,6 +29,7 @@ export const ManagePublishedBlogsCard = ({ blog, isSelected, onToggleSelect }) =
     const isTextPost = type === 'text_post';
 
     let [ showStat, setShowStat ] = useState(false);
+    let [ showDeleteConfirm, setShowDeleteConfirm ] = useState(false);
 
     // TanStack Query mutation — invalidates blogs.all on success
     const deleteMutation = useDeleteBlog();
@@ -80,7 +82,7 @@ export const ManagePublishedBlogsCard = ({ blog, isSelected, onToggleSelect }) =
 
                         <button 
                             className="text-red hover:text-red/80 transition-colors flex items-center gap-1 text-sm font-medium" 
-                            onClick={() => deleteMutation.mutate({ blog_id })}
+                            onClick={() => setShowDeleteConfirm(true)}
                             disabled={deleteMutation.isPending}
                         >
                             <Icon name="delete" className="text-xl" />
@@ -88,7 +90,7 @@ export const ManagePublishedBlogsCard = ({ blog, isSelected, onToggleSelect }) =
                         </button>
 
                     </div>
-                    
+
                 </div>
 
                 <div className="max-lg:hidden">
@@ -101,6 +103,16 @@ export const ManagePublishedBlogsCard = ({ blog, isSelected, onToggleSelect }) =
                 showStat ? <div className="lg:hidden"><BlogStats stats={activity} /></div> : ""
             }
 
+            <ConfirmModal
+                isOpen={showDeleteConfirm}
+                title="Delete this blog?"
+                message={`"${displayTitle}" will be permanently deleted along with its reads, likes and comments. This cannot be undone.`}
+                confirmLabel="Delete"
+                variant="danger"
+                onConfirm={() => { setShowDeleteConfirm(false); deleteMutation.mutate({ blog_id }); }}
+                onCancel={() => setShowDeleteConfirm(false)}
+            />
+
         </>
     )
 }
@@ -112,6 +124,8 @@ export const ManageDraftBlogPost = ({ blog }) => {
 
     const deleteMutation = useDeleteBlog();
 
+    let [ showDeleteConfirm, setShowDeleteConfirm ] = useState(false);
+
     const displayTitle = isTextPost
         ? (text_content ? text_content.substring(0, 80) + (text_content.length > 80 ? '...' : '') : 'Text Post')
         : title;
@@ -119,6 +133,7 @@ export const ManageDraftBlogPost = ({ blog }) => {
     index++;
 
     return (
+        <>
         <div className="flex gap-5 lg:gap-10 pb-6 border-b mb-6 border-border">
 
             <h1 className="blog-index text-center pl-4 md:pl-6 flex-none">{ index < 10 ? "0" + index : index }</h1>
@@ -141,7 +156,7 @@ export const ManageDraftBlogPost = ({ blog }) => {
 
                     <button 
                         className="text-red hover:text-red/80 transition-colors flex items-center gap-1 text-sm font-medium" 
-                        onClick={() => deleteMutation.mutate({ blog_id })}
+                        onClick={() => setShowDeleteConfirm(true)}
                         disabled={deleteMutation.isPending}
                     >
                         <Icon name="delete" className="text-xl" />
@@ -152,5 +167,16 @@ export const ManageDraftBlogPost = ({ blog }) => {
 
             </div>
         </div>
+
+        <ConfirmModal
+            isOpen={showDeleteConfirm}
+            title="Delete this draft?"
+            message={`"${displayTitle}" will be permanently deleted. This cannot be undone.`}
+            confirmLabel="Delete"
+            variant="danger"
+            onConfirm={() => { setShowDeleteConfirm(false); deleteMutation.mutate({ blog_id }); }}
+            onCancel={() => setShowDeleteConfirm(false)}
+        />
+        </>
     )
 }

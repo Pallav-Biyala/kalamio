@@ -54,7 +54,8 @@ const MobileTopBar = () => {
 
     const handleSearchKeyDown = (e) => {
         if (e.keyCode === 13 && searchQuery.length) {
-            navigate(`/search/${searchQuery}`);
+            // Encode: raw queries containing /, #, ? or % break the :query route param
+            navigate(`/search/${encodeURIComponent(searchQuery)}`);
             setSearchOpen(false);
             setSearchQuery("");
         }
@@ -62,7 +63,7 @@ const MobileTopBar = () => {
 
     const handleSearchClick = () => {
         if (searchQuery.length) {
-            navigate(`/search/${searchQuery}`);
+            navigate(`/search/${encodeURIComponent(searchQuery)}`);
             setSearchOpen(false);
             setSearchQuery("");
         }

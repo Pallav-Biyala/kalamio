@@ -10,7 +10,8 @@ import toast from "react-hot-toast";
 import { EditorContext } from "../pages/editor.pages";
 import TiptapEditor from "./editor/TiptapEditor";
 import SaveStatus from "./editor/SaveStatus";
-import { blogSignature } from "../hooks/useDraftAutosave";
+import { blogSignature, blogIsMeaningful } from "../hooks/useDraftAutosave";
+import ConfirmModal from "./confirm-modal.component";
 import api from "../common/api";
 import { ThemeContext, UserContext } from "../App";
 import Icon from "./Icon";
@@ -49,6 +50,7 @@ const BlogEditor = () => {
     const [loadingDrafts, setLoadingDrafts] = useState(false);
     const [draftMenuOpen, setDraftMenuOpen] = useState(null);
     const [showDraftPopup, setShowDraftPopup] = useState(null); // 'save' | 'update' | null
+    const [confirmState, setConfirmState] = useState(null); // { title, message, confirmLabel, onConfirm } | null
     const searchTimeoutRef = useRef(null);
     const titleRef = useRef(null);
 
@@ -76,7 +78,15 @@ const BlogEditor = () => {
     }, [setBlog]);
 
     // ── Helpers ──
-    const hasContent = title.length > 0 || banner.length > 0;
+    // Must include the editor BODY, not just title/banner — otherwise paragraphs typed without a title
+    // read as an "empty editor", the button says "Drafts" instead of "Save draft", and the destructive
+    // paths below run with no save prompt. `blog.content` is kept current by handleEditorUpdate, so this
+    // re-evaluates as the writer types.
+    const hasContent = blogIsMeaningful(blog) || banner.length > 0;
+
+    // Work that is NOT mirrored to the server: a brand-new post, or edits to a published post (server
+    // autosave only runs for existing drafts). Discarding this loses it for good, so it needs a prompt.
+    const hasUnsavedWork = hasContent && !isEditingDraft;
 
     const resetEditor = () => {
         setBlog({ ...blogStructure });
@@ -190,6 +200,40 @@ const BlogEditor = () => {
             toast.dismiss(loadingToast);
             toast.error("Failed to delete draft");
         }
+    };
+
+    // ── Destructive actions, gated behind ConfirmModal ──
+    const draftLabel = (draft) => draft.title || "Untitled draft";
+
+    const requestNewPost = () => {
+        const go = () => { resetEditor(); setView("editor"); };
+        if (!hasUnsavedWork) return go();
+        setConfirmState({
+            title: "Discard current work?",
+            message: "Your unsaved title and content will be lost. Save it as a draft first if you want to keep it.",
+            confirmLabel: "Discard",
+            onConfirm: () => { setConfirmState(null); go(); }
+        });
+    };
+
+    const requestLoadDraft = (draft) => {
+        if (!hasUnsavedWork) return loadDraft(draft);
+        setConfirmState({
+            title: "Discard current work?",
+            message: `Opening "${draftLabel(draft)}" will replace your unsaved title and content.`,
+            confirmLabel: "Discard & open",
+            onConfirm: () => { setConfirmState(null); loadDraft(draft); }
+        });
+    };
+
+    const requestDeleteDraft = (draft) => {
+        setDraftMenuOpen(null);
+        setConfirmState({
+            title: "Delete this draft?",
+            message: `"${draftLabel(draft)}" will be permanently deleted. This can't be undone.`,
+            confirmLabel: "Delete",
+            onConfirm: () => { setConfirmState(null); deleteDraft(draft.blog_id); }
+        });
     };
 
     // ── Build draft payload ──
@@ -414,10 +458,7 @@ const BlogEditor = () => {
                     {/* Draft List */}
                     <div className="editor-drafts__list" onClick={() => setDraftMenuOpen(null)}>
                         {/* Create New button */}
-                        <button className="editor-drafts__new-btn" onClick={() => {
-                            resetEditor();
-                            setView("editor");
-                        }}>
+                        <button className="editor-drafts__new-btn" onClick={requestNewPost}>
                             <div className="editor-drafts__new-icon">
                                 <Icon name="add" className="text-xl" />
                             </div>
@@ -435,7 +476,7 @@ const BlogEditor = () => {
                             </div>
                         ) : (
                             drafts && drafts.map(draft => (
-                                <div key={draft.blog_id} className="editor-drafts__item" onClick={() => loadDraft(draft)}>
+                                <div key={draft.blog_id} className="editor-drafts__item" onClick={() => requestLoadDraft(draft)}>
                                     {/* Thumbnail */}
                                     {draft.banner ? (
                                         <div className="editor-drafts__item-thumb">
@@ -467,7 +508,7 @@ const BlogEditor = () => {
                                     {draftMenuOpen === draft.blog_id && (
                                         <div className="editor-drafts__item-dropdown">
                                             <button className="editor-drafts__item-dropdown-btn editor-drafts__item-dropdown-btn--delete"
-                                                onClick={(e) => { e.stopPropagation(); deleteDraft(draft.blog_id); }}>
+                                                onClick={(e) => { e.stopPropagation(); requestDeleteDraft(draft); }}>
                                                 <Icon name="delete" className="text-lg" /> Delete
                                             </button>
                                         </div>
@@ -478,6 +519,16 @@ const BlogEditor = () => {
                     </div>
 
                 </div>
+
+                <ConfirmModal
+                    isOpen={Boolean(confirmState)}
+                    title={confirmState?.title}
+                    message={confirmState?.message}
+                    confirmLabel={confirmState?.confirmLabel}
+                    variant="danger"
+                    onConfirm={confirmState?.onConfirm}
+                    onCancel={() => setConfirmState(null)}
+                />
             </div>
         );
     }

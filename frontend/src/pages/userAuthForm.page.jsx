@@ -24,7 +24,10 @@ const UserAuthForm = ( {type} ) => {
 
         let serverRoute = type == "sign-in" ? "/signin" : "/signup"
 
-        let emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/; // regex for email
+        // Permissive on purpose: only catches obvious typos (missing @ / dot / whitespace).
+        // The old pattern blocked plus-addressing (user+tag@x.com) and TLDs longer than
+        // 3 chars (.online, .photography). The server is authoritative on deliverability.
+        let emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/; // regex for email
         let passwordRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,20}$/; // regex for password
 
         //formData

@@ -1,10 +1,13 @@
-import { useContext, useState } from "react";
+import { useContext, useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import { UserContext } from "../App";
 import { BlogContext } from "./blog.page";
 import api from "../common/api";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "../common/queryKeys";
+import { useLikeStatus } from "../hooks/queries";
+import { useLikeBlog } from "../hooks/mutations";
 import { getDay, getFullDay } from "../common/date";
 import Loader from "../components/loader.component";
 import AnimationWrapper from "../common/page-animation";
@@ -14,6 +17,97 @@ import CommentCard from "../components/comment-card.component";
 import CommentField from "../components/comment-field.component";
 import RightSidebar from "../components/right-sidebar.component";
 import NoDataMessage from "../components/nodata.component";
+
+// Scrolls to the thread's comment composer and opens it. The stub carries id="comment-textarea"
+// and its own login guard, so clicking it is the same path as the user tapping it directly.
+const focusCommentField = () => {
+    const field = document.getElementById("comment-textarea");
+    if (!field) return;
+    field.scrollIntoView({ behavior: "smooth", block: "center" });
+    field.click();
+};
+
+const copyCommentLink = (commentId) => {
+    navigator.clipboard.writeText(`${window.location.origin}/comment/${commentId}`)
+        .then(() => toast.success("Link copied"))
+        .catch(() => toast.error("Failed to copy link"));
+};
+
+// Action row for a comment shown as thread context (ancestors + the target comment).
+// Lives at module scope so its like state survives re-renders of the page.
+const CommentActions = ({ comment, onLikesChange }) => {
+
+    let { userAuth: { access_token } } = useContext(UserContext);
+
+    const [ isLiked, setIsLiked ] = useState(false);
+    const [ likesCount, setLikesCount ] = useState(comment.activity?.total_likes ?? comment.likes ?? 0);
+
+    useEffect(() => {
+        if (access_token && comment._id) {
+            api.post("/is-comment-liked", { _id: comment._id })
+            .then(({ data: { result } }) => setIsLiked(!!result))
+            .catch(() => {});
+        }
+    }, [comment._id, access_token]);
+
+    const handleLike = () => {
+        if (!access_token) {
+            return toast.error("Login first to like");
+        }
+        api.post("/like-comment", { _id: comment._id, isLikedByUser: isLiked })
+        .then(({ data }) => {
+            setIsLiked(data.liked_by_user);
+            setLikesCount(data.total_likes);
+            // Keeps the target comment's separate "N Likes" stats line from going stale.
+            onLikesChange?.(data.total_likes);
+        })
+        .catch(() => toast.error("Something went wrong"));
+    };
+
+    return (
+        <div className="comment-card__actions">
+            <button className={`comment-card__action-btn ${isLiked ? 'comment-card__action-btn--liked' : ''}`} onClick={handleLike}>
+                <Icon name={isLiked ? "favorite" : "favorite_border"} filled={isLiked} />
+                <span>{likesCount}</span>
+            </button>
+            <button className="comment-card__action-btn" onClick={focusCommentField}>
+                <Icon name="chat_bubble_outline" />
+                <span>{comment.children?.length || 0}</span>
+            </button>
+            <button className="comment-card__action-btn" onClick={() => copyCommentLink(comment._id)}>
+                <Icon name="upload" />
+            </button>
+        </div>
+    );
+};
+
+// ── Ancestor row component  ──
+const AncestorRow = ({ ancestor }) => {
+    const { personal_info: { profile_img: aImg, fullname: aName, username: aUsername } } = ancestor.commented_by;
+    return (
+        <div className="comment-thread__ancestor">
+            <div className="comment-thread__row">
+                <div className="comment-thread__avatar-col">
+                    <Link to={`/user/${aUsername}`}>
+                        <Avatar src={aImg} alt={aUsername} size={36} />
+                    </Link>
+                    <div className="comment-thread__line"></div>
+                </div>
+                <div className="comment-thread__content-col">
+                    <div className="comment-thread__comment-header">
+                        <Link to={`/user/${aUsername}`} className="comment-card__name">{aName}</Link>
+                        <span className="comment-card__dot">·</span>
+                        <span className="comment-card__time">{getDay(ancestor.commentedAt)}</span>
+                    </div>
+                    <Link to={`/comment/${ancestor._id}`} className="comment-thread__ancestor-link">
+                        <p className="comment-card__text">{ancestor.comment}</p>
+                    </Link>
+                    <CommentActions comment={ancestor} />
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const CommentThreadPage = () => {
 
@@ -41,16 +135,61 @@ const CommentThreadPage = () => {
         },
     });
 
-    // Sync replies on first load (for TanStack Query v5 which doesn't have onSuccess)
-    if (threadData && replies.length === 0 && threadData.initialReplies.length > 0) {
+    // Seed the reply list ONCE per thread (TanStack Query v5 has no onSuccess). This used to be a
+    // render-time sync guarded only by `replies.length === 0`, which resurrected a just-deleted
+    // last reply: CommentCard empties the list through the setBlog shim below, and on the very
+    // next render the cached copy was put straight back — a zombie the server had already removed.
+    const seededThreadRef = useRef(null);
+    useEffect(() => {
+        const loadedThreadId = threadData?.comment?._id;
+        if (!loadedThreadId || seededThreadRef.current === loadedThreadId) return;
+        seededThreadRef.current = loadedThreadId;
         setReplies(threadData.initialReplies);
         setTotalRepliesLoaded(threadData.initialReplies.length);
         setTotalParentCommentsLoaded(threadData.initialReplies.length);
-    }
+    }, [threadData]);
 
     const parentComment = threadData?.comment;
     const ancestors = threadData?.ancestors || [];
     const blogContext = threadData?.blogContext;
+
+    // ── Original-post like (the context card at the top of the thread) ──
+    // The post's count here comes from the thread payload, not the blogs cache the mutation
+    // patches, so it is mirrored locally and reconciled from the server's authoritative total.
+    const { data: isPostLiked = false } = useLikeStatus(blogContext?._id);
+    const postLikeMutation = useLikeBlog(blogContext?.blog_id);
+    const [ postLikes, setPostLikes ] = useState(0);
+
+    useEffect(() => {
+        setPostLikes(blogContext?.activity?.total_likes || 0);
+    }, [blogContext?._id, blogContext?.activity?.total_likes]);
+
+    // Mirror of the target comment's like count, shared by its action button and stats line.
+    const [ parentLikes, setParentLikes ] = useState(0);
+
+    useEffect(() => {
+        setParentLikes(parentComment?.activity?.total_likes ?? parentComment?.likes ?? 0);
+    }, [parentComment?._id, parentComment?.activity?.total_likes, parentComment?.likes]);
+
+    const handlePostLike = () => {
+        if (!access_token) {
+            return toast.error("Login first to like");
+        }
+        const delta = isPostLiked ? -1 : 1;
+        setPostLikes(prev => Math.max(0, prev + delta));
+        postLikeMutation.mutate(
+            { _id: blogContext._id, isLikedByUser: isPostLiked },
+            {
+                onSuccess: ({ data }) => {
+                    if (typeof data?.total_likes === "number") setPostLikes(data.total_likes);
+                },
+                onError: () => {
+                    setPostLikes(prev => Math.max(0, prev - delta));
+                    toast.error("Something went wrong");
+                },
+            }
+        );
+    };
 
     const buildBlogObj = (blogCtx, repliesArr, comment) => {
         if (!blogCtx || !comment) return null;
@@ -89,49 +228,6 @@ const CommentThreadPage = () => {
 
     const blogObj = buildBlogObj(blogContext, replies, parentComment);
     const { personal_info: { profile_img: authorImg, fullname: authorName, username: authorUsername } } = blogContext.author;
-
-    // ── Ancestor row component  ──
-    const AncestorRow = ({ ancestor }) => {
-        const { personal_info: { profile_img: aImg, fullname: aName, username: aUsername } } = ancestor.commented_by;
-        return (
-            <div className="comment-thread__ancestor">
-                <div className="comment-thread__row">
-                    <div className="comment-thread__avatar-col">
-                        <Link to={`/user/${aUsername}`}>
-                            <Avatar src={aImg} alt={aUsername} size={36} />
-                        </Link>
-                        <div className="comment-thread__line"></div>
-                    </div>
-                    <div className="comment-thread__content-col">
-                        <div className="comment-thread__comment-header">
-                            <Link to={`/user/${aUsername}`} className="comment-card__name">{aName}</Link>
-                            <span className="comment-card__dot">·</span>
-                            <span className="comment-card__time">{getDay(ancestor.commentedAt)}</span>
-                        </div>
-                        <Link to={`/comment/${ancestor._id}`} className="comment-thread__ancestor-link">
-                            <p className="comment-card__text">{ancestor.comment}</p>
-                        </Link>
-                        <div className="comment-card__actions">
-                            <button className="comment-card__action-btn">
-                                <Icon name="favorite_border" />
-                                <span>{ancestor.likes || 0}</span>
-                            </button>
-                            <button className="comment-card__action-btn">
-                                <Icon name="chat_bubble_outline" />
-                                <span>{ancestor.children?.length || 0}</span>
-                            </button>
-                            <button className="comment-card__action-btn">
-                                <Icon name="repeat" />
-                            </button>
-                            <button className="comment-card__action-btn">
-                                <Icon name="upload" />
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    };
 
     return (
         <AnimationWrapper>
@@ -178,18 +274,24 @@ const CommentThreadPage = () => {
                                     </p>
                                 </Link>
                                 <div className="comment-card__actions">
-                                    <button className="comment-card__action-btn">
-                                        <Icon name="favorite_border" />
-                                        <span>{blogContext.activity?.total_likes || 0}</span>
+                                    <button className={`comment-card__action-btn ${isPostLiked ? 'comment-card__action-btn--liked' : ''}`} onClick={handlePostLike}>
+                                        <Icon name={isPostLiked ? "favorite" : "favorite_border"} filled={isPostLiked} />
+                                        <span>{postLikes}</span>
                                     </button>
-                                    <button className="comment-card__action-btn">
+                                    {/* Commenting on the POST isn't possible from this page (the composer
+                                        below replies to the thread's comment), so this opens the post. */}
+                                    <button className="comment-card__action-btn" onClick={() => navigate(`/blog/${blogContext.blog_id}`)}>
                                         <Icon name="chat_bubble_outline" />
                                         <span>{blogContext.activity?.total_comments || 0}</span>
                                     </button>
-                                    <button className="comment-card__action-btn">
-                                        <Icon name="repeat" />
-                                    </button>
-                                    <button className="comment-card__action-btn">
+                                    <button
+                                        className="comment-card__action-btn"
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(`${window.location.origin}/blog/${blogContext.blog_id}`)
+                                                .then(() => toast.success("Link copied"))
+                                                .catch(() => toast.error("Failed to copy link"));
+                                        }}
+                                    >
                                         <Icon name="upload" />
                                     </button>
                                 </div>
@@ -219,28 +321,13 @@ const CommentThreadPage = () => {
                                     <span className="comment-card__time">{getDay(parentComment.commentedAt)}</span>
                                 </div>
                                 <p className="comment-card__text">{parentComment.comment}</p>
-                                <div className="comment-card__actions">
-                                    <button className="comment-card__action-btn">
-                                        <Icon name="favorite_border" />
-                                        <span>{parentComment.likes || 0}</span>
-                                    </button>
-                                    <button className="comment-card__action-btn">
-                                        <Icon name="chat_bubble_outline" />
-                                        <span>{parentComment.children?.length || 0}</span>
-                                    </button>
-                                    <button className="comment-card__action-btn">
-                                        <Icon name="repeat" />
-                                    </button>
-                                    <button className="comment-card__action-btn">
-                                        <Icon name="upload" />
-                                    </button>
-                                </div>
+                                <CommentActions comment={parentComment} onLikesChange={setParentLikes} />
                             </div>
                         </div>
 
                         {/* Stats line */}
                         <div className="comment-thread__stats">
-                            <span>{parentComment.likes || 0} {(parentComment.likes || 0) === 1 ? 'Like' : 'Likes'}</span>
+                            <span>{parentLikes} {parentLikes === 1 ? 'Like' : 'Likes'}</span>
                             <span className="comment-card__dot">·</span>
                             <span>{parentComment.children?.length || 0} {(parentComment.children?.length || 0) === 1 ? 'Reply' : 'Replies'}</span>
                             <span className="comment-card__dot">·</span>

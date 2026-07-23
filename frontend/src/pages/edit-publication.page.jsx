@@ -9,6 +9,8 @@ import toast from "react-hot-toast";
 import { uploadImage } from "../common/aws";
 import Loader from "../components/loader.component";
 import ConfirmModal from "../components/confirm-modal.component";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../common/queryKeys";
 
 const EditPublicationPage = () => {
 
@@ -17,6 +19,7 @@ const EditPublicationPage = () => {
     let { slug } = useParams();
     const { userAuth: { access_token } } = useContext(UserContext);
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
 
     const [pubId, setPubId] = useState("");
     const [title, setTitle] = useState("");
@@ -140,8 +143,17 @@ const EditPublicationPage = () => {
                 social_links
             });
 
+            // Drop the cached publication before navigating, otherwise the detail
+            // page serves its stale copy and the edit looks like it never saved.
+            // The slug can change with the title, so clear the old key too.
+            const newSlug = data.publication.slug;
+            queryClient.invalidateQueries({ queryKey: queryKeys.publications.detail(slug) });
+            if (newSlug !== slug) {
+                queryClient.invalidateQueries({ queryKey: queryKeys.publications.detail(newSlug) });
+            }
+
             toast.success("Publication updated");
-            navigate(`/publication/${data.publication.slug}`);
+            navigate(`/publication/${newSlug}`);
         } catch (err) {
             toast.error(err.response?.data?.error || "Failed to update publication");
         } finally {
@@ -234,20 +246,23 @@ const EditPublicationPage = () => {
                                             onChange={handleProfilePhotoUpload}
                                         />
                                     </label>
-                                    {profilePhoto && (
-                                        <button
-                                            type="button"
-                                            className="absolute inset-0 z-20 bg-black/50 text-white flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                setDeleteTarget("profile_photo");
-                                            }}
-                                            title="Delete Profile Photo"
-                                        >
-                                            <Icon name="delete" className="text-2xl" />
-                                        </button>
-                                    )}
                                 </div>
+                                {/* Small always-visible badge instead of a full-cover overlay, so the
+                                    photo itself stays clickable for re-upload (and touch users, who
+                                    have no hover, don't tap an invisible delete button). */}
+                                {profilePhoto && (
+                                    <button
+                                        type="button"
+                                        className="absolute -top-1 -right-1 z-30 w-7 h-7 bg-black/50 hover:bg-black/80 text-white rounded-full flex items-center justify-center backdrop-blur-sm transition-colors"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            setDeleteTarget("profile_photo");
+                                        }}
+                                        title="Delete Profile Photo"
+                                    >
+                                        <Icon name="delete" className="text-sm" />
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>

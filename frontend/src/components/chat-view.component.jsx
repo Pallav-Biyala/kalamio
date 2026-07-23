@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { UserContext } from "../App";
@@ -13,7 +13,7 @@ import toast from "react-hot-toast";
 // A message's sender may be a populated object or a bare id string (optimistic sends) — normalise.
 const resolveSenderId = (m) => m?.sender?._id || m?.sender;
 
-const ChatView = ({ conversation, onConversationUpdate, onConversationCreated }) => {
+const ChatView = ({ conversation, onConversationUpdate, onConversationCreated, onRequestAccepted, onRequestDeclined }) => {
 
     const { userAuth: { _id: currentUserId, access_token, profile_img: myAvatar, fullname: myName } } = useContext(UserContext);
     const queryClient = useQueryClient();
@@ -35,10 +35,16 @@ const ChatView = ({ conversation, onConversationUpdate, onConversationCreated })
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
+    const [requestPending, setRequestPending] = useState(false);
 
     const messagesEndRef = useRef(null);
+    const messagesBoxRef = useRef(null);
     const inputRef = useRef(null);
     const typingTimeoutRef = useRef(null);
+    // Id of the newest message we've already auto-scrolled to, so only APPENDS scroll (not prepends).
+    const lastMsgIdRef = useRef(null);
+    // scrollHeight captured just before older messages are prepended, used to restore the viewport.
+    const prependAnchorRef = useRef(null);
 
     // Which own messages show a read receipt: the last own message, PLUS any own message whose read
     // status differs from the next own message — so a "Read" message followed by a newer "Delivered"
@@ -155,15 +161,41 @@ const ChatView = ({ conversation, onConversationUpdate, onConversationCreated })
         }, 50);
     };
 
-    useEffect(() => {
-        if (messages.length) scrollToBottom();
-    }, [messages.length]);
+    // Auto-scroll ONLY when a message is appended at the end. When older messages are prepended by
+    // loadMore we instead keep the reader where they were, by re-adding the height that was inserted
+    // above them — otherwise loading history instantly yanked them back to the newest message.
+    useLayoutEffect(() => {
+        const box = messagesBoxRef.current;
+
+        if (prependAnchorRef.current !== null) {
+            const { scrollHeight, scrollTop } = prependAnchorRef.current;
+            prependAnchorRef.current = null;
+            if (box) box.scrollTop = scrollTop + (box.scrollHeight - scrollHeight);
+            return;
+        }
+
+        if (!messages.length) {
+            lastMsgIdRef.current = null;
+            return;
+        }
+
+        const lastId = messages[messages.length - 1]?._id;
+        if (lastId !== lastMsgIdRef.current) {
+            lastMsgIdRef.current = lastId;
+            scrollToBottom();
+        }
+    }, [messages]);
 
     // Load more (older messages)
     const loadMore = () => {
         const nextPage = page + 1;
         api.post("/messages", { conversation_id: convId, page: nextPage })
         .then(({ data }) => {
+            const box = messagesBoxRef.current;
+            prependAnchorRef.current = {
+                scrollHeight: box?.scrollHeight || 0,
+                scrollTop: box?.scrollTop || 0
+            };
             setMessages(prev => [...data.messages, ...prev]);
             setPage(nextPage);
             setHasMore(data.messages.length === 30);
@@ -242,22 +274,33 @@ const ChatView = ({ conversation, onConversationUpdate, onConversationCreated })
 
     // Accept / Decline message request
     const handleAcceptRequest = async () => {
+        if (requestPending) return;
+        setRequestPending(true);
         try {
             await api.post("/message-request/accept", { conversation_id: convId });
             toast.success("Request accepted");
-            onConversationUpdate?.();
+            // Flip the ACTIVE conversation out of 'pending' too — onConversationUpdate only refreshes
+            // the sidebar, which would strand us on a chat we accepted but still can't type in.
+            onRequestAccepted?.(convId);
         } catch (err) {
             toast.error("Failed to accept request");
+        } finally {
+            setRequestPending(false);
         }
     };
 
     const handleDeclineRequest = async () => {
+        if (requestPending) return;
+        setRequestPending(true);
         try {
             await api.post("/message-request/decline", { conversation_id: convId });
             toast.success("Request declined");
-            onConversationUpdate?.();
+            // The conversation is gone — close it rather than leaving a dead chat open.
+            onRequestDeclined?.(convId);
         } catch (err) {
             toast.error("Failed to decline request");
+        } finally {
+            setRequestPending(false);
         }
     };
 
@@ -293,7 +336,7 @@ const ChatView = ({ conversation, onConversationUpdate, onConversationCreated })
             </div>
 
             {/* Messages area */}
-            <div className="chat-messages">
+            <div className="chat-messages" ref={messagesBoxRef}>
                 {hasMore && (
                     <button className="chat-load-more" onClick={loadMore}>
                         Load older messages
@@ -347,10 +390,10 @@ const ChatView = ({ conversation, onConversationUpdate, onConversationCreated })
                 <div className="chat-request-bar">
                     <p><strong>{other?.personal_info?.fullname}</strong> wants to message you</p>
                     <div className="chat-request-bar__actions">
-                        <button className="chat-request-bar__accept" onClick={handleAcceptRequest}>
+                        <button className="chat-request-bar__accept" onClick={handleAcceptRequest} disabled={requestPending} style={requestPending ? { opacity: 0.6, pointerEvents: 'none' } : undefined}>
                             <Icon name="check" className="text-sm" /> Accept
                         </button>
-                        <button className="chat-request-bar__decline" onClick={handleDeclineRequest}>
+                        <button className="chat-request-bar__decline" onClick={handleDeclineRequest} disabled={requestPending} style={requestPending ? { opacity: 0.6, pointerEvents: 'none' } : undefined}>
                             <Icon name="close" className="text-sm" /> Decline
                         </button>
                     </div>

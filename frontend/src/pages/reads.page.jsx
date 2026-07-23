@@ -55,6 +55,26 @@ const ReelCard = ({ blog }) => {
         }
     };
 
+    const handleShare = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // Same URL shape and toast copy as the feed card / PostMenu so sharing is consistent app-wide.
+        const url = `${window.location.origin}/blog/${blog_id}`;
+        if (navigator.share) {
+            try {
+                await navigator.share({ title, url });
+                return;
+            } catch (err) {
+                // Dismissing the native share sheet rejects with AbortError — that's not a failure,
+                // so stay silent rather than falling through to the clipboard path.
+                if (err?.name === "AbortError") return;
+            }
+        }
+        navigator.clipboard.writeText(url)
+            .then(() => toast.success("Link copied"))
+            .catch(() => toast.error("Failed to copy"));
+    };
+
     const formatCount = (n) => {
         if (n >= 1000000) return (n / 1000000).toFixed(1) + "M";
         if (n >= 1000) return (n / 1000).toFixed(1) + "K";
@@ -109,11 +129,18 @@ const ReelCard = ({ blog }) => {
                             setShowSaveModal(true);
                         }}
                     >
-                        <Icon name={isSaved ? "bookmark" : "bookmark_border"} />
+                        {/* `filled` is what turns the bookmark glyph solid (Icon.jsx FILL_WHEN_ACTIVE) —
+                            without it saved/unsaved rendered the identical outline icon. */}
+                        <Icon name={isSaved ? "bookmark" : "bookmark_border"} filled={!!isSaved} />
                         <span>{isSaved ? 'Saved' : 'Save'}</span>
                     </button>
 
-                    <button className="reel-card__action-btn" aria-label="Share">
+                    <button
+                        type="button"
+                        className="reel-card__action-btn"
+                        aria-label="Share this story"
+                        onClick={handleShare}
+                    >
                         <Icon name="share" />
                         <span>Share</span>
                     </button>
@@ -158,7 +185,7 @@ const ReelCard = ({ blog }) => {
                                 <span
                                     key={i}
                                     className="reel-card__tag"
-                                    onClick={() => navigate(`/search/${tag}`)}
+                                    onClick={() => navigate(`/search/${encodeURIComponent(tag)}`)}
                                 >
                                     #{tag}
                                 </span>

@@ -10,6 +10,7 @@ import AnimationWrapper from "../common/page-animation";
 import Loader from "../components/loader.component";
 import toast from "react-hot-toast";
 import InputBox from "../components/input.component";
+import NetworkError from "../components/network-error.component";
 import { uploadImage } from "../common/aws";
 import { storeInSession } from "../common/session";
 import Avatar from "../components/Avatar";
@@ -35,6 +36,7 @@ const EditProfile = () => {
     
     const [ profile, setProfile ] = useState(profileDataStructure);
     const [ loading, setLoading ] = useState(true);
+    const [ loadError, setLoadError ] = useState(false);
     const [ charactersLeft, setCharactersLeft ] = useState(bioLimit);
     const [ updatedProfileImg, setUpdatedProfileImg ] = useState(null);
     const [ previewImgUrl, setPreviewImgUrl ] = useState(null);
@@ -49,17 +51,38 @@ const EditProfile = () => {
     const hasRealPhoto = isRealPhoto(profile_img);
     const hasPendingCrop = updatedProfileImg !== null;
 
+    const fetchProfile = () => {
+
+        setLoadError(false);
+        setLoading(true);
+
+        api.post("/get-profile", { username: userAuth.username })
+        .then(({data}) => {
+            setProfile(data);
+            setLoading(false);
+        })
+        .catch(err => {
+            // This catch used to be empty and `setLoading(false)` only ran on success, so any
+            // failure left the page on a permanent spinner with no message and no way out.
+            setLoading(false);
+            setLoadError(true);
+        })
+
+    }
+
     useEffect(() => {
 
-        if(access_token){
-            api.post("/get-profile", { username: userAuth.username })
-            .then(({data}) => {
-                setProfile(data);
-                setLoading(false);
-            })
-            .catch(err => {
-            })
+        // `undefined` = session not restored from storage yet; `null` = definitively signed out
+        // (App.jsx sets `{ access_token: null }`). Only the former is a real loading state — the
+        // old `if(access_token)` guard silently did nothing for both, spinning forever.
+        if(access_token === undefined) return;
+
+        if(!access_token){
+            navigate("/signin");
+            return;
         }
+
+        fetchProfile();
 
     }, [access_token])
 
@@ -269,7 +292,8 @@ const EditProfile = () => {
                 />
             )}
             {
-                loading ? <Loader /> : 
+                loading ? <Loader /> :
+                loadError ? <NetworkError onRetry={fetchProfile} /> :
                 <form ref={editProfileForm}>
 
 

@@ -2,16 +2,20 @@ import { Link } from "react-router-dom";
 import usePageTitle from "../common/usePageTitle";
 import AnimationWrapper from "../common/page-animation";
 import Loader from "../components/loader.component";
+import NetworkError from "../components/network-error.component";
 import Icon from "../components/Icon";
 import { getDay } from "../common/date";
 import { useAnalytics } from "../hooks/queries";
 
+// Monochrome accent throughout; the icon shape is what distinguishes each stat.
+// `color` is emitted as the inline --card-color on each card and consumed by
+// .analytics__card-icon, so a stat can be tinted individually without new CSS.
 const STAT_CARDS = [
-    { key: "total_posts", label: "Posts", icon: "article", color: "--c-purple" },
-    { key: "total_reads", label: "Reads", icon: "visibility", color: "--c-blue" },
-    { key: "total_likes", label: "Likes", icon: "favorite", color: "--c-red" },
-    { key: "total_comments", label: "Comments", icon: "chat_bubble", color: "--c-green" },
-    { key: "total_followers", label: "Followers", icon: "group", color: "--c-orange" },
+    { key: "total_posts", label: "Posts", icon: "article", color: "--c-brand-accent" },
+    { key: "total_reads", label: "Reads", icon: "visibility", color: "--c-brand-accent" },
+    { key: "total_likes", label: "Likes", icon: "favorite", color: "--c-brand-accent" },
+    { key: "total_comments", label: "Comments", icon: "chat_bubble", color: "--c-brand-accent" },
+    { key: "total_followers", label: "Followers", icon: "group", color: "--c-brand-accent" },
 ];
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -25,12 +29,49 @@ const AnalyticsPage = () => {
 
     usePageTitle("Analytics");
 
-    const { data, isLoading } = useAnalytics();
+    const { data, isLoading, isError, refetch } = useAnalytics();
 
     if (isLoading) return <Loader />;
 
+    // A failed fetch must not fall through to the zero-filled cards below — that
+    // reads as "all your stats are gone" rather than "we couldn't load them".
+    if (isError) return <NetworkError onRetry={refetch} />;
+
     const { overview, topPosts, growth } = data || {};
     const maxGrowth = growth?.length ? Math.max(...growth.map(g => g.count)) : 0;
+
+    // Brand-new author: no posts and no audience yet. Explain the blank slate
+    // instead of showing a wall of zeros.
+    const isEmpty = !overview?.total_posts && !overview?.total_followers && !topPosts?.length;
+
+    if (isEmpty) {
+        return (
+            <AnimationWrapper>
+                <div className="analytics">
+
+                    <h1 className="analytics__title">
+                        <Icon name="analytics" className="analytics__title-icon" />
+                        Analytics
+                    </h1>
+
+                    <div className="text-center w-full py-14 mt-4">
+                        <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-grey flex items-center justify-center">
+                            <Icon name="bar_chart" className="text-2xl text-dark-grey" />
+                        </div>
+                        <p className="text-dark-grey text-lg font-medium">No stats yet</p>
+                        <p className="text-dark-grey/50 text-sm mt-1.5">
+                            Publish your first post — reads, likes and followers will show up here.
+                        </p>
+                        <Link to="/editor" className="btn-brand inline-flex gap-2 items-center py-2 px-5 text-base mt-6">
+                            <Icon name="edit_note" className="text-lg" />
+                            Write your first post
+                        </Link>
+                    </div>
+
+                </div>
+            </AnimationWrapper>
+        );
+    }
 
     return (
         <AnimationWrapper>

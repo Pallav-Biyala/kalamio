@@ -32,7 +32,8 @@ const Navbar = () => {
         let query = e.target.value;
 
         if(e.keyCode == 13 && query.length){
-            navigate(`/search/${query}`)
+            // Encode: raw queries containing /, #, ? or % break the :query route param
+            navigate(`/search/${encodeURIComponent(query)}`)
         }
     }
 

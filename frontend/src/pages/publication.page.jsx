@@ -1,9 +1,10 @@
 import { useSeo, PRODUCTION_ORIGIN } from "../common/useSeo";
 import { useContext, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../common/queryKeys";
 import api from "../common/api";
+import toast from "react-hot-toast";
 import AnimationWrapper from "../common/page-animation";
 import Loader from "../components/loader.component";
 import NoDataMessage from "../components/nodata.component";
@@ -14,6 +15,7 @@ import SubscribeButton from "../components/subscribe-button.component";
 import Avatar from "../components/Avatar";
 import Icon from "../components/Icon";
 import PageNotFound from "./404.page";
+import NetworkError from "../components/network-error.component";
 import { UserContext } from "../App";
 import PublicationMenu from "../components/publication-menu.component";
 import InPageNavigation from "../components/inpage-navigation.component";
@@ -61,12 +63,17 @@ const PublicationPage = () => {
     const navigate = useNavigate();
 
     const { userAuth: { access_token, username } } = useContext(UserContext);
+    const queryClient = useQueryClient();
 
     // Track subscriber count locally for instant update
     const [localSubs, setLocalSubs] = useState(null);
 
+    // Inline "New Collection" form state (owner only)
+    const [creating, setCreating] = useState(false);
+    const [newTitle, setNewTitle] = useState("");
+
     // Fetch publication metadata
-    const { data: pubData, isLoading, isError } = useQuery({
+    const { data: pubData, isLoading, isError, error, refetch } = useQuery({
         queryKey: queryKeys.publications.detail(slug),
         queryFn: async () => {
             const { data } = await api.post("/publication/get", { slug });
@@ -103,8 +110,9 @@ const PublicationPage = () => {
     const textPostsFeedQuery = usePubFeed(pubId, 'text_post');
 
     // Publication collections
+    const pubCollectionsKey = [...queryKeys.collections.all(), 'publication', pubId];
     const { data: pubCollections = [] } = useQuery({
-        queryKey: [...queryKeys.collections.all(), 'publication', pubId],
+        queryKey: pubCollectionsKey,
         queryFn: async () => {
             const { data } = await api.post("/collection/publication-collections", { publication_id: pubId });
             return data.collections;
@@ -113,12 +121,45 @@ const PublicationPage = () => {
         staleTime: 10 * 60 * 1000,
     });
 
+    // Create a collection inside this publication. The list query has a long staleTime,
+    // so it must be invalidated explicitly or the new collection won't show up.
+    const createCollection = useMutation({
+        mutationFn: ({ title }) =>
+            api.post('/collection/create', {
+                title,
+                publication_id: pubId,
+                visibility: 'public'
+            }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: pubCollectionsKey });
+            setNewTitle("");
+            setCreating(false);
+            toast.success('Collection created');
+        },
+        onError: (err) => {
+            toast.error(err?.response?.data?.error || 'Failed to create collection');
+        },
+    });
+
+    const handleCreateCollection = () => {
+        const title = newTitle.trim();
+        if (!title || createCollection.isPending) return;
+        createCollection.mutate({ title });
+    };
+
     const handleSubscribeChange = (isNowSubscribed) => {
         setLocalSubs(prev => prev + (isNowSubscribed ? 1 : -1));
     };
 
     if (isLoading) return <Loader />;
-    if (isError || !publication) return <PageNotFound />;
+    // Only a genuine 404 means the publication doesn't exist; any other failure
+    // (network/server) gets a retryable error state instead of "page not found".
+    if (isError) {
+        return error?.response?.status === 404
+            ? <PageNotFound />
+            : <NetworkError onRetry={() => refetch()} />;
+    }
+    if (!publication) return <PageNotFound />;
 
     const { title, description, banner, profile_photo, owner, tags, total_posts } = publication;
     const displaySubs = localSubs ?? publication.total_subscribers;
@@ -199,7 +240,7 @@ const PublicationPage = () => {
                         {tags?.length > 0 && (
                             <div className="publication-header__tags">
                                 {tags.map((tag, i) => (
-                                    <Link key={i} to={`/search/${tag}`} className="publication-tag">
+                                    <Link key={i} to={`/search/${encodeURIComponent(tag)}`} className="publication-tag">
                                         {tag}
                                     </Link>
                                 ))}
@@ -275,20 +316,40 @@ const PublicationPage = () => {
                         {/* Collections Tab */}
                         <>
                             {publication.owner?.personal_info?.username === username && (
-                                <button
-                                    className="btn-dark btn-sm mb-4"
-                                    onClick={() => {
-                                        const title = prompt('Collection name:');
-                                        if (!title?.trim()) return;
-                                        api.post('/collection/create', {
-                                            title: title.trim(),
-                                            publication_id: publication._id,
-                                            visibility: 'public'
-                                        }).catch(() => {});
-                                    }}
-                                >
-                                    <Icon name="add" className="text-lg" /> New Collection
-                                </button>
+                                <>
+                                    <button
+                                        className="btn-dark btn-sm mb-4"
+                                        onClick={() => setCreating(!creating)}
+                                    >
+                                        <Icon name="add" className="text-lg" /> New Collection
+                                    </button>
+                                    {creating && (
+                                        <div className="saved-page__create-form">
+                                            <input
+                                                type="text"
+                                                placeholder="Collection name..."
+                                                className="input-box"
+                                                value={newTitle}
+                                                onChange={(e) => setNewTitle(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleCreateCollection()}
+                                                maxLength={100}
+                                                autoFocus
+                                            />
+                                            <div className="saved-page__create-row">
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    <button
+                                                        className="btn-dark btn-sm"
+                                                        onClick={handleCreateCollection}
+                                                        disabled={!newTitle.trim() || createCollection.isPending}
+                                                    >
+                                                        {createCollection.isPending ? 'Creating...' : 'Create'}
+                                                    </button>
+                                                    <button className="btn-light btn-sm" onClick={() => setCreating(false)}>Cancel</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
                             )}
                             {pubCollections.length === 0
                                 ? <NoDataMessage message="No collections in this publication yet" />

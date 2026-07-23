@@ -48,6 +48,9 @@ const TextPostCard = ({ content, author, onEdit }) => {
     const [poll, setPoll] = useState(initialPoll);
     const hasVoted = voteData?.hasVoted || false;
     const selectedOption = voteData?.option_index ?? null;
+    // Index of the option whose vote is currently in flight — gives the user feedback on a slow
+    // request and blocks a second vote before the first one has settled.
+    const [pendingVote, setPendingVote] = useState(null);
 
     useEffect(() => {
         if (textRef.current) {
@@ -60,6 +63,30 @@ const TextPostCard = ({ content, author, onEdit }) => {
     const formatCount = (n) => {
         if (n >= 1000) return (n / 1000).toFixed(1) + "K";
         return n;
+    };
+
+    const handleShare = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // Same URL shape and toast copy as PostMenu's "Copy link" so sharing is consistent app-wide.
+        const url = `${window.location.origin}/blog/${id}`;
+        // Text posts have no title field, so build one from the body (trimmed) with an author fallback.
+        const shareTitle = text_content
+            ? `${text_content.slice(0, 60)}${text_content.length > 60 ? "…" : ""}`
+            : `Post by ${fullname}`;
+        if (navigator.share) {
+            try {
+                await navigator.share({ title: shareTitle, url });
+                return;
+            } catch (err) {
+                // Dismissing the native share sheet rejects with AbortError — that's not a failure,
+                // so stay silent rather than falling through to the clipboard path.
+                if (err?.name === "AbortError") return;
+            }
+        }
+        navigator.clipboard.writeText(url)
+            .then(() => toast.success("Link copied"))
+            .catch(() => toast.error("Failed to copy"));
     };
 
     const handleLike = (e) => {
@@ -75,10 +102,12 @@ const TextPostCard = ({ content, author, onEdit }) => {
     };
 
     const handleVote = (optionIndex) => {
-        if (hasVoted || !access_token) {
+        if (hasVoted || pendingVote !== null || !access_token) {
             if (!access_token) toast.error("Please login to vote");
             return;
         }
+
+        setPendingVote(optionIndex);
 
         // Optimistic update for poll UI
         setPoll(prev => {
@@ -101,6 +130,7 @@ const TextPostCard = ({ content, author, onEdit }) => {
                     toast.error("Vote failed");
                     setPoll(initialPoll);
                 },
+                onSettled: () => setPendingVote(null),
             }
         );
     };
@@ -152,12 +182,25 @@ const TextPostCard = ({ content, author, onEdit }) => {
 
             {/* Text Content */}
             <div className="feed-card__text-post-wrapper">
-                <div 
+                {/* role="link" rather than a real <Link>: the body can contain @mention anchors and
+                    nesting those inside an anchor is invalid markup. Enter/Space opens the post; the
+                    guard lets a focused mention link handle its own key presses. */}
+                <div
                     ref={textRef}
-                    className={`feed-card__text-post-content cursor-pointer ${!isExpanded ? 'feed-card__text-post-content--clamped' : ''}`}
+                    className={`feed-card__text-post-content cursor-pointer ${!isExpanded ? 'feed-card__text-post-content--clamped' : ''} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--c-brand))]`}
+                    role="link"
+                    tabIndex={0}
+                    aria-label={`Open post by ${fullname}`}
                     onClick={(e) => {
                         if (e.target.closest('a')) return;
                         navigate(`/blog/${id}`);
+                    }}
+                    onKeyDown={(e) => {
+                        if (e.target !== e.currentTarget) return;
+                        if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            navigate(`/blog/${id}`);
+                        }
                     }}
                 >
                     {renderText(text_content)}
@@ -194,25 +237,34 @@ const TextPostCard = ({ content, author, onEdit }) => {
                         </div>
                     )}
 
-                    <div className="feed-card__text-post-poll-options">
+                    {/* Real <button>s so the poll is votable by keyboard and announced to screen
+                        readers. Inner elements are spans (a <button> may only contain phrasing
+                        content); the CSS sets their display explicitly, so styling is unchanged. */}
+                    <div className="feed-card__text-post-poll-options" role="group" aria-label={poll.question || "Poll"}>
                         {poll.options.map((opt, i) => {
                             const totalVotes = poll.total_votes || 0;
                             const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
                             const isSelected = selectedOption === i;
+                            const isPending = pendingVote === i;
 
                             return (
-                                <div
+                                <button
                                     key={i}
-                                    className={`feed-card__text-post-poll-option ${hasVoted ? 'feed-card__text-post-poll-option--voted' : ''} ${isSelected ? 'feed-card__text-post-poll-option--selected' : ''}`}
+                                    type="button"
+                                    disabled={hasVoted || pendingVote !== null}
+                                    aria-label={hasVoted
+                                        ? `${opt.text}, ${percent}%${isSelected ? ", your vote" : ""}`
+                                        : `Vote for ${opt.text}`}
+                                    className={`feed-card__text-post-poll-option ${hasVoted ? 'feed-card__text-post-poll-option--voted' : ''} ${isSelected ? 'feed-card__text-post-poll-option--selected' : ''} w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--c-brand))]`}
                                     onClick={() => !hasVoted && handleVote(i)}
                                 >
                                     {hasVoted && (
-                                        <div
+                                        <span
                                             className="feed-card__text-post-poll-bar"
                                             style={{ width: `${percent}%` }}
                                         />
                                     )}
-                                    <div className="feed-card__text-post-poll-label">
+                                    <span className="feed-card__text-post-poll-label">
                                         <span className="feed-card__text-post-poll-text">
                                             {!hasVoted && (
                                                 <span className="feed-card__text-post-poll-radio" />
@@ -225,8 +277,11 @@ const TextPostCard = ({ content, author, onEdit }) => {
                                         {hasVoted && (
                                             <span className="feed-card__text-post-poll-percent">{percent}%</span>
                                         )}
-                                    </div>
-                                </div>
+                                        {!hasVoted && isPending && (
+                                            <span className="feed-card__text-post-poll-percent" aria-live="polite">Voting…</span>
+                                        )}
+                                    </span>
+                                </button>
                             );
                         })}
                     </div>
@@ -277,10 +332,15 @@ const TextPostCard = ({ content, author, onEdit }) => {
                     <Icon name="chat_bubble_outline" />
                     <span>{commentsCount > 0 ? commentsCount : "0"}</span>
                 </button>
-                <span className="feed-card__action feed-card__action--share">
+                <button
+                    type="button"
+                    onClick={handleShare}
+                    aria-label="Share post"
+                    className="feed-card__action feed-card__action--share"
+                >
                     <Icon name="ios_share" />
                     <span className="hidden sm:inline">Share</span>
-                </span>
+                </button>
             </div>
 
             {isReplying && (

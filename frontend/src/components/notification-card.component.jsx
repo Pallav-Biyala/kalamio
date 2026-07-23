@@ -11,6 +11,7 @@ import Icon from "./Icon";
 const NotificationCard = ({ data, index, onDelete }) => {
 
     let [ isReplying, setReplying ] = useState(false);
+    let [ isReplyDeleted, setReplyDeleted ] = useState(false);
 
     let { 
             seen, type, reply, comment, replied_on_comment, createdAt, user,
@@ -23,6 +24,15 @@ const NotificationCard = ({ data, index, onDelete }) => {
     let blog_id = blog?.blog_id;
     let blog_title = blog?.title;
     let blog_oid = blog?._id;
+
+    // Text posts carry no title, so falling back to blog_title alone renders the literal
+    // string "undefined" — mirror the mention / poll_vote branches and use an excerpt instead.
+    const getBlogLabel = () => {
+        if (blog?.type === 'text_post' && blog?.text_content) {
+            return `${blog.text_content.slice(0, 80)}${blog.text_content.length > 80 ? '...' : ''}`;
+        }
+        return blog_title || 'this post';
+    };
 
     let { userAuth: { username: author_username, profile_img: author_profile_img, access_token } } = useContext(UserContext);
 
@@ -39,6 +49,11 @@ const NotificationCard = ({ data, index, onDelete }) => {
             target.removeAttribute("disabled");
             if (type === 'comment' && onDelete) {
                 onDelete(notification_id);
+            }
+            // The parent notification still exists after a reply is deleted, so we can't
+            // dismiss the whole card — hide the reply block locally instead.
+            if (type === 'reply') {
+                setReplyDeleted(true);
             }
         })
         .catch(() => {
@@ -111,7 +126,7 @@ const NotificationCard = ({ data, index, onDelete }) => {
                                 </div>
                             )}
                         </div>
-                        : <Link to={`/blog/${blog_id}`} className="font-medium text-dark-grey hover:underline line-clamp-1">{`"${blog_title}"`}</Link>
+                        : <Link to={`/blog/${blog_id}`} className="font-medium text-dark-grey hover:underline line-clamp-1">{`"${getBlogLabel()}"`}</Link>
                     )}
 
                     {/* Follow notification — show follow back button */}
@@ -138,7 +153,7 @@ const NotificationCard = ({ data, index, onDelete }) => {
                     type != 'like' && !isSocialNotification && comment ? 
                     <>
                         {
-                            !reply ? 
+                            !reply || isReplyDeleted ?
                             <button className="underline hover:text-black" onClick={handleReplyClick}>Reply</button> : ""
                         }
                         <button className="underline hover:text-black" onClick={(e) => handleDelete(comment._id, "comment", e.target)}>Delete</button>
@@ -158,7 +173,7 @@ const NotificationCard = ({ data, index, onDelete }) => {
 
             {
 
-                reply ? 
+                reply && !isReplyDeleted ?
                 <div className="ml-20 p-5 bg-grey mt-5 rounded-md">
                     <div className="flex gap-3 mb-3">
                         <Avatar src={author_profile_img} alt="Author" size={32} />
@@ -177,7 +192,7 @@ const NotificationCard = ({ data, index, onDelete }) => {
 
                     <p className="ml-14 font-inter text-xl my-2">{reply.comment}</p>
 
-                    <button className="underline hover:text-black ml-14 mt-2" onClick={(e) => handleDelete(comment._id, "reply", e.target)}>Delete</button>
+                    <button className="underline hover:text-black ml-14 mt-2" onClick={(e) => handleDelete(reply._id, "reply", e.target)}>Delete</button>
 
                 </div> : ""
 

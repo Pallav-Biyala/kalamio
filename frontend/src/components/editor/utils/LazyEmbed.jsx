@@ -74,9 +74,9 @@ const MiniCard = ({ url, provider, embedId }) => {
         display: 'inline-flex', alignItems: 'center', gap: '10px',
         padding: '8px 14px 8px 10px',
         borderRadius: '8px', textDecoration: 'none',
-        border: '1px solid var(--color-border)',
-        backgroundColor: 'var(--color-surface, #fff)',
-        color: 'var(--color-black, #1a1a1a)',
+        border: '1px solid rgb(var(--c-border))',
+        backgroundColor: 'rgb(var(--c-surface))',
+        color: 'rgb(var(--c-black))',
         fontFamily: 'Inter, system-ui, sans-serif',
         fontSize: '14px', fontWeight: 500,
         maxWidth: '100%',
@@ -93,7 +93,7 @@ const MiniCard = ({ url, provider, embedId }) => {
       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {title}
       </span>
-      <span style={{ color: 'var(--color-dark-grey, #888)', fontSize: '13px', flexShrink: 0 }}>→</span>
+      <span style={{ color: 'rgb(var(--c-dark-grey))', fontSize: '13px', flexShrink: 0 }}>→</span>
     </a>
   );
 };
@@ -143,8 +143,8 @@ const Placeholder = ({ provider, url, onClick }) => {
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); }}>
             <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>{meta.icon}</div>
             <div style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '0.25rem' }}>{meta.name}</div>
-            {url && <div style={{ fontSize: '0.8rem', color: '#666', marginBottom: '0.5rem', wordBreak: 'break-all' }}>{truncateUrl(url)}</div>}
-            <div style={{ fontSize: '0.75rem', color: '#999' }}>Click to load · or scroll to auto-load</div>
+            {url && <div style={{ fontSize: '0.8rem', color: 'rgb(var(--c-dark-grey))', marginBottom: '0.5rem', wordBreak: 'break-all' }}>{truncateUrl(url)}</div>}
+            <div style={{ fontSize: '0.75rem', color: 'rgb(var(--c-dark-grey))' }}>Click to load · or scroll to auto-load</div>
         </div>
     );
 };
@@ -214,7 +214,7 @@ const EmbedContent = ({ provider, url, embedId, metadata }) => {
             return (
                 <iframe className="lazy-embed__iframe"
                     src={`https://codepen.io/${cpUser}/embed/${cpPen}?default-tab=result`}
-                    style={{ width: '100%', height: '400px', border: '1px solid #e2e8f0', borderRadius: '0.5rem' }}
+                    style={{ width: '100%', height: '400px', border: '1px solid rgb(var(--c-border))', borderRadius: '0.5rem' }}
                     title={metadata?.title || 'CodePen embed'} loading="lazy"
                 />
             );
@@ -225,7 +225,7 @@ const EmbedContent = ({ provider, url, embedId, metadata }) => {
                 <iframe className="lazy-embed__iframe"
                     src={`https://www.figma.com/embed?embed_host=kalamio&url=${encodeURIComponent(url)}`}
                     allowFullScreen
-                    style={{ width: '100%', height: '450px', border: '1px solid #e2e8f0', borderRadius: '0.5rem' }}
+                    style={{ width: '100%', height: '450px', border: '1px solid rgb(var(--c-border))', borderRadius: '0.5rem' }}
                     title={metadata?.title || 'Figma design'}
                 />
             );
@@ -242,7 +242,7 @@ const EmbedContent = ({ provider, url, embedId, metadata }) => {
             return (
                 <div ref={containerRef}>
                     <blockquote className="instagram-media" data-instgrm-permalink={url} data-instgrm-version="14"
-                        style={{ maxWidth: '540px', margin: '0 auto', border: '1px solid #dbdbdb', borderRadius: '0.5rem', padding: '1rem' }}>
+                        style={{ maxWidth: '540px', margin: '0 auto', border: '1px solid rgb(var(--c-border))', borderRadius: '0.5rem', padding: '1rem' }}>
                         <a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
                     </blockquote>
                 </div>
@@ -263,7 +263,7 @@ const EmbedContent = ({ provider, url, embedId, metadata }) => {
                 <iframe className="lazy-embed__iframe"
                     src={`data:text/html;charset=utf-8,<head><base target='_blank'/></head><body><script src='https://gist.github.com/${embedId}.js'><\/script></body>`}
                     sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
-                    style={{ width: '100%', minHeight: '200px', border: '1px solid #e2e8f0', borderRadius: '0.5rem' }}
+                    style={{ width: '100%', minHeight: '200px', border: '1px solid rgb(var(--c-border))', borderRadius: '0.5rem' }}
                     title={metadata?.title || 'GitHub Gist'}
                     onLoad={(e) => {
                         try {
@@ -301,7 +301,7 @@ const EmbedContent = ({ provider, url, embedId, metadata }) => {
                 <iframe className="lazy-embed__iframe"
                     src={redditSrc}
                     sandbox="allow-scripts allow-same-origin allow-popups"
-                    style={{ width: '100%', minHeight: '320px', border: '1px solid #e2e8f0', borderRadius: '0.5rem' }}
+                    style={{ width: '100%', minHeight: '320px', border: '1px solid rgb(var(--c-border))', borderRadius: '0.5rem' }}
                     title={metadata?.title || 'Reddit embed'}
                 />
             );

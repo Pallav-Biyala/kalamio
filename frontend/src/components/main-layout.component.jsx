@@ -161,13 +161,13 @@ const MainLayout = () => {
 
     const handleSearchKeyDown = (e) => {
         if (e.keyCode === 13 && searchQuery.length) {
-            navigate(`/search/${searchQuery}`);
+            navigate(`/search/${encodeURIComponent(searchQuery)}`);
         }
     };
 
     const handleSearchClick = () => {
         if (searchQuery.length) {
-            navigate(`/search/${searchQuery}`);
+            navigate(`/search/${encodeURIComponent(searchQuery)}`);
         }
     };
 

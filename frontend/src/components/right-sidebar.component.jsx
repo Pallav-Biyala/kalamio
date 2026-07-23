@@ -34,7 +34,7 @@ const RightSidebar = ({ onTrendingClick }) => {
           className="desktop-top-bar__search-input"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && searchQuery.length) navigate(`/search/${searchQuery}`); }}
+          onKeyDown={(e) => { if (e.key === "Enter" && searchQuery.length) navigate(`/search/${encodeURIComponent(searchQuery)}`); }}
         />
         {searchQuery.length > 0 && (
           <div className="flex items-center gap-1">

@@ -78,9 +78,9 @@ const MiniEmbedCard = memo(({ url, provider, embedId }) => {
         display: 'inline-flex', alignItems: 'center', gap: '10px',
         padding: '8px 14px 8px 10px',
         borderRadius: '8px', textDecoration: 'none',
-        border: '1px solid var(--color-border)',
-        backgroundColor: 'var(--color-surface, #fff)',
-        color: 'var(--color-black, #1a1a1a)',
+        border: '1px solid rgb(var(--c-border))',
+        backgroundColor: 'rgb(var(--c-surface))',
+        color: 'rgb(var(--c-black))',
         fontFamily: 'Inter, system-ui, sans-serif',
         fontSize: '14px', fontWeight: 500,
         transition: 'box-shadow 0.15s, transform 0.15s',
@@ -99,7 +99,7 @@ const MiniEmbedCard = memo(({ url, provider, embedId }) => {
       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {title}
       </span>
-      <span style={{ color: 'var(--color-dark-grey, #888)', fontSize: '13px', flexShrink: 0 }}>→</span>
+      <span style={{ color: 'rgb(var(--c-dark-grey))', fontSize: '13px', flexShrink: 0 }}>→</span>
     </a>
   );
 });

@@ -116,7 +116,14 @@ const ProfilePage = () => {
         {profileQuery.isLoading ? (
           <Loader />
         ) : profileQuery.isError ? (
-          <NetworkError onRetry={() => profileQuery.refetch()} />
+          // The API answers 404 for unknown/deleted/deactivated usernames. That's a missing page,
+          // not a failed request — showing "something went wrong" with a Retry that can never
+          // succeed is misleading, so a 404 falls through to the same PageNotFound used below.
+          profileQuery.error?.response?.status === 404 ? (
+            <PageNotFound />
+          ) : (
+            <NetworkError onRetry={() => profileQuery.refetch()} />
+          )
         ) : (
             profile_username.length ? 
                 <section className="h-cover lg:flex flex-row-reverse items-start gap-5 min-[1100px]:gap-12 max-lg:pt-0">
