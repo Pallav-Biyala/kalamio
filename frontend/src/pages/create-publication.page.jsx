@@ -7,6 +7,11 @@ import { UserContext } from "../App";
 import Icon from "../components/Icon";
 import toast from "react-hot-toast";
 import { uploadImage } from "../common/aws";
+import ImageCropperModal from "../components/image-cropper.component";
+
+// The publication banner renders as a wide, fixed-height strip (object-fit: cover). Cropping to this
+// aspect lets the user choose exactly what shows instead of an arbitrary centre crop of a big upload.
+const BANNER_ASPECT = 4;
 
 const CreatePublicationPage = () => {
 
@@ -20,7 +25,9 @@ const CreatePublicationPage = () => {
     const [tagInput, setTagInput] = useState("");
     const [tags, setTags] = useState([]);
     const [banner, setBanner] = useState("");
+    const [bannerToCrop, setBannerToCrop] = useState(null); // object URL of the image being cropped
     const [profilePhoto, setProfilePhoto] = useState("");
+    const [profileToCrop, setProfileToCrop] = useState(null); // object URL of the photo being cropped
     const [social_links, setSocialLinks] = useState({
         youtube: "",
         instagram: "",
@@ -46,42 +53,55 @@ const CreatePublicationPage = () => {
         setTags(tags.filter(t => t !== tagToRemove));
     };
 
+    // Pick a file → open the cropper (don't upload the raw image). Reset the input value so choosing
+    // the SAME file again still fires onChange.
     const handleBannerUpload = (e) => {
-        let img = e.target.files[0];
-        if (img) {
-            let loadingToast = toast.loading("Uploading banner…");
-            uploadImage(img)
-                .then((url) => {
-                    if (url) {
-                        setBanner(url);
-                        toast.dismiss(loadingToast);
-                        toast.success("Uploaded");
-                    }
-                })
-                .catch((err) => {
-                    toast.dismiss(loadingToast);
-                    return toast.error(err);
-                });
-        }
+        const img = e.target.files[0];
+        if (img) setBannerToCrop(URL.createObjectURL(img));
+        e.target.value = null;
     };
 
-    const handleProfilePhotoUpload = (e) => {
-        let img = e.target.files[0];
-        if (img) {
-            let loadingToast = toast.loading("Uploading profile photo…");
-            uploadImage(img)
-                .then((url) => {
-                    if (url) {
-                        setProfilePhoto(url);
-                        toast.dismiss(loadingToast);
-                        toast.success("Uploaded");
-                    }
-                })
-                .catch((err) => {
+    // Cropper returns the cropped banner as a File → upload that.
+    const handleBannerCropped = (croppedFile) => {
+        setBannerToCrop(null);
+        const loadingToast = toast.loading("Uploading banner…");
+        uploadImage(croppedFile)
+            .then((url) => {
+                if (url) {
+                    setBanner(url);
                     toast.dismiss(loadingToast);
-                    return toast.error(err);
-                });
-        }
+                    toast.success("Uploaded");
+                }
+            })
+            .catch((err) => {
+                toast.dismiss(loadingToast);
+                toast.error(err?.message || "Failed to upload banner");
+            });
+    };
+
+    // Pick a file → open the round cropper. Reset the input value so re-picking the same file fires.
+    const handleProfilePhotoUpload = (e) => {
+        const img = e.target.files[0];
+        if (img) setProfileToCrop(URL.createObjectURL(img));
+        e.target.value = null;
+    };
+
+    // Cropper returns the cropped (square) photo as a File → upload that.
+    const handleProfileCropped = (croppedFile) => {
+        setProfileToCrop(null);
+        const loadingToast = toast.loading("Uploading profile photo…");
+        uploadImage(croppedFile)
+            .then((url) => {
+                if (url) {
+                    setProfilePhoto(url);
+                    toast.dismiss(loadingToast);
+                    toast.success("Uploaded");
+                }
+            })
+            .catch((err) => {
+                toast.dismiss(loadingToast);
+                toast.error(err?.message || "Failed to upload profile photo");
+            });
     };
 
     const handleSubmit = async (e) => {
@@ -135,7 +155,7 @@ const CreatePublicationPage = () => {
                         <label className="create-pub__label">Publication Visuals</label>
                         <div className="relative mb-16">
                             {/* Banner Upload */}
-                            <div className="relative aspect-video bg-grey overflow-hidden rounded-xl group hover:opacity-90 transition-opacity cursor-pointer border-2 border-dashed border-border">
+                            <div className="relative aspect-[4/1] bg-grey overflow-hidden rounded-xl group hover:opacity-90 transition-opacity cursor-pointer border-2 border-dashed border-border">
                                 <label htmlFor="uploadBanner" className="absolute inset-0 z-10 cursor-pointer">
                                     {banner ? (
                                         <img src={banner} className="w-full h-full object-cover" alt="Publication Banner" />
@@ -261,6 +281,26 @@ const CreatePublicationPage = () => {
                     </button>
                 </form>
             </div>
+
+            {bannerToCrop && (
+                <ImageCropperModal
+                    imageSrc={bannerToCrop}
+                    aspect={BANNER_ASPECT}
+                    cropShape="rect"
+                    title="Crop banner"
+                    onComplete={handleBannerCropped}
+                    onCancel={() => setBannerToCrop(null)}
+                />
+            )}
+
+            {profileToCrop && (
+                <ImageCropperModal
+                    imageSrc={profileToCrop}
+                    title="Crop photo"
+                    onComplete={handleProfileCropped}
+                    onCancel={() => setProfileToCrop(null)}
+                />
+            )}
         </AnimationWrapper>
     );
 };

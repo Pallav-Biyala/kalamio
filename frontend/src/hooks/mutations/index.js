@@ -9,3 +9,4 @@ export { useBlockAction } from './useBlockAction';
 export { useVotePoll } from './useVotePoll';
 export { useCreateCollection, useDeleteCollection, useSaveToCollection } from './useCollectionMutations';
 export { useCreateTextPost } from './useCreateTextPost';
+export { useAddArticleToPublication, useRemoveArticleFromPublication } from './usePublicationArticles';

@@ -8,6 +8,7 @@ import AnimationWrapper from "../common/page-animation";
 import NoDataMessage from "../components/nodata.component";
 import Icon from "../components/Icon";
 import toast from "react-hot-toast";
+import AddArticlesModal from "../components/add-articles-modal.component";
 
 const ManagePublicationsPage = () => {
 
@@ -16,6 +17,8 @@ const ManagePublicationsPage = () => {
     let { userAuth: { access_token } } = useContext(UserContext);
 
     const [publications, setPublications] = useState(null);
+    // The publication whose "Add articles" picker is open (null = closed).
+    const [articlesForPub, setArticlesForPub] = useState(null);
 
     const fetchPublications = () => {
         api.post("/my-publications")
@@ -73,6 +76,14 @@ const ManagePublicationsPage = () => {
                                     </div>
                                 </div>
                                 <div className="pub-manage-card__actions">
+                                    <button
+                                        onClick={() => setArticlesForPub(pub)}
+                                        className="pub-manage-card__add-btn"
+                                        title="Add existing articles to this publication"
+                                    >
+                                        <Icon name="library_add" className="text-base" />
+                                        Add articles
+                                    </button>
                                     <Link to={`/publication/${pub.slug}`} className="pub-manage-card__btn" title="View">
                                         <Icon name="visibility" />
                                     </Link>
@@ -92,6 +103,20 @@ const ManagePublicationsPage = () => {
                     ))
                 : <NoDataMessage message="No publications yet. Create your first one!" />
             }
+
+            {articlesForPub && (
+                <AddArticlesModal
+                    publicationId={articlesForPub._id}
+                    publicationSlug={articlesForPub.slug}
+                    publicationTitle={articlesForPub.title}
+                    isOpen={true}
+                    // Refetch on close too (not just per-toggle): if the modal is closed while a
+                    // toggle is still in flight, its per-mutate onChanged may not fire after unmount,
+                    // so this is the catch-all that keeps the card's post count fresh.
+                    onClose={() => { setArticlesForPub(null); fetchPublications(); }}
+                    onChanged={fetchPublications}
+                />
+            )}
         </div>
     );
 };

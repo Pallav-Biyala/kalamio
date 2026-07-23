@@ -3820,7 +3820,10 @@
 .publication-page {
     max-width: 900px;
     margin: 0 auto;
-    padding: 0 24px 64px;
+    /* Top gap so the rounded, inset banner breathes below the viewport top (there's no top bar on
+       desktop — the nav is the left sidebar). Mobile overrides this to 0: there the banner is a
+       full-bleed, edge-to-edge immersive header, so a gap above would look wrong. */
+    padding: 28px 24px 64px;
 }
 
 .publication-header {
@@ -8696,4 +8699,202 @@
         to { opacity: 1; transform: translateX(0) scale(1); }
     }
 }
+
+/* ── Publication: "Add existing articles" picker modal ──────────────────── */
+.article-picker-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        z-index: 999;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+    }
+    @media (min-width: 640px) {
+        .article-picker-overlay { align-items: center; }
+    }
+
+    .article-picker-modal {
+        background: rgb(var(--c-white));
+        border-radius: 16px 16px 0 0;
+        max-height: 82vh;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        animation: slideUp 0.2s ease;
+        overflow: hidden;
+    }
+    @media (min-width: 640px) {
+        .article-picker-modal {
+            border-radius: 16px;
+            max-width: 520px;
+            max-height: 72vh;
+        }
+    }
+
+    .article-picker-modal__header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px 20px;
+        border-bottom: 1px solid rgb(var(--c-border));
+    }
+    .article-picker-modal__title { font-size: 1.05rem; font-weight: 600; line-height: 1.2; }
+    .article-picker-modal__subtitle {
+        font-size: 0.8rem;
+        color: rgb(var(--c-dark-grey));
+        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .article-picker-modal__close {
+        flex: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgb(var(--c-dark-grey));
+        transition: all 0.15s ease;
+    }
+    .article-picker-modal__close:hover { background: rgb(var(--c-grey)); color: rgb(var(--c-black)); }
+
+    .article-picker-modal__search {
+        position: relative;
+        display: flex;
+        align-items: center;
+        padding: 12px 16px;
+        border-bottom: 1px solid rgb(var(--c-border));
+    }
+    .article-picker-modal__search-icon {
+        position: absolute;
+        left: 28px;
+        color: rgb(var(--c-dark-grey));
+        font-size: 1.1rem;
+        pointer-events: none;
+    }
+    .article-picker-modal__search-input {
+        width: 100%;
+        background: rgb(var(--c-grey));
+        border-radius: 10px;
+        padding: 9px 36px;
+        font-size: 0.9rem;
+        color: rgb(var(--c-black));
+        outline: none;
+        border: 1px solid transparent;
+        transition: border-color 0.15s ease;
+    }
+    .article-picker-modal__search-input:focus { border-color: rgb(var(--c-dark-grey) / 0.5); }
+    .article-picker-modal__search-clear {
+        position: absolute;
+        right: 26px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgb(var(--c-dark-grey));
+    }
+    .article-picker-modal__search-clear:hover { background: rgb(var(--c-white)); color: rgb(var(--c-black)); }
+
+    .article-picker-modal__content { overflow-y: auto; flex: 1; }
+    .article-picker-modal__empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 44px 20px;
+        text-align: center;
+    }
+
+    .article-picker-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 16px;
+        border-bottom: 1px solid rgb(var(--c-border) / 0.6);
+    }
+    .article-picker-row:last-child { border-bottom: none; }
+    .article-picker-row__thumb {
+        flex: none;
+        width: 52px;
+        height: 52px;
+        border-radius: 8px;
+        overflow: hidden;
+        background: rgb(var(--c-grey));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .article-picker-row__thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .article-picker-row__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+    .article-picker-row__title {
+        font-size: 0.92rem;
+        font-weight: 500;
+        color: rgb(var(--c-black));
+        line-height: 1.3;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .article-picker-row__meta {
+        font-size: 0.75rem;
+        color: rgb(var(--c-dark-grey));
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .article-picker-row__badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        font-weight: 500;
+    }
+    .article-picker-row__action {
+        flex: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 7px 14px;
+        border-radius: 999px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        border: 1px solid rgb(var(--c-black) / 0.25);
+        color: rgb(var(--c-black));
+        background: transparent;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+    }
+    .article-picker-row__action:hover:not(:disabled) { background: rgb(var(--c-black) / 0.06); border-color: rgb(var(--c-black) / 0.45); }
+    .article-picker-row__action.is-added {
+        background: rgb(var(--c-brand));
+        color: rgb(var(--c-white));
+        border-color: rgb(var(--c-brand));
+    }
+    .article-picker-row__action.is-added:hover:not(:disabled) { opacity: 0.88; background: rgb(var(--c-brand)); }
+    .article-picker-row__action:disabled { opacity: 0.55; cursor: default; }
+
+    /* "Add articles" button on the manage-publications card */
+    .pub-manage-card__add-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 12px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: rgb(var(--c-black));
+        border: 1px solid rgb(var(--c-black) / 0.2);
+        background: transparent;
+        transition: all 0.15s ease;
+        margin-right: auto;
+    }
+    .pub-manage-card__add-btn:hover { background: rgb(var(--c-black) / 0.06); border-color: rgb(var(--c-black) / 0.4); }
 

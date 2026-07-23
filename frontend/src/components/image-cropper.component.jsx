@@ -123,15 +123,18 @@ export async function getCroppedImg(imageSrc, pixelCrop, rotation = 0) {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-const ImageCropperModal = ({ imageSrc, onComplete, onCancel }) => {
+const ImageCropperModal = ({ imageSrc, onComplete, onCancel, aspect = 1, cropShape = 'round', title = 'Edit image' }) => {
+  // Round = circular profile-photo crop (fills a square, width-locked at min zoom). Any other shape
+  // (e.g. the wide publication banner) is a free-panning rectangular crop at the given aspect.
+  const isRound = cropShape === 'round';
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
 
-  // Clamp horizontal position to prevent subpixel drift at min zoom
+  // Clamp horizontal position to prevent subpixel drift at min zoom (round mode only — the round
+  // crop fills the full width, so there's nothing to pan horizontally; the banner pans both axes).
   const handleCropChange = (newCrop) => {
-    if (cropSize && zoom <= 1.01) {
-      // At minimum zoom, lock horizontal movement entirely
+    if (isRound && cropSize && zoom <= 1.01) {
       setCrop({ x: 0, y: newCrop.y });
     } else {
       setCrop(newCrop);
@@ -149,15 +152,19 @@ const ImageCropperModal = ({ imageSrc, onComplete, onCancel }) => {
     if (!el) return;
 
     const measure = () => {
-      const size = el.clientWidth;
-      setCropSize({ width: size, height: size });
+      const w = el.clientWidth;
+      // Round mode: a square crop (the circle fills the width). Rect (banner) mode: a wide crop BAND
+      // that fills the width at the requested aspect, centred with image context above/below. We set
+      // cropSize EXPLICITLY (rather than letting react-easy-crop derive it from `aspect`) because the
+      // derived path can leave the crop area at 0×0 when the container is first measured off-screen.
+      setCropSize(isRound ? { width: w, height: w } : { width: w, height: Math.round(w / aspect) });
     };
 
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [isRound, aspect]);
 
   // Detect image orientation and set objectFit accordingly
   useEffect(() => {
@@ -211,7 +218,7 @@ const ImageCropperModal = ({ imageSrc, onComplete, onCancel }) => {
       >
         {/* ── Header (Mobile only) ─────────────────────── */}
         <div className="px-5 py-3 border-b border-grey/50 flex justify-between items-center lg:hidden">
-          <p className="text-base font-semibold m-0">Edit image</p>
+          <p className="text-base font-semibold m-0">{title}</p>
           <button
             type="button"
             onClick={onCancel}
@@ -225,15 +232,15 @@ const ImageCropperModal = ({ imageSrc, onComplete, onCancel }) => {
         <div className="flex flex-col lg:flex-row h-full">
 
           {/* ── Cropper area ─────────────────────────── */}
-          <div ref={containerRef} className="relative w-full lg:w-[55%] bg-black flex-shrink-0" style={{ aspectRatio: '1/1' }}>
+          <div ref={containerRef} className="relative w-full lg:w-[55%] bg-black flex-shrink-0" style={{ aspectRatio: isRound ? '1 / 1' : '3 / 2' }}>
             {cropSize && (
               <Cropper
                 image={imageSrc}
                 crop={crop}
                 zoom={zoom}
                 rotation={rotation}
-                aspect={1}
-                cropShape="round"
+                aspect={aspect}
+                cropShape={cropShape}
                 showGrid={true}
                 onCropChange={handleCropChange}
                 onCropComplete={onCropComplete}
@@ -242,7 +249,7 @@ const ImageCropperModal = ({ imageSrc, onComplete, onCancel }) => {
                 maxZoom={5}
                 zoomSpeed={0.3}
                 restrictPosition={true}
-                objectFit={imgObjectFit}
+                objectFit={isRound ? imgObjectFit : 'horizontal-cover'}
                 cropSize={cropSize}
                 mediaProps={{ referrerPolicy: 'no-referrer' }}
                 style={{
@@ -260,7 +267,7 @@ const ImageCropperModal = ({ imageSrc, onComplete, onCancel }) => {
 
             {/* Header (Desktop only) */}
             <div className="hidden lg:flex justify-between items-center pb-2 border-b border-grey/50">
-              <p className="text-base font-semibold m-0">Edit image</p>
+              <p className="text-base font-semibold m-0">{title}</p>
               <button
                 type="button"
                 onClick={onCancel}

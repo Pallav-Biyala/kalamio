@@ -330,21 +330,32 @@ export const userWrittenPosts = (req, res) => {
     // consumers (manage-blogs grid, text-post drafts) never render it, so we omit it by default —
     // otherwise every page would ship several unused MB. Only the blog editor's draft picker needs it
     // (to reload a draft for editing) and opts in via include_content.
-    const listFields = " title banner publishedAt blog_id activity des draft type text_content images poll tags -_id ";
+    // The "add existing articles to a publication" picker opts into `with_publication`: it needs the
+    // Mongo `_id` (add/remove-blog key off it) AND each post's current publication (populated) so it
+    // can show/toggle membership. Every other caller keeps the lean, _id-less default payload.
+    const withPublication = req.body?.with_publication;
+    let listFields = " title banner publishedAt blog_id activity des draft type text_content images poll tags ";
+    listFields += withPublication ? " publication " : " -_id ";
     const fields = req.body?.include_content ? listFields + " content" : listFields;
 
-    Post.find(findQuery)
-    .skip(skipDocs)
-    .limit(maxLimit)
-    .sort(sortQuery)
-    .select(fields)
+    let queryBuilder = Post.find(findQuery)
+        .skip(skipDocs)
+        .limit(maxLimit)
+        .sort(sortQuery)
+        .select(fields);
+
+    if (withPublication) {
+        queryBuilder = queryBuilder.populate('publication', 'title slug');
+    }
+
+    queryBuilder
     .then(blogs => {
         return res.status(200).json({ blogs });
     })
     .catch(err => {
         return res.status(500).json({ error: err.message });
     })
-    
+
 };
 
 // User written posts count
