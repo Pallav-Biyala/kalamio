@@ -8,6 +8,7 @@ import { escapeRegex } from '../utils/helpers.js';
 import { deleteMultipleFromS3 } from '../config/s3.js';
 import { emitNotification, emitBlogUpdate } from '../utils/notify.js';
 import jwt from 'jsonwebtoken';
+import { AUTH } from '../constants/auth.constants.js';
 
 // Latest Posts (unified feed — returns both blogs and text posts)
 export const latestPosts = (req, res) => {
@@ -157,7 +158,7 @@ export const getPost = (req, res) => {
                 if (!token) return res.status(401).json({ error: "Access denied to draft" });
                 
                 try {
-                    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+                    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET, { clockTolerance: AUTH.CLOCK_TOLERANCE_S });
                     if (decoded.id !== blog.author._id.toString()) {
                         return res.status(403).json({ error: "You can only access your own drafts" });
                     }

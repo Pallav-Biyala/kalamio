@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { ERRORS } from '../constants/error-messages.js';
+import { AUTH } from '../constants/auth.constants.js';
 
 export const verifyJWT = (req, res, next) => {
 
@@ -10,7 +11,7 @@ export const verifyJWT = (req, res, next) => {
         return res.status(401).json({ error: ERRORS.UNAUTHORIZED });
     }
     
-    jwt.verify(token, process.env.JWT_ACCESS_SECRET, (err, user) => {
+    jwt.verify(token, process.env.JWT_ACCESS_SECRET, { clockTolerance: AUTH.CLOCK_TOLERANCE_S }, (err, user) => {
         if(err){
             const message = err.name === 'TokenExpiredError'
                 ? ERRORS.TOKEN_EXPIRED
@@ -39,7 +40,7 @@ export const optionalJWT = (req, res, next) => {
         return next();
     }
 
-    jwt.verify(token, process.env.JWT_ACCESS_SECRET, (err, user) => {
+    jwt.verify(token, process.env.JWT_ACCESS_SECRET, { clockTolerance: AUTH.CLOCK_TOLERANCE_S }, (err, user) => {
         req.user = err ? null : user.id;
         next();
     });

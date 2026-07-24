@@ -48,7 +48,7 @@ export const generateTokenPair = (userId, sid) => {
  */
 export const verifyRefreshToken = (token) => {
     try {
-        return jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+        return jwt.verify(token, process.env.JWT_REFRESH_SECRET, { clockTolerance: AUTH.CLOCK_TOLERANCE_S });
     } catch {
         return null;
     }
@@ -60,7 +60,7 @@ export const verifyRefreshToken = (token) => {
  */
 export const verifyAccessToken = (token) => {
     try {
-        return jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+        return jwt.verify(token, process.env.JWT_ACCESS_SECRET, { clockTolerance: AUTH.CLOCK_TOLERANCE_S });
     } catch {
         return null;
     }

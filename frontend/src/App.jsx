@@ -101,6 +101,30 @@ const App = () => {
 
     }, [])
 
+    // Cross-tab auth sync. The `storage` event fires only in OTHER tabs, so when one tab logs in/out or
+    // rotates its refresh token (both rewrite the "user" key), every other open tab mirrors it here — a
+    // logout in one tab logs the rest out, and no tab lingers with a rotated-out token in memory.
+    // (Per-request auth already reads the freshest token straight from localStorage; this keeps the
+    // in-memory userAuth — and the logout side-effects below — consistent across tabs.)
+    useEffect(() => {
+        const onStorage = (e) => {
+            if (e.key !== "user" || (e.storageArea && e.storageArea !== localStorage)) return;
+            if (e.newValue == null) {
+                setUserAuth({ access_token: null });
+                return;
+            }
+            try {
+                const parsed = JSON.parse(e.newValue);
+                if (!parsed._id && parsed.access_token) {
+                    try { parsed._id = JSON.parse(atob(parsed.access_token.split('.')[1])).id; } catch {}
+                }
+                setUserAuth(parsed);
+            } catch { /* ignore a malformed cross-tab write */ }
+        };
+        window.addEventListener("storage", onStorage);
+        return () => window.removeEventListener("storage", onStorage);
+    }, []);
+
     // Clear all cached query data when user logs out
     useEffect(() => {
         if (userAuth.access_token === null) {

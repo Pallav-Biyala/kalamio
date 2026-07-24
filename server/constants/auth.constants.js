@@ -22,14 +22,21 @@ export const AUTH = {
     // JWT token expiration
     ACCESS_TOKEN_EXPIRY: '15m',       // 15 minutes — short-lived for security
     REFRESH_TOKEN_EXPIRY: '30d',
+    // Leeway (seconds) applied to every jwt.verify. Absorbs a few seconds of clock skew between the
+    // client, an autoscaled instance, and a token's iat/exp so a boundary-adjacent request never 401s
+    // spuriously (which, on a refresh call, would hard-logout the user).
+    CLOCK_TOLERANCE_S: 5,
 
     // Refresh sessions (per-device). Each login creates its own session entry, so signing in on a
     // second device no longer logs the first one out.
     MAX_REFRESH_SESSIONS: 8,          // oldest (by last use) is dropped beyond this
     // After a rotation, the PREVIOUS refresh token stays accepted for this window. Absorbs the two
     // real-world races that used to hard-logout users: two tabs refreshing concurrently, and a
-    // rotation response lost to a network drop (client retries with the old token).
-    REFRESH_ROTATION_GRACE_MS: 60_000,
+    // rotation response lost to a network drop (client retries with the old token). 120s (up from 60s)
+    // covers a slow mobile/backgrounded-tab retry after a lost rotation while keeping the window in
+    // which a rotated-out (potentially stolen) token stays redeemable short — reuse past it still
+    // revokes the whole session (auth.controller.js reuse branch).
+    REFRESH_ROTATION_GRACE_MS: 120_000,
     // Compare-and-swap retries when rotating a session under concurrent refreshes. Each concurrent
     // refresh on the same token needs one CAS "win" to advance; a burst of N contends for N rounds, so
     // the budget must comfortably exceed realistic concurrency (the client's cross-tab lock caps this

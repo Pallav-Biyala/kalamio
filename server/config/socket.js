@@ -2,6 +2,7 @@ import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { createAdapter } from '@socket.io/redis-adapter';
 import Redis from 'ioredis';
+import { AUTH } from '../constants/auth.constants.js';
 
 /**
  * Cross-instance broadcast. Without a Redis adapter, `io.to(room).emit(...)` only reaches sockets
@@ -58,7 +59,7 @@ export const initSocket = (httpServer, allowedOrigins) => {
         }
 
         try {
-            const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+            const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET, { clockTolerance: AUTH.CLOCK_TOLERANCE_S });
             socket.userId = decoded.id;
             next();
         } catch (err) {
