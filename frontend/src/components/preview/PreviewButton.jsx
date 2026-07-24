@@ -14,11 +14,11 @@ const PreviewButton = () => {
         <button
             type="button"
             onClick={openPreview}
-            className="flex items-center gap-1.5 py-2 px-4 rounded-full border border-border text-black font-medium hover:bg-grey transition-colors"
+            className="flex items-center gap-1.5 py-2 px-3 md:px-4 rounded-full border border-border text-black font-medium hover:bg-grey transition-colors"
             aria-label="Preview how this will look after publishing"
         >
             <Icon name="visibility" className="text-lg" />
-            <span className="text-sm">Preview</span>
+            <span className="hidden md:inline text-sm">Preview</span>
         </button>
     );
 };

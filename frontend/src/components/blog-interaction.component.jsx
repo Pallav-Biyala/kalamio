@@ -102,27 +102,25 @@ const BlogInteraction = () => {
                             if (!access_token) return toast.error("Please login to save");
                             setShowSaveModal(true);
                         }}
-                        className={"text-dark-grey hover:text-black transition-colors flex items-center gap-1 text-sm font-medium select-none " + (isBookmarked ? "text-black" : "")}
+                        className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (isBookmarked ? "bg-grey text-black" : "bg-grey hover:bg-grey/80")}
                         aria-label="Save"
                     >
-                        <Icon name="bookmark" filled={isBookmarked} className="text-lg" />
-                        Save
+                        <Icon name="bookmark" filled={isBookmarked} className="text-[18px]" />
                     </button>
 
                     {
                         username == author_username ?
-                        <Link to={`/editor/${blog_id}`} className="text-dark-grey hover:text-black transition-colors flex items-center gap-1 text-sm font-medium select-none">
-                            <Icon name="edit" className="text-lg" />
-                            Edit
+                        <Link to={`/editor/${blog_id}`} className="w-8 h-8 rounded-full flex items-center justify-center bg-grey hover:bg-grey/80 transition-colors" aria-label="Edit">
+                            <Icon name="edit" className="text-[18px]" />
                         </Link> : ""
                     }
 
-                    <button 
+                    <button
                         onClick={handleShare}
-                        className="text-dark-grey hover:text-black transition-colors flex items-center gap-1 text-sm font-medium select-none"
+                        className="w-8 h-8 rounded-full flex items-center justify-center bg-grey hover:bg-grey/80 transition-colors"
+                        aria-label="Share"
                     >
-                        <Icon name="link" className="text-lg" />
-                        Share
+                        <Icon name="link" className="text-[18px]" />
                     </button>
                 </div>
             </div>

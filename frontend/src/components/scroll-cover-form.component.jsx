@@ -119,11 +119,11 @@ const ScrollCoverForm = () => {
                 <span className="hidden md:flex justify-end min-w-[108px]">
                     <SaveStatus status={saveStatus} savedAt={savedAt} />
                 </span>
-                <button className="btn-brand py-2 px-6" onClick={() => submit(false)} disabled={busy}>
+                <button className="btn-brand py-2 px-4 md:px-6" onClick={() => submit(false)} disabled={busy}>
                     {busy ? "Publishing…" : "Publish"}
                 </button>
                 {!isEditingPublishedPost && (
-                    <button className="btn-light py-2 flex items-center gap-2" onClick={() => submit(true)} disabled={busy}>
+                    <button className="btn-light py-2 px-4 md:px-6 flex items-center gap-2" onClick={() => submit(true)} disabled={busy}>
                         <Icon name="save" className="text-lg" />
                         Save as draft
                     </button>

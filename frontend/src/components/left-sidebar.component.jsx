@@ -279,8 +279,8 @@ const LeftSidebar = () => {
                         </Link>
                     )}
 
-                    {/* Keep Reading */}
-                    <KeepReading />
+                    {/* Keep Reading — signed-in only */}
+                    {access_token && <KeepReading />}
 
                     {/* Spacer */}
                     <div className="flex-1" />

@@ -6,7 +6,6 @@ import BottomTabBar from "./bottom-tab-bar.component";
 import MobileTopBar from "./mobile-top-bar.component";
 import UserNavigationPanel from "./user-navigation.component";
 import Avatar from "./Avatar";
-import FeedbackButton from "./feedback-button.component";
 import api from "../common/api";
 import { useEffect } from "react";
 
@@ -194,9 +193,6 @@ const MainLayout = () => {
                     <Outlet context={{ setFocusedReading }} />
                 </div>
             </main>
-
-            {/* Floating feedback button — opens Candiq.app */}
-            <FeedbackButton />
 
             {/* Mobile bottom tab bar — hidden on desktop */}
             <BottomTabBar />

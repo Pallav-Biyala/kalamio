@@ -834,6 +834,15 @@
     .mobile-top-bar__search {
         @apply flex items-center gap-3 flex-1 py-2 px-3 rounded-radius-md;
         background: rgb(var(--c-grey));
+        /* Transparent base border (box-border → no layout shift) so the focus cue below has a border to
+           colour, giving keyboard users a focus indicator now that the input's ring is suppressed. */
+        border: 1px solid transparent;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .mobile-top-bar__search:focus-within {
+        border-color: rgb(var(--c-dark-grey));
+        box-shadow: 0 0 0 3px rgb(var(--c-dark-grey) / 0.08);
     }
 
     .mobile-top-bar__search-input {
@@ -2569,6 +2578,12 @@
         background: rgb(var(--c-grey));
         border: 1px solid rgb(var(--c-border));
         border-radius: 12px;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .bottom-search-bar:focus-within {
+        border-color: rgb(var(--c-dark-grey));
+        box-shadow: 0 0 0 3px rgb(var(--c-dark-grey) / 0.08);
     }
 
     .bottom-search-bar__input {
@@ -6503,6 +6518,24 @@
     outline: none;
     outline-offset: 0;
 }
+
+/* Search boxes whose CONTAINER indicates focus (a :focus-within border/shadow) — or whose input has
+   its own :focus border — so the global :focus-visible ring is a redundant hard box layered on top.
+   Suppress the ring on the inner input; the container/border stays the (a11y-valid) focus cue. Mobile
+   and bottom search were just given a :focus-within cue above, so they're included here too. */
+.desktop-top-bar__search-input:focus,
+.desktop-top-bar__search-input:focus-visible,
+.mobile-top-bar__search-input:focus,
+.mobile-top-bar__search-input:focus-visible,
+.bottom-search-bar__input:focus,
+.bottom-search-bar__input:focus-visible,
+.editor-drafts__search-input:focus,
+.editor-drafts__search-input:focus-visible,
+.article-picker-modal__search-input:focus,
+.article-picker-modal__search-input:focus-visible {
+    outline: none;
+    outline-offset: 0;
+}
 .tp-composer__char-count {
     text-align: right;
     font-size: 12px;
@@ -8588,127 +8621,6 @@
 @keyframes modalSlideUp {
     from { opacity: 0; transform: translateY(12px); }
     to { opacity: 1; transform: translateY(0); }
-}
-
-/* ── Feedback FAB ─────────────────────────────── */
-.feedback-fab {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    z-index: 45;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 8px;
-}
-
-/* On mobile, position is controlled by JS drag logic */
-@media (max-width: 1023px) {
-    .feedback-fab {
-        bottom: auto;
-        right: auto;
-        left: 12px;
-        top: auto;
-        touch-action: none;
-        will-change: transform;
-        transform: translateZ(0);
-        backface-visibility: hidden;
-        -webkit-backface-visibility: hidden;
-    }
-}
-
-.feedback-fab__button {
-    width: 52px;
-    height: 52px;
-    border-radius: var(--radius-full);
-    border: none;
-    background: linear-gradient(135deg, #4f8cff, #3b6de0);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: 0 4px 16px rgba(59, 109, 224, 0.35), var(--shadow-md);
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.feedback-fab__button:hover {
-    background: linear-gradient(135deg, #6ba0ff, #4f8cff);
-    color: #fff;
-    box-shadow: 0 6px 24px rgba(59, 109, 224, 0.45), var(--shadow-lg);
-    transform: scale(1.08);
-}
-
-.feedback-fab__button:active {
-    transform: scale(0.95);
-}
-
-/* Subtle pulse to draw attention */
-.feedback-fab__button--pulse {
-    animation: feedbackPulse 2.5s ease-in-out 3;
-}
-
-@keyframes feedbackPulse {
-    0%, 100% { box-shadow: 0 4px 16px rgba(59, 109, 224, 0.35), var(--shadow-md); }
-    50% { box-shadow: 0 4px 16px rgba(59, 109, 224, 0.35), 0 0 0 8px rgba(79, 140, 255, 0.18); }
-}
-
-/* Tooltip */
-.feedback-fab__tooltip {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 14px;
-    background: rgb(var(--c-black));
-    color: rgb(var(--c-white));
-    border-radius: var(--radius-md);
-    font-size: 13px;
-    font-weight: 500;
-    font-family: 'DM Sans', sans-serif;
-    white-space: nowrap;
-    box-shadow: var(--shadow-lg);
-    animation: feedbackTooltipIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    pointer-events: auto;
-    max-width: 300px;
-}
-
-.feedback-fab__tooltip span {
-    white-space: normal;
-    line-height: 1.4;
-}
-
-.feedback-fab__tooltip-close {
-    background: none;
-    border: none;
-    color: rgb(var(--c-white) / 0.6);
-    cursor: pointer;
-    padding: 2px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    border-radius: var(--radius-full);
-    transition: color 0.15s ease;
-}
-
-.feedback-fab__tooltip-close:hover {
-    color: rgb(var(--c-white));
-}
-
-@keyframes feedbackTooltipIn {
-    from { opacity: 0; transform: translateX(8px) scale(0.95); }
-    to { opacity: 1; transform: translateX(0) scale(1); }
-}
-
-@media (max-width: 1023px) {
-    .feedback-fab__tooltip {
-        animation-name: feedbackTooltipInMobile;
-    }
-
-    @keyframes feedbackTooltipInMobile {
-        from { opacity: 0; transform: translateX(-8px) scale(0.95); }
-        to { opacity: 1; transform: translateX(0) scale(1); }
-    }
 }
 
 /* ── Publication: "Add existing articles" picker modal ──────────────────── */

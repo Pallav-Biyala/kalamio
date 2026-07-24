@@ -36,7 +36,7 @@ const PollVotersModal = ({ blogId, poll, isOpen, onClose }) => {
                 {/* Header */}
                 <div className="poll-voters-modal__header">
                     <div className="flex items-center gap-2">
-                        <Icon name="how_to_vote" className="text-xl" />
+                        <Icon name="poll" className="text-xl" />
                         <h2 className="text-lg font-semibold">Poll Voters</h2>
                     </div>
                     <button onClick={onClose} className="poll-voters-modal__close">
@@ -57,7 +57,7 @@ const PollVotersModal = ({ blogId, poll, isOpen, onClose }) => {
                         <Loader />
                     ) : voters.length === 0 ? (
                         <div className="poll-voters-modal__empty">
-                            <Icon name="ballot" className="text-4xl text-dark-grey/30" />
+                            <Icon name="poll" className="text-4xl text-dark-grey/30" />
                             <p className="text-dark-grey text-sm mt-2">No votes yet</p>
                         </div>
                     ) : (

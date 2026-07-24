@@ -34,9 +34,18 @@ const applyLocalSnapshot = (base, local) => ({
     tags: local.tags ?? base.tags ?? [],
 });
 
-// True if a local snapshot holds edits the server draft hasn't seen. blogSignature normalizes the
-// server's array-wrapped content ([{doc}]) to the editor/local shape ({doc}) so equal content matches.
-const localHasUnsyncedEdits = (local, serverBlog) => blogSignature(local) !== blogSignature(serverBlog);
+// True only when the local snapshot holds edits the server never received. It must (a) differ from the
+// server AND (b) have been based on the server's CURRENT state. If the server has advanced since this
+// snapshot was written — a save from another device or tab — the server is authoritative and wins, so a
+// stale local copy can never shadow newer cross-device changes. (blogSignature normalizes the server's
+// array-wrapped content [{doc}] to the editor/local shape {doc} so equal content compares equal.)
+// `baseServerSig` is absent on pre-upgrade snapshots; those fall back to the old differ-only check.
+const localHasUnsyncedEdits = (local, serverBlog) => {
+    const serverSig = blogSignature(serverBlog);
+    if (blogSignature(local) === serverSig) return false;                             // identical → nothing to restore
+    if (local.baseServerSig != null && local.baseServerSig !== serverSig) return false; // server advanced elsewhere → server wins
+    return true;                                                                       // genuine unsynced local edits
+};
 
 const Editor = () => {
 

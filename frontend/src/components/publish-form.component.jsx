@@ -135,7 +135,12 @@ const PublishForm = () => {
     // drafts), so nothing the user has filled in is lost and they can finish publishing later.
     const saveDraft = (e) => {
 
-        if(e.target.className.includes("disable")){
+        // Use the BUTTON, not `e.target`: clicking the child <Icon> lands `e.target` on the <svg>, whose
+        // className is an SVGAnimatedString (no `.includes`) — that threw and the click did nothing. The
+        // captured ref also survives into the async then/catch, where `e.currentTarget` is already nulled.
+        const btn = e.currentTarget;
+
+        if(btn.className.includes("disable")){
             return;
         }
 
@@ -151,7 +156,7 @@ const PublishForm = () => {
 
         let loadingToast = toast.loading("Saving draft…");
 
-        e.target.classList.add('disable');
+        btn.classList.add('disable');
 
         let blogObj = {
             title, banner, des, content: finalContent, tags, draft: true,
@@ -162,7 +167,7 @@ const PublishForm = () => {
         // brand-new post blog_id is undefined and the server creates a fresh draft — no duplicates.
         api.post("/create-blog", { ...blogObj, id: blog_id })
         .then(() => {
-            e.target.classList.remove('disable');
+            btn.classList.remove('disable');
 
             // Saved to the server — drop the local safety-net snapshot.
             clearLocalDraft?.();
@@ -175,7 +180,7 @@ const PublishForm = () => {
             }, 500);
         })
         .catch((err) => {
-            e.target.classList.remove('disable');
+            btn.classList.remove('disable');
             toast.dismiss(loadingToast);
 
             // Same centralized-vs-call-site split as publishBlog (see comment above).
@@ -211,13 +216,13 @@ const PublishForm = () => {
                 <span className="hidden md:flex justify-end min-w-[108px]">
                     <SaveStatus status={saveStatus} savedAt={savedAt} />
                 </span>
-                <button className="btn-brand py-2 px-6"
+                <button className="btn-brand py-2 px-4 md:px-6"
                     onClick={continueToScrollCover}
                 >
                     Continue
                 </button>
                 {!isEditingPublishedPost && (
-                    <button className="btn-light py-2 flex items-center gap-2"
+                    <button className="btn-light py-2 px-4 md:px-6 flex items-center gap-2"
                         onClick={saveDraft}
                     >
                         <Icon name="save" className="text-lg" />

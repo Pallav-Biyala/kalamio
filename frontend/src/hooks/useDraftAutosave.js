@@ -129,6 +129,11 @@ export const useDraftAutosave = ({ draftKey, blog, enabled, serverEnabled = fals
         des: b?.des || '',
         tags: b?.tags || [],
         updatedAt: Date.now(),
+        // The server signature this snapshot was written against. On another device, the load-time
+        // reconcile uses it to tell genuine unsynced local edits (server still at this base) apart from
+        // "the server moved on elsewhere" (base differs from the fetched server) — so a stale local copy
+        // can never shadow newer server changes made on a different device/tab.
+        baseServerSig: serverBaselineRef.current,
     });
 
     // ── Local write (safety net) ────────────────────────────────────────

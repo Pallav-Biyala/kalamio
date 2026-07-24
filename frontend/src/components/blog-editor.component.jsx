@@ -550,7 +550,7 @@ const BlogEditor = () => {
     return(
         <>
             <nav className="navbar">
-                <Link to="/" className="flex-none w-16" >
+                <Link to="/" className="flex-none w-12 md:w-16" >
                     <img src={ theme === "light" ? darkLogo : lightLogo } alt="Kalamio logo" />
                 </Link>
                 <p className="max-md:hidden text-2xl text-black line-clamp-1 w-full font-medium">
@@ -570,7 +570,7 @@ const BlogEditor = () => {
                     {/* Phase 1 of 3: this doesn't publish — it validates and advances to the publish
                         details form (description, tags, preview), then the scroll-cover step where the
                         actual "Publish" lives. So the label is "Continue", not "Publish". */}
-                    <button className="btn-brand py-2 px-6"
+                    <button className="btn-brand py-2 px-4 md:px-6"
                         onClick={handlePublishEvent}
                     >
                         Continue
@@ -579,7 +579,7 @@ const BlogEditor = () => {
                         // Dual-purpose control: with unsaved work it prompts to save the current draft;
                         // on an empty editor it opens the drafts list. The label/icon track that so the
                         // button reads as a Save action exactly when clicking it will save.
-                        <button className="btn-light py-2 flex items-center gap-2"
+                        <button className="btn-light py-2 px-4 md:px-6 flex items-center gap-2"
                             onClick={handleDraftsClick}
                         >
                             <Icon name={hasContent ? "save" : "draft"} className="text-lg" />

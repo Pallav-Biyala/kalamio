@@ -86,6 +86,7 @@ const RightSidebar = ({ onTrendingClick }) => {
         <a href="#" className="home-sidebar__footer-link">Help</a>
         <a href="#" className="home-sidebar__footer-link">Terms</a>
         <a href="#" className="home-sidebar__footer-link">Privacy</a>
+        <a href="https://www.candiq.app/feedback/907oynz-" target="_blank" rel="noopener noreferrer" className="home-sidebar__footer-link">Feedback</a>
       </div>
     </aside>
   );

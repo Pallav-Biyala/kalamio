@@ -476,7 +476,7 @@ const CommentCard = ({ index, commentData, isTextPost = false, onReplyDeleted })
                         <div className="feed-card__text-post-poll comment-card__media">
                             {poll.question && (
                                 <div className="feed-card__text-post-poll-header">
-                                    <Icon name="bar_chart" className="feed-card__text-post-poll-icon" />
+                                    <Icon name="poll" className="feed-card__text-post-poll-icon" />
                                     <span className="feed-card__text-post-poll-question">{poll.question}</span>
                                 </div>
                             )}

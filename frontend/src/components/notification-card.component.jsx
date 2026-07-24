@@ -121,7 +121,7 @@ const NotificationCard = ({ data, index, onDelete }) => {
                             </Link>
                             {data.option_index != null && blog.poll?.options?.[data.option_index] && (
                                 <div className="mt-2 flex items-center gap-2 text-sm text-dark-grey">
-                                    <Icon name="how_to_vote" className="text-[16px]" />
+                                    <Icon name="poll" className="text-[16px]" />
                                     <span>Selected: <strong>{blog.poll.options[data.option_index].text}</strong></span>
                                 </div>
                             )}

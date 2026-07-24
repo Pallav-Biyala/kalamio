@@ -1,5 +1,5 @@
 import { useContext, useState } from "react";
-import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
 import { UserContext } from "../App";
 import Icon from "./Icon";
 import Avatar from "./Avatar";
@@ -73,24 +73,29 @@ const BottomTabBar = () => {
                     )}
                 </NavLink>
             ) : (
-                <NavLink to="/signin" className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>
+                // Logged out: a plain Link (not NavLink) so it never reads as "active" — all three
+                // logged-out tabs point at /signin, so NavLinks would all highlight together there.
+                <Link to="/signin" className="bottom-tab-bar__item">
+                    <Icon name="forum" className="text-2xl" />
+                    <span>Chat</span>
+                </Link>
+            )}
+
+            {access_token ? (
+                <NavLink to="/subscriptions" className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>
                     {({ isActive }) => (
                         <>
-                            <Icon name="forum" className="text-2xl" filled={isActive} />
-                            <span>Chat</span>
+                            <Icon name="subscriptions" className="text-2xl" filled={isActive} />
+                            <span>Subs</span>
                         </>
                     )}
                 </NavLink>
+            ) : (
+                <Link to="/signin" className="bottom-tab-bar__item">
+                    <Icon name="subscriptions" className="text-2xl" />
+                    <span>Subs</span>
+                </Link>
             )}
-
-            <NavLink to={access_token ? "/subscriptions" : "/signin"} className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>
-                {({ isActive }) => (
-                    <>
-                        <Icon name="subscriptions" className="text-2xl" filled={isActive} />
-                        <span>Subs</span>
-                    </>
-                )}
-            </NavLink>
 
             {access_token ? (
                 <NavLink
@@ -119,14 +124,10 @@ const BottomTabBar = () => {
                     }}
                 </NavLink>
             ) : (
-                <NavLink to="/signin" className={({ isActive }) => "bottom-tab-bar__item" + (isActive ? " active" : "")}>
-                    {({ isActive }) => (
-                        <>
-                            <Icon name="person" className="text-2xl" filled={isActive} />
-                            <span>You</span>
-                        </>
-                    )}
-                </NavLink>
+                <Link to="/signin" className="bottom-tab-bar__item">
+                    <Icon name="person" className="text-2xl" />
+                    <span>You</span>
+                </Link>
             )}
         </nav>
 

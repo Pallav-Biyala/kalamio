@@ -3,7 +3,8 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { Link, useParams, useNavigate, useLocation, useOutletContext } from "react-router-dom";
 import AnimationWrapper from "../common/page-animation";
 import ArticleSkeleton from "../components/article-skeleton.component";
-import { getDay } from "../common/date";
+import { getDay, getRelativeTime } from "../common/date";
+import { estimateReadTime } from "../common/read-time";
 import BlogInteraction from "../components/blog-interaction.component";
 import BlogPostCard from "../components/blog-post.component";
 import BlogContent from "../components/blog-content.component";
@@ -72,7 +73,7 @@ const TextPostPollView = ({ poll: initialPoll, blogId, isCreator }) => {
         <div className="feed-card__text-post-poll mb-6">
             {poll.question && (
                 <div className="feed-card__text-post-poll-header">
-                    <Icon name="bar_chart" className="feed-card__text-post-poll-icon" />
+                    <Icon name="poll" className="feed-card__text-post-poll-icon" />
                     <span className="feed-card__text-post-poll-question">{poll.question}</span>
                 </div>
             )}
@@ -211,6 +212,8 @@ const BlogPage = () => {
 
     const isTextPost = type === 'text_post';
     const isDraft = blog.draft;
+    // Stored read time (computed at publish); fall back to computing it for older/unbackfilled posts.
+    const readMinutes = blog.readTime || estimateReadTime(content, title, des);
 
     // Tell MainLayout which chrome to use: only the ARTICLE read goes sidebar-less (its back button is
     // inline in the title); text posts keep the normal left sidebar / mobile top bar. Stay quiet until
@@ -346,7 +349,11 @@ const BlogPage = () => {
     return (
         <AnimationWrapper>
             {
-                blogQuery.isLoading ? <ArticleSkeleton variant={blog_id?.startsWith('tp-') ? 'text' : 'article'} />
+                // Keep the skeleton until the query data has been synced into local state. Otherwise the
+                // render right after isLoading flips false — but before the sync effect runs — shows the
+                // empty blogStructure (type undefined → the Article layout with "NaN undefined"), which
+                // then swaps to the real text-post layout: a large flash/jump on open.
+                (blogQuery.isLoading || (blogQuery.data && blog._id !== blogQuery.data._id)) ? <ArticleSkeleton variant={blog_id?.startsWith('tp-') ? 'text' : 'article'} />
                 : blogQuery.isError ? <NetworkError onRetry={() => blogQuery.refetch()} />
                 :
                 <BlogContext.Provider value={{ blog, setBlog, isLikedByUser: false, setLikedByUser: () => {}, commentsWrapper, setCommentsWrapper, totalParentCommentsLoaded, setTotalParentCommentsLoaded }}>
@@ -453,28 +460,35 @@ const BlogPage = () => {
                                     )}
 
                                     <div className="flex items-center gap-4 mb-6">
-                                        <Avatar src={profile_img} alt={fullname} size={48} />
+                                        <Link to={`/user/${author_username}`} className="flex-none">
+                                            <Avatar src={profile_img} alt={fullname} size={48} />
+                                        </Link>
                                         <div className="flex flex-col">
                                             <div className="flex items-center gap-3">
-                                                <p className="font-semibold text-black capitalize">
+                                                <Link to={`/user/${author_username}`} className="font-semibold text-black capitalize hover:underline">
                                                     {fullname}
-                                                </p>
+                                                </Link>
                                                 {!isDraft && blog.author._id && (
                                                     <FollowButton targetUserId={blog.author._id} size="sm" />
                                                 )}
                                             </div>
-                                            <p className="text-dark-grey text-sm mt-0.5 flex items-center gap-1.5">
-                                                {isDraft ? "Draft" : getDay(publishedAt)}
-                                                {publication && (
-                                                    <>
-                                                        <span className="text-grey/50">•</span>
-                                                        <span>Published in</span>
-                                                        <Link to={`/publication/${publication.slug}`} className="text-black hover:underline transition-colors font-medium">
-                                                            {publication.title}
-                                                        </Link>
-                                                    </>
-                                                )}
-                                            </p>
+                                            <Link to={`/user/${author_username}`} className="text-dark-grey text-sm hover:text-black transition-colors w-fit">
+                                                @{author_username}
+                                            </Link>
+                                            {publication && (
+                                                <p className="text-dark-grey text-sm mt-0.5 flex items-center gap-1.5">
+                                                    <span>Published in</span>
+                                                    <Link to={`/publication/${publication.slug}`} className="text-black hover:underline transition-colors font-medium">
+                                                        {publication.title}
+                                                    </Link>
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        {/* Published date + read time — pinned to the right of the author row */}
+                                        <div className="text-dark-grey text-sm whitespace-nowrap ml-auto self-start flex flex-col items-end gap-0.5">
+                                            <span>{isDraft ? "Draft" : getRelativeTime(publishedAt)}</span>
+                                            <span>{readMinutes} min read</span>
                                         </div>
                                     </div>
 
