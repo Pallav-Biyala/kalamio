@@ -9,7 +9,7 @@ import { generateUsername } from '../utils/helpers.js';
  *   1. User clicks "Continue with Google" → redirected to Google consent screen
  *   2. Google calls back with auth code → Passport exchanges for profile data
  *   3. This validate function finds or creates the user in MongoDB
- *   4. The user object is attached to req.user for the callback route handler
+ *   4. The user object is attached to req.user for the callback route handler.
  */
 const googleStrategy = new GoogleStrategy(
     {
