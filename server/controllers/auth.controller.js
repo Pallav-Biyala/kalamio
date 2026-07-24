@@ -12,6 +12,7 @@ import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email
 import { AUTH } from '../constants/auth.constants.js';
 import { ERRORS } from '../constants/error-messages.js';
 import audit from '../middleware/auditLogger.js';
+import { setRefreshCookie, clearRefreshCookie, readRefreshToken, bodyRefreshToken } from '../utils/authCookie.js';
 
 // ─────────────────────────────────────────────
 // Refresh sessions (per-device)
@@ -158,11 +159,13 @@ export const verifyEmail = async (req, res) => {
 
         // Generate tokens and store hashed refresh token
         const tokens = await createUserSession(user._id);
+        setRefreshCookie(res, tokens.refresh_token);
 
         return res.status(200).json({
             _id: user._id,
             access_token: tokens.access_token,
-            refresh_token: tokens.refresh_token,
+            // Omitted for cookie clients (token lives only in the httpOnly cookie); kept for legacy ones.
+            refresh_token: bodyRefreshToken(req, tokens.refresh_token),
             profile_img: user.personal_info.profile_img,
             username: user.personal_info.username,
             fullname: user.personal_info.fullname,
@@ -289,11 +292,13 @@ export const signin = async (req, res) => {
 
         // Generate tokens and store hashed refresh token
         const tokens = await createUserSession(user._id);
+        setRefreshCookie(res, tokens.refresh_token);
 
         return res.status(200).json({
             _id: user._id,
             access_token: tokens.access_token,
-            refresh_token: tokens.refresh_token,
+            // Omitted for cookie clients (token lives only in the httpOnly cookie); kept for legacy ones.
+            refresh_token: bodyRefreshToken(req, tokens.refresh_token),
             profile_img: user.personal_info.profile_img,
             username: user.personal_info.username,
             fullname: user.personal_info.fullname,
@@ -398,11 +403,13 @@ export const exchangeAuthCode = async (req, res) => {
 
         // Generate tokens and store hashed refresh token
         const tokens = await createUserSession(user._id);
+        setRefreshCookie(res, tokens.refresh_token);
 
         return res.status(200).json({
             _id: user._id,
             access_token: tokens.access_token,
-            refresh_token: tokens.refresh_token,
+            // Omitted for cookie clients (token lives only in the httpOnly cookie); kept for legacy ones.
+            refresh_token: bodyRefreshToken(req, tokens.refresh_token),
             profile_img: user.personal_info.profile_img,
             username: user.personal_info.username,
             fullname: user.personal_info.fullname,
@@ -524,9 +531,21 @@ const matchesGrace = (session, th, now) =>
 // losers would otherwise re-read and re-collide in lockstep; jitter spreads them so more win per round.
 const casBackoff = (attempt) => new Promise(r => setTimeout(r, 4 + attempt * 8 + Math.floor(Math.random() * 12)));
 
+// Send a freshly-rotated pair: set the httpOnly refresh cookie and return the access token (the
+// refresh token is echoed in the body only for legacy, non-cookie clients).
+const sendRotatedTokens = (req, res, tokens) => {
+    setRefreshCookie(res, tokens.refresh_token);
+    return res.status(200).json({
+        access_token: tokens.access_token,
+        refresh_token: bodyRefreshToken(req, tokens.refresh_token),
+    });
+};
+
 export const refreshToken = async (req, res) => {
     try {
-        const { refresh_token: token } = req.body;
+        // Cookie first (the new httpOnly source of truth), then the body (legacy clients + one-time
+        // bootstrap migration of a pre-cookie localStorage token).
+        const token = readRefreshToken(req);
         if (!token) {
             return res.status(401).json({ error: ERRORS.REFRESH_TOKEN_INVALID });
         }
@@ -553,7 +572,7 @@ export const refreshToken = async (req, res) => {
                 const now = new Date();
                 if (safeEqual(th, session.token_hash) || matchesGrace(session, th, now)) {
                     const tokens = await rotateSessionCAS(decoded.id, session, now);
-                    if (tokens) return res.status(200).json(tokens);
+                    if (tokens) return sendRotatedTokens(req, res, tokens);
                     await casBackoff(attempt); // lost the CAS — back off, then re-read and re-evaluate
                     continue;
                 }
@@ -590,7 +609,7 @@ export const refreshToken = async (req, res) => {
                 && safeEqual(th, s.migrated_from));
             if (migrated) {
                 const tokens = await rotateSessionCAS(decoded.id, migrated, now);
-                if (tokens) return res.status(200).json(tokens);
+                if (tokens) return sendRotatedTokens(req, res, tokens);
                 await casBackoff(attempt); // another retry rotated it first — re-read and rotate again
                 continue;
             }
@@ -614,7 +633,7 @@ export const refreshToken = async (req, res) => {
             );
             if (r.modifiedCount === 1) {
                 audit.log(req, 'LEGACY_REFRESH_MIGRATED', { userId: String(decoded.id) });
-                return res.status(200).json(tokens);
+                return sendRotatedTokens(req, res, tokens);
             }
             // Lost the claim race to a concurrent request — back off, then loop to recover via migrated_from.
             await casBackoff(attempt);
@@ -638,7 +657,9 @@ export const logout = async (req, res) => {
         // already expired at sign-out time — a common case). Falls back to a Bearer access token for
         // older clients that don't send a refresh_token. The route has no verifyJWT so an expired
         // access token can't turn a sign-out into a 401 that skips revocation entirely.
-        const { refresh_token } = req.body || {};
+        const refresh_token = readRefreshToken(req);
+        // Always clear the browser's refresh cookie on sign-out, however we end up identifying the session.
+        clearRefreshCookie(res);
         const decoded = refresh_token ? verifyRefreshToken(refresh_token) : null;
 
         if (decoded?.sid) {
@@ -709,11 +730,12 @@ export const changePassword = async (req, res) => {
 
         // Issue fresh tokens for the current session
         const tokens = await createUserSession(req.user);
+        setRefreshCookie(res, tokens.refresh_token);
 
         return res.status(200).json({
             message: "Password changed successfully",
             access_token: tokens.access_token,
-            refresh_token: tokens.refresh_token,
+            refresh_token: bodyRefreshToken(req, tokens.refresh_token),
         });
 
     } catch (err) {
