@@ -6492,6 +6492,17 @@
     color: rgb(var(--c-dark-grey));
     opacity: 0.6;
 }
+/* Suppress the global :focus-visible ring inside the text-post composer / reply modal — its fields
+   carry their own focus treatment (poll inputs get a brand border; the main textarea is intentionally
+   borderless), so the global 2px outline just reads as a stray box around the field. Two-class
+   specificity (plus being unlayered) beats the global `textarea:focus-visible` rule. */
+.tp-composer :is(input, textarea):focus,
+.tp-composer :is(input, textarea):focus-visible,
+.reply-modal :is(input, textarea):focus,
+.reply-modal :is(input, textarea):focus-visible {
+    outline: none;
+    outline-offset: 0;
+}
 .tp-composer__char-count {
     text-align: right;
     font-size: 12px;
