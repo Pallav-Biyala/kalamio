@@ -15,7 +15,16 @@ if (!SERVER_DOMAIN) {
 
 const api = axios.create({
     baseURL: (SERVER_DOMAIN || '') + 'api/v1',
+    // Send the httpOnly refresh cookie on API calls — required cross-origin in local dev, harmless
+    // same-origin in every deployed env. `X-Refresh-Transport: cookie` tells the server we hold the
+    // refresh token in the cookie, so it omits it from response bodies (truly httpOnly).
+    withCredentials: true,
+    headers: { 'X-Refresh-Transport': 'cookie' },
 });
+
+// The refresh/logout calls below use RAW axios (not the `api` instance), so they don't inherit the
+// instance defaults — send the same signal explicitly.
+const REFRESH_HEADERS = { 'X-Refresh-Transport': 'cookie' };
 
 // ── Token expiry helpers ────────────────────────────────────────────
 
@@ -123,7 +132,8 @@ const doRefresh = async () => {
     if (userData.access_token && !isTokenExpiringSoon(userData.access_token)) {
         return userData.access_token;
     }
-    if (!userData.refresh_token) throw new Error("No refresh token");
+    // No stored refresh token is required anymore — the httpOnly cookie carries it. A LEGACY token still
+    // in storage (a pre-cookie session) is sent once, below, to bootstrap the migration to the cookie.
 
     // Another tab is refreshing — wait for its result instead of racing the rotation.
     if (!tryAcquireRefreshLock()) {
@@ -148,14 +158,20 @@ const doRefresh = async () => {
         const refreshUrl = `${import.meta.env.VITE_SERVER_DOMAIN}api/v1/refresh-token`;
         // Record exactly which refresh token this attempt sends, so we only store the response if the
         // stored token still equals it — otherwise a racing refresher already won and we keep theirs.
-        let sentToken = null;
+        // Version marker for the compare-and-swap on store (below): only adopt our rotated access token
+        // if no other tab advanced the session while we were in flight.
+        const sentAccess = userData.access_token;
         const post = () => {
-            let rt = userData.refresh_token;
-            try { rt = JSON.parse(lookInSession("user"))?.refresh_token || rt; } catch { /* keep */ }
-            sentToken = rt;
+            // Legacy bootstrap: if a pre-cookie refresh token is still in storage, send it in the body
+            // ONCE so the server can rotate it and set the httpOnly cookie. Migrated / new sessions have
+            // no stored refresh token and rely purely on the cookie (sent via withCredentials).
+            let legacy;
+            try { legacy = JSON.parse(lookInSession("user"))?.refresh_token; } catch { /* none */ }
             // Timeout < lock TTL so a black-holed request can't hang the tab (parking every queued
             // request) or outlive the lock. axios timeout rejects with no err.response → retry path.
-            return axios.post(refreshUrl, { refresh_token: rt }, { timeout: 8000 });
+            return axios.post(refreshUrl, legacy ? { refresh_token: legacy } : {}, {
+                timeout: 8000, withCredentials: true, headers: REFRESH_HEADERS,
+            });
         };
 
         let data;
@@ -178,16 +194,20 @@ const doRefresh = async () => {
         if (!s2) throw new Error("No session");
         const current = JSON.parse(s2);
 
-        // Compare-and-swap on store: only adopt our rotated token if the stored refresh token is still
-        // the one we sent. If another refresher won in the meantime, keep their (newer) tokens.
-        if (current.refresh_token === sentToken) {
+        // Compare-and-swap on store, keyed on the access token: only adopt our rotated access token if
+        // no other tab advanced the session while we were in flight. Either branch drops any legacy
+        // refresh token from storage — it now lives solely in the httpOnly cookie.
+        if (current.access_token === sentAccess) {
             current.access_token = data.access_token;
-            if (data.refresh_token) current.refresh_token = data.refresh_token;
+            delete current.refresh_token;
             storeInSession("user", JSON.stringify(current));
             return data.access_token;
         }
-        // Another refresher already advanced the session — prefer its stored token if still valid.
+        // Another refresher already advanced the session — prefer its (newer) token if still valid.
         if (current.access_token && !isTokenExpiringSoon(current.access_token)) return current.access_token;
+        current.access_token = data.access_token;
+        delete current.refresh_token;
+        storeInSession("user", JSON.stringify(current));
         return data.access_token;
     } finally {
         clearInterval(heartbeat);
@@ -233,14 +253,15 @@ export const revokeSessionOnServer = () => {
         const s = lookInSession("user");
         if (!s) return;
         const { refresh_token, access_token } = JSON.parse(s);
-        if (!refresh_token) return;
-        // RAW axios, not the `api` instance: sign-out sites clear localStorage synchronously right
-        // after this call, but `api`'s request interceptor runs on a later microtask and would read
-        // the already-cleared session, sending /logout with no auth. The server self-authenticates on
-        // the refresh_token, so this revokes the device's session even if the access token is stale.
+        // RAW axios, not the `api` instance: sign-out sites clear localStorage synchronously right after
+        // this call, but `api`'s request interceptor runs on a later microtask and would read the
+        // already-cleared session, sending /logout with no auth. The httpOnly cookie (withCredentials)
+        // authenticates the sign-out; a legacy stored refresh token is sent as a fallback. The server
+        // self-authenticates on either, so the device's session is revoked even if the access token is stale.
         const url = `${import.meta.env.VITE_SERVER_DOMAIN}api/v1/logout`;
-        const headers = access_token ? { Authorization: `Bearer ${access_token}` } : {};
-        axios.post(url, { refresh_token }, { headers, timeout: 8000 }).catch(() => { /* best-effort */ });
+        const headers = { ...REFRESH_HEADERS, ...(access_token ? { Authorization: `Bearer ${access_token}` } : {}) };
+        axios.post(url, refresh_token ? { refresh_token } : {}, { headers, withCredentials: true, timeout: 8000 })
+            .catch(() => { /* best-effort */ });
     } catch { /* ignore */ }
 };
 
