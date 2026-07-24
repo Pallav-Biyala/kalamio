@@ -3,6 +3,8 @@ import { UserContext } from "../App";
 import { Navigate, useParams, useNavigate, useSearchParams, Link } from "react-router-dom";
 import BlogEditor from "../components/blog-editor.component";
 import PublishForm from "../components/publish-form.component";
+import ScrollCoverForm from "../components/scroll-cover-form.component";
+import PreviewOverlay from "../components/preview/PreviewOverlay";
 import Loader from "../components/loader.component";
 import Icon from "../components/Icon";
 import api from "../common/api";
@@ -13,6 +15,7 @@ import { getLocalDraft, gcLocalDrafts } from "../common/editor-local-store";
 const blogStructure = {
     title: "",
     banner: "",
+    scroll_image: "",
     content: [],
     tags: [],
     des: "",
@@ -44,10 +47,14 @@ const Editor = () => {
     const [ blog, setBlog ] = useState(blogStructure);
     // Which phase we're on. Seeded from the URL (?step=publish) so a refresh — or browser back/forward —
     // lands on the same step instead of snapping back to phase 1.
-    const [ editorState, setEditorState ] = useState(
-        searchParams.get("step") === "publish" ? "publish" : "editor"
-    );
+    const [ editorState, setEditorState ] = useState(() => {
+        const step = searchParams.get("step");
+        return step === "publish" || step === "scroll" ? step : "editor";
+    });
     const [ textEditor, setTextEditor ] = useState(null);
+    // Full-screen live preview (Article + Scroll card), layered over whichever phase is active. The
+    // editor stays mounted underneath, so opening/closing preview never loses draft or undo state.
+    const [ showPreview, setShowPreview ] = useState(false);
     const [ loading, setLoading ] = useState(true);
     // Signature of what the server currently holds (set once the existing draft loads); lets the autosave
     // hook tell whether restored-but-unsynced local edits still need pushing up.
@@ -147,7 +154,7 @@ const Editor = () => {
             setBlog(hydrated);
             // Only honor a ?step=publish refresh/deep-link if there's actually content to publish —
             // otherwise fall back to phase 1 (the sync effect below will drop the stale param).
-            if (editorState === "publish" && !blogIsMeaningful(hydrated)) {
+            if ((editorState === "publish" || editorState === "scroll") && !blogIsMeaningful(hydrated)) {
                 setEditorState("editor");
             }
             setLoading(false);
@@ -168,15 +175,32 @@ const Editor = () => {
         setReloadKey(k => k + 1);
     };
 
+    // Open the live preview. Flush the editor's latest body into blog.content first — the editor→blog
+    // mirror is debounced 300ms, so without this the last keystrokes wouldn't show. Guarded because
+    // phases 2/3 have already unmounted (destroyed) the Tiptap instance, in which case blog.content is
+    // already authoritative and we keep it.
+    const openPreview = useCallback(() => {
+        setBlog(prev => {
+            if (textEditor && typeof textEditor.getJSON === "function") {
+                try { return { ...prev, content: textEditor.getJSON() }; } catch { /* keep last synced */ }
+            }
+            return prev;
+        });
+        setShowPreview(true);
+    }, [textEditor]);
+
     // Keep the URL's ?step in sync with the current phase so a refresh / back / forward stays put.
     // `replace` so stepping between phases doesn't pile up history entries.
     useEffect(() => {
         const params = new URLSearchParams(searchParams);
-        const urlHasPublish = params.get("step") === "publish";
-        if (editorState === "publish" && !urlHasPublish) {
-            params.set("step", "publish");
+        const stepInUrl = params.get("step");
+        // publish (phase 2) and scroll (phase 3) each get their own ?step so a refresh / back / forward
+        // stays on the same phase; phase 1 (editor) carries no step param.
+        const wantStep = (editorState === "publish" || editorState === "scroll") ? editorState : null;
+        if (wantStep && stepInUrl !== wantStep) {
+            params.set("step", wantStep);
             setSearchParams(params, { replace: true });
-        } else if (editorState !== "publish" && urlHasPublish) {
+        } else if (!wantStep && stepInUrl) {
             params.delete("step");
             setSearchParams(params, { replace: true });
         }
@@ -184,7 +208,7 @@ const Editor = () => {
 
     return(
         // by using this "EditorContext.Provider" now we can use all states "blog, setBlog, editorState, setEditorState" inside the "BlogEditor & PublishForm" components.
-        <EditorContext.Provider value={{ blog, setBlog, editorState, setEditorState, textEditor, setTextEditor, saveStatus, savedAt, clearLocalDraft, setServerContentSig }}>
+        <EditorContext.Provider value={{ blog, setBlog, editorState, setEditorState, textEditor, setTextEditor, saveStatus, savedAt, clearLocalDraft, setServerContentSig, openPreview }}>
             {
                 access_token === null ? <Navigate to="/signin" />
                 :
@@ -215,7 +239,13 @@ const Editor = () => {
                         <Link to="/dashboard/blogs?tab=draft" className="link underline mt-2">Back to drafts</Link>
                     </div>
                 :
-                editorState == "editor" ? <BlogEditor/> : <PublishForm/>
+                editorState === "editor" ? <BlogEditor/>
+                    : editorState === "scroll" ? <ScrollCoverForm/>
+                    : <PublishForm/>
+            }
+            {/* Live preview overlay — sits above the active phase, reads the in-memory draft. */}
+            { showPreview && !loading && !loadError && access_token !== null &&
+                <PreviewOverlay onClose={() => setShowPreview(false)} />
             }
         </EditorContext.Provider>
     )

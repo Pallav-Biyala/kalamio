@@ -8,6 +8,8 @@ import SaveStatus from "./editor/SaveStatus";
 import api from "../common/api";
 import { UserContext } from "../App";
 import { useNavigate, useParams } from "react-router-dom";
+import PublishSteps from "./publish-steps.component";
+import PreviewButton from "./preview/PreviewButton";
 
 const PublishForm = () => {
 
@@ -86,11 +88,10 @@ const PublishForm = () => {
         }
     }
 
-    const publishBlog = (e) => {
-
-        if(e.target.className.includes("disable")){
-            return;
-        }
+    // Phase 2 → phase 3. Validate everything publishing needs, stash the latest editor content and the
+    // chosen publication onto the shared blog (so phase 3 can publish without the now-unmounting editor),
+    // then advance to the Scroll cover step where the actual "Publish" lives.
+    const continueToScrollCover = () => {
 
         if(!title.length){
             return toast.error("Write blog title before publishing");
@@ -104,10 +105,15 @@ const PublishForm = () => {
             return toast.error("Add at least 1 hashtag so readers can find your blog");
         }
 
-        // Get latest content from Tiptap editor
+        if(!banner.length){
+            return toast.error("Upload a blog banner before publishing");
+        }
+
+        // Get latest content from Tiptap editor (fall back to the last synced content if the editor
+        // instance is already tearing down).
         let finalContent = content;
         if (textEditor && typeof textEditor.getJSON === 'function') {
-            finalContent = textEditor.getJSON();
+            try { finalContent = textEditor.getJSON(); } catch { /* use last synced content */ }
         }
 
         // Validate content exists
@@ -120,44 +126,8 @@ const PublishForm = () => {
             return toast.error("Write something in your blog to publish it");
         }
 
-        let loadingToast = toast.loading("Publishing…");
-
-        e.target.classList.add('disable');
-
-        let blogObj = {
-            title, banner, des, content: finalContent, tags, draft: false,
-            publication: selectedPub || null
-        }
-
-        api.post("/create-blog", { ...blogObj, id: blog_id })
-        .then(() => {
-            e.target.classList.remove('disable');
-
-            // Published — the local safety-net snapshot is no longer needed.
-            clearLocalDraft?.();
-
-            toast.dismiss(loadingToast);
-            toast.success("Published");
-
-            setTimeout(() => {
-                navigate("/dashboard/blogs");
-            }, 500);
-        })
-        .catch((err) => {
-            e.target.classList.remove('disable');
-            toast.dismiss(loadingToast);
-
-            // 413 (article too long), 429, 5xx and offline are surfaced centrally by the api interceptor
-            // with readable, deduped toasts — re-toasting them here would double up. Here we only show
-            // the specific validation message the server returns for ordinary 4xx rejections (missing
-            // title/description/banner/tags, etc.). Optional-chain everything so a missing `response`
-            // (e.g. a bare connection drop) can never throw.
-            const status = err?.response?.status;
-            if (status && status < 500 && ![401, 413, 429].includes(status)) {
-                toast.error(err.response.data?.error || "Something went wrong while publishing. Please try again.");
-            }
-        })
-
+        setBlog({ ...blog, content: finalContent, publication: selectedPub || null });
+        setEditorState("scroll");
     }
 
     // Save everything entered here — including the description, tags and publication chosen on THIS
@@ -218,17 +188,55 @@ const PublishForm = () => {
     }
 
     return(
+        <>
+        {/* Top bar mirrors phase 1 (editor): a back arrow on the left, the step indicator and the primary
+            actions on the right. "Continue" advances to the scroll-cover step (phase 3); "Save as draft"
+            saves from here. Replaces the old absolute close (×) button and the bottom button row. */}
+        <nav className="navbar">
+            <button
+                className="w-10 h-10 flex-none rounded-full bg-grey hover:bg-grey/80 flex items-center justify-center transition-colors"
+                onClick={handleCloseEvent}
+                aria-label="Back to editor"
+            >
+                <Icon name="arrow_back" />
+            </button>
+
+            <p className="max-md:hidden text-2xl text-black line-clamp-1 w-full font-medium">
+                { title.length ? title : "New Blog" }
+            </p>
+
+            <div className="flex items-center gap-2 md:gap-4 ml-auto">
+                <PreviewButton />
+                <PublishSteps current={2} />
+                <span className="hidden md:flex justify-end min-w-[108px]">
+                    <SaveStatus status={saveStatus} savedAt={savedAt} />
+                </span>
+                <button className="btn-brand py-2 px-6"
+                    onClick={continueToScrollCover}
+                >
+                    Continue
+                </button>
+                {!isEditingPublishedPost && (
+                    <button className="btn-light py-2 flex items-center gap-2"
+                        onClick={saveDraft}
+                    >
+                        <Icon name="save" className="text-lg" />
+                        Save as draft
+                    </button>
+                )}
+            </div>
+        </nav>
+
+        {/* Autosave status — MOBILE only. It's hidden in the nav on phones (no room beside the
+            buttons), so it gets its own line just below the bar. */}
+        <div className="md:hidden flex justify-end px-4 pt-2">
+            <SaveStatus status={saveStatus} savedAt={savedAt} />
+        </div>
+
         <AnimationWrapper>
             <section className="w-full min-h-screen grid items-center lg:grid-cols-2 py-16 lg:gap-4 px-4 sm:px-6">
 
-                <button className="w-10 h-10 absolute right-[5vw] z-10 top-[5%] lg:top-[10%] rounded-full bg-grey hover:bg-grey/80 flex items-center justify-center transition-colors"
-                    onClick={handleCloseEvent}
-                >
-                    <Icon name="close" />
-                </button>
-
                 <div className="max-w-[550px] center mt-2">
-                    <p className="text-dark-grey mb-1 text-sm font-medium uppercase tracking-wider">Preview</p>
 
                     <div className="w-full aspect-video rounded-radius-lg overflow-hidden bg-grey mt-4">
                         <img src={banner} alt="Blog banner" />
@@ -298,28 +306,11 @@ const PublishForm = () => {
                         </div>
                     )}
 
-                    <div className="flex flex-wrap items-center gap-3 mt-4">
-                        <button className="btn-brand px-8"
-                            onClick={publishBlog}
-                        >Publish</button>
-
-                        {!isEditingPublishedPost && (
-                            <button className="btn-light px-8 flex items-center gap-2"
-                                onClick={saveDraft}
-                            >
-                                <Icon name="save" className="text-lg" />
-                                Save as draft
-                            </button>
-                        )}
-
-                        {/* Local autosave status — your description/tags here are saved to this device too. */}
-                        <span className="ml-auto"><SaveStatus status={saveStatus} savedAt={savedAt} /></span>
-                    </div>
-
                 </div>
 
             </section>
         </AnimationWrapper>
+        </>
     )
 }
 

@@ -1,17 +1,15 @@
 import usePageTitle from "../common/usePageTitle";
-import { cdnUrl } from "../common/cdn";
 import Icon from "../components/Icon";
-import Avatar from "../components/Avatar";
 import { useContext, useEffect, useState, useRef, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import Loader from "../components/loader.component";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { queryKeys } from "../common/queryKeys";
 import api from "../common/api";
 import { UserContext } from "../App";
-import { getRelativeTime } from "../common/date";
 import toast from "react-hot-toast";
 import SaveModal from "../components/save-modal.component";
+import ReelCardVisual from "../components/reel/ReelCardVisual";
 import { useLikeStatus, useIsSaved } from "../hooks/queries";
 import { useLikeBlog } from "../hooks/mutations";
 
@@ -19,20 +17,13 @@ import { useLikeBlog } from "../hooks/mutations";
    Single Reel Card — one per screen
    ─────────────────────────────────────────────────── */
 const ReelCard = ({ blog }) => {
-    const navigate = useNavigate();
     const { userAuth: { access_token } } = useContext(UserContext);
 
     const {
         _id,
         blog_id,
         title,
-        des,
-        banner,
-        tags,
-        publishedAt,
-        readTime,
         activity: { total_likes, total_comments },
-        author: { personal_info: { fullname, profile_img, username } },
     } = blog;
 
     // TanStack Query hooks for like & save status
@@ -40,7 +31,6 @@ const ReelCard = ({ blog }) => {
     const { data: isSaved } = useIsSaved(blog_id);
     const likeMutation = useLikeBlog(blog_id);
 
-    const [showFullDes, setShowFullDes] = useState(false);
     const [showSaveModal, setShowSaveModal] = useState(false);
 
     // Like count reads straight from `total_likes` (query-cache-backed); useLikeBlog patches that
@@ -81,31 +71,11 @@ const ReelCard = ({ blog }) => {
         return n;
     };
 
-    const displayReadTime = readTime || 1;
-
     return (
-        <div className="reel-card">
-            <div className="reel-card__inner">
-                {/* Background image layer */}
-                {banner && (
-                    <div className="reel-card__bg">
-                        <img src={cdnUrl(banner)} alt="" draggable="false" />
-                    </div>
-                )}
-
-                {/* Gradient overlays */}
-                <div className="reel-card__gradient-top" />
-                <div className="reel-card__gradient-bottom" />
-
-                {/* Top bar — read time pill */}
-                <div className="reel-card__top">
-                    <div className="reel-card__read-time">
-                        <Icon name="schedule" className="reel-card__read-time-icon" />
-                        {displayReadTime} min read
-                    </div>
-                </div>
-
-                {/* Right side action buttons */}
+        <>
+            {/* The reel visual (background, scrims, author, title, des, tags) is shared with the publish
+                preview via ReelCardVisual; the feed keeps its own wired action rail as its children. */}
+            <ReelCardVisual blog={blog}>
                 <div className="reel-card__actions">
                     <button
                         className={`reel-card__action-btn ${isLiked ? "reel-card__action-btn--liked" : ""}`}
@@ -151,49 +121,7 @@ const ReelCard = ({ blog }) => {
                         <span>Read</span>
                     </Link>
                 </div>
-
-                {/* Bottom content overlay */}
-                <div className="reel-card__content">
-                    {/* Author row */}
-                    <Link to={`/user/${username}`} className="reel-card__author">
-                        <Avatar src={profile_img} alt={fullname} size={36} />
-                        <div className="reel-card__author-info">
-                            <span className="reel-card__author-name">{fullname}</span>
-                            <span className="reel-card__author-meta">@{username} · {getRelativeTime(publishedAt)}</span>
-                        </div>
-                    </Link>
-
-                    {/* Title */}
-                    <h2 className="reel-card__title">{title}</h2>
-
-                    {/* Description — expandable */}
-                    {des && (
-                        <div className={`reel-card__des ${showFullDes ? "reel-card__des--expanded" : ""}`}>
-                            <p>{des}</p>
-                            {des.length > 100 && !showFullDes && (
-                                <button className="reel-card__des-toggle" onClick={() => setShowFullDes(true)}>
-                                    more
-                                </button>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Tags */}
-                    {tags && tags.length > 0 && (
-                        <div className="reel-card__tags">
-                            {tags.slice(0, 4).map((tag, i) => (
-                                <span
-                                    key={i}
-                                    className="reel-card__tag"
-                                    onClick={() => navigate(`/search/${encodeURIComponent(tag)}`)}
-                                >
-                                    #{tag}
-                                </span>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
+            </ReelCardVisual>
 
             {showSaveModal && (
                 <SaveModal
@@ -202,7 +130,7 @@ const ReelCard = ({ blog }) => {
                     onClose={() => setShowSaveModal(false)}
                 />
             )}
-        </div>
+        </>
     );
 };
 

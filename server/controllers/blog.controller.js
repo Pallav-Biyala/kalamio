@@ -55,7 +55,7 @@ export const createBlog = (req, res) => {
 
     let authorId = req.user;
 
-    let { title, banner, content, des, tags, draft, id, publication } = req.body;
+    let { title, banner, scroll_image, content, des, tags, draft, id, publication } = req.body;
 
     // `publication` must be an ObjectId string, or null/'' to detach (undefined = unchanged).
     // Reject anything else BEFORE any write: a NUMBER passes bson's lenient ObjectId constructor,
@@ -139,6 +139,12 @@ export const createBlog = (req, res) => {
                 edited: true
             };
 
+            // Only overwrite scroll_image when the client actually sent it (undefined = leave as-is),
+            // so editing a post without touching the scroll cover doesn't wipe it.
+            if (scroll_image !== undefined) {
+                updateData.scroll_image = scroll_image || '';
+            }
+
             // Handle publication change on update
             if (publication !== undefined) {
                 updateData.publication = publication || null;
@@ -197,7 +203,7 @@ export const createBlog = (req, res) => {
     } else{
         
         let blog = new Blog({
-            title, des, banner, content, tags, author: authorId, blog_id,
+            title, des, banner, scroll_image: scroll_image || '', content, tags, author: authorId, blog_id,
             draft: Boolean(draft),
             readTime: estimateReadTime(content, title, des),
             publication: publication || undefined,

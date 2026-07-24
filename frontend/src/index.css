@@ -8897,4 +8897,395 @@
         margin-right: auto;
     }
     .pub-manage-card__add-btn:hover { background: rgb(var(--c-black) / 0.06); border-color: rgb(var(--c-black) / 0.4); }
+
+/* ── Publish phase 3: Scroll cover portrait preview (mirrors the Reads reel card) ─────────── */
+.scroll-cover-preview {
+    position: relative;
+    width: 270px;
+    max-width: 78vw;
+    aspect-ratio: 9 / 16;
+    border-radius: 20px;
+    overflow: hidden;
+    background: rgb(var(--c-grey));
+    box-shadow: 0 12px 44px rgba(0, 0, 0, 0.20);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.scroll-cover-preview__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.scroll-cover-preview__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.scroll-cover-preview__scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.72) 0%, rgba(0, 0, 0, 0) 46%);
+    pointer-events: none;
+}
+.scroll-cover-preview__meta {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 16px;
+}
+.scroll-cover-preview__title {
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.05rem;
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.scroll-cover-preview__des {
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.8rem;
+    margin-top: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* ── Publish flow: "Step X of 3" indicator (editor / details / scroll cover) ──────────────── */
+.publish-steps {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+}
+.publish-steps__dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.publish-steps__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgb(var(--c-black) / 0.2);
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+.publish-steps__dot.is-done { background: rgb(var(--c-black) / 0.5); }
+.publish-steps__dot.is-active { background: rgb(var(--c-black)); transform: scale(1.3); }
+.publish-steps__label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: rgb(var(--c-dark-grey));
+    white-space: nowrap;
+}
+
+/* ── Publish live preview overlay (Article device-frames + Scroll card) ───────────────────── */
+.preview-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    background: rgb(var(--c-white));
+}
+
+.preview-overlay__bar {
+    flex: none;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 12px;
+    border-bottom: 1px solid rgb(var(--c-border));
+    background: rgb(var(--c-white));
+}
+
+.preview-overlay__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-weight: 500;
+    color: rgb(var(--c-black));
+    transition: background 0.2s ease;
+}
+.preview-overlay__back:hover { background: rgb(var(--c-grey)); }
+
+/* Segmented Article | Scroll card toggle */
+.preview-overlay__seg {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    flex: none;
+    background: rgb(var(--c-grey));
+    border-radius: 999px;
+    padding: 3px;
+}
+/* Sliding thumb that glides between the two equal-width tab cells. */
+.preview-overlay__seg-thumb {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    left: 3px;
+    width: calc(50% - 3px);
+    border-radius: 999px;
+    background: rgb(var(--c-white));
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.preview-overlay__seg[data-active="scroll"] .preview-overlay__seg-thumb {
+    transform: translateX(100%);
+}
+.preview-overlay__seg button {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: rgb(var(--c-dark-grey));
+    white-space: nowrap;
+    transition: color 0.25s ease;
+}
+.preview-overlay__seg button.is-active {
+    color: rgb(var(--c-black));
+}
+@media (prefers-reduced-motion: reduce) {
+    .preview-overlay__seg-thumb { transition: none; }
+    .preview-fade { animation: none; }
+}
+
+/* Laptop / tablet / mobile device switcher */
+.preview-overlay__devices {
+    /* Hidden below lg — a bigger-screen (laptop/tablet) preview makes no sense on a phone. Done in
+       plain CSS because a custom class here otherwise out-cascades Tailwind's `hidden` utility. */
+    position: relative;
+    display: none;
+    gap: 2px;
+    margin-left: auto;
+    background: rgb(var(--c-grey));
+    border-radius: 999px;
+    padding: 3px;
+}
+@media (min-width: 1024px) {
+    .preview-overlay__devices { display: inline-flex; }
+}
+/* Sliding thumb between the three device buttons (each 40px wide + 2px gap = a 42px step), matched to
+   the Article/Scroll thumb timing. */
+.preview-overlay__devices-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 40px;
+    height: 32px;
+    border-radius: 999px;
+    background: rgb(var(--c-white));
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.preview-overlay__devices[data-active="tablet"] .preview-overlay__devices-thumb { transform: translateX(42px); }
+.preview-overlay__devices[data-active="mobile"] .preview-overlay__devices-thumb { transform: translateX(84px); }
+.preview-overlay__devices button {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 32px;
+    border-radius: 999px;
+    color: rgb(var(--c-dark-grey));
+    transition: color 0.25s ease;
+}
+.preview-overlay__devices button.is-active {
+    color: rgb(var(--c-black));
+}
+@media (prefers-reduced-motion: reduce) {
+    .preview-overlay__devices-thumb { transition: none; }
+}
+
+.preview-overlay__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex: none;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: rgb(var(--c-black));
+    color: rgb(var(--c-white));
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+/* On < lg the device switcher is display:none, so nothing pushes the pill — do it here. */
+@media (max-width: 1023px) {
+    .preview-overlay__pill { margin-left: auto; }
+}
+
+.preview-overlay__body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    background: rgb(var(--c-grey) / 0.45);
+}
+
+/* Smooth fade when switching the Article ⇄ Scroll card tabs. The wrapper is keyed by mode, so React
+   remounts it on switch and retriggers this animation. Defined here in index.css so it's copied into
+   the preview iframe, where the swapped content actually renders. */
+/* Duration/easing matched to the tab thumb slide (.preview-overlay__seg-thumb) so the content fade
+   and the toggle move in lockstep. */
+.preview-fade { animation: previewFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) both; }
+@keyframes previewFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* ── Device frame (iframe host) ── */
+.device-frame {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    width: 100%;
+}
+.device-frame__iframe {
+    border: 0;
+    display: block;
+    box-sizing: border-box;
+    background: rgb(var(--c-white));
+}
+.device-frame--laptop { padding: 0; }
+.device-frame--laptop .device-frame__iframe { height: 100%; }
+
+.device-frame--tablet,
+.device-frame--mobile { padding: 24px; }
+.device-frame--tablet .device-frame__iframe,
+.device-frame--mobile .device-frame__iframe {
+    height: 100%;
+    max-height: 940px;
+    border: 10px solid rgb(28 28 30);
+    border-radius: 30px;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
+}
+.device-frame--mobile .device-frame__iframe { border-radius: 38px; }
+
+/* ── Article preview layout — self-contained plain CSS so the reading view renders correctly inside
+   the preview iframe regardless of how Tailwind utilities resolve there. Mirrors blog.page.jsx's
+   article layout: 900px page / 720px column, Inter headings, Merriweather body, banner cropped
+   16:9 (mobile) → 2:1 (desktop), rounded at ≥sm. ── */
+.article-preview {
+    max-width: 900px;
+    width: 100%;
+    margin: 0 auto;
+    padding-bottom: 6rem;
+}
+.article-preview__col {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 1.25rem;
+}
+.article-preview__title {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-weight: 800;
+    font-size: 2.25rem;
+    line-height: 1.15;
+    letter-spacing: -0.025em;
+    color: rgb(var(--c-black));
+    margin: 1rem 0;
+}
+.article-preview__des {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 1.375rem;
+    line-height: 1.5;
+    color: rgb(var(--c-dark-grey));
+    margin: 0 0 1.5rem;
+}
+.article-preview__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+.article-preview__tag {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: rgb(var(--c-dark-grey));
+    background: rgb(var(--c-grey));
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+}
+.article-preview__author {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+.article-preview__author-name {
+    font-weight: 600;
+    color: rgb(var(--c-black));
+    text-transform: capitalize;
+    margin: 0;
+}
+.article-preview__author-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: rgb(var(--c-dark-grey));
+    font-size: 0.85rem;
+    margin: 0.125rem 0 0;
+}
+.article-preview__banner {
+    display: block;
+    width: 100%;
+    /* height:auto is required — a global `img { height: 100% }` app rule otherwise wins over the
+       aspect-ratio and blows the banner up to its container's height. */
+    height: auto;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    margin: 2rem 0;
+    background: rgb(var(--c-grey));
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.05);
+}
+.article-preview__body {
+    font-family: 'Merriweather', Georgia, serif;
+    margin: 2rem 0;
+}
+.article-preview__empty {
+    color: rgb(var(--c-dark-grey));
+    font-style: italic;
+}
+@media (min-width: 640px) {
+    .article-preview__banner { border-radius: 1rem; }
+}
+@media (min-width: 768px) {
+    .article-preview__col { padding: 0; }
+    .article-preview__title { font-size: 3rem; }
+    .article-preview__des { font-size: 1.5rem; }
+    .article-preview__banner { aspect-ratio: 2 / 1; margin: 3rem 0; }
+}
+
+/* ── Scroll-card preview: reuse the real reel on a dark stage inside the device iframe ── */
+.preview-reel-stage {
+    min-height: 100vh;
+    display: flex;
+    background: #0d0d0d;
+}
+/* The preview has no bottom tab bar, so drop the reel's ~90px bottom clearance (which exists in the
+   app to sit above that bar) — otherwise the content and action rail float up, leaving a gap below
+   the tags. The two-class selector out-specifies the reel's own responsive rules. */
+.preview-reel-stage .reel-card__content { padding-bottom: 28px; }
+.preview-reel-stage .reel-card__actions { bottom: 28px; }
+.reel-card__actions--static { pointer-events: none; }
 

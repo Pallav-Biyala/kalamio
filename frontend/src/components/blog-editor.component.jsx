@@ -18,6 +18,12 @@ import Icon from "./Icon";
 import Avatar from "./Avatar";
 import Loader from "./loader.component";
 import { getDay } from "../common/date";
+import ImageCropperModal from "./image-cropper.component";
+import PublishSteps from "./publish-steps.component";
+import PreviewButton from "./preview/PreviewButton";
+
+// The article banner displays 2:1 on desktop (aspect-[2/1], object-cover), so crop to that ratio.
+const ARTICLE_BANNER_ASPECT = 2;
 
 const blogStructure = {
     title: "",
@@ -41,6 +47,9 @@ const BlogEditor = () => {
 
     // Ref to hold the Tiptap editor instance
     const editorRef = useRef(null);
+
+    // Object URL of the banner image currently being cropped (null = cropper closed).
+    const [bannerToCrop, setBannerToCrop] = useState(null);
 
     // ── Draft state ──
     const [view, setView] = useState("editor"); // 'editor' | 'drafts'
@@ -316,33 +325,35 @@ const BlogEditor = () => {
     };
 
     // ── Existing handlers ──
+    // Pick a file → open the cropper (don't upload the raw image). Reset the input so re-picking the
+    // same file fires onChange again.
     const handleBanner = (e) => {
-        let img = e.target.files[0];
-
-        if(img){
-            
+        const img = e.target.files[0];
+        if (img) {
             if (!img.type.startsWith('image/')) {
                 return toast.error("Please select an image file (.png, .jpg, .jpeg)");
             }
-
-            let loadingToast = toast.loading("Uploading…");
-
-            uploadImage(img).then((url) => {
-                if(url){
-
-                    toast.dismiss(loadingToast);
-                    toast.success("Uploaded");
-
-                    setBlog({ ...blog, banner: url })
-                }
-            })
-            .catch(err => {
-                toast.dismiss(loadingToast);
-                console.error("Banner upload error:", err);
-                toast.error(err?.response?.data?.error || err.message || "Upload failed");
-            })
+            setBannerToCrop(URL.createObjectURL(img));
         }
-        
+        e.target.value = null;
+    }
+
+    // Cropper returns the cropped 2:1 cover as a File → upload that.
+    const handleBannerCropped = (croppedFile) => {
+        setBannerToCrop(null);
+        const loadingToast = toast.loading("Uploading…");
+        uploadImage(croppedFile).then((url) => {
+            if (url) {
+                toast.dismiss(loadingToast);
+                toast.success("Uploaded");
+                setBlog({ ...blog, banner: url });
+            }
+        })
+        .catch(err => {
+            toast.dismiss(loadingToast);
+            console.error("Banner upload error:", err);
+            toast.error(err?.response?.data?.error || err.message || "Upload failed");
+        })
     }
 
     const handleTitleKeyDown = (e) => {
@@ -548,15 +559,17 @@ const BlogEditor = () => {
                 </p>
 
                 <div className="flex items-center gap-2 md:gap-4 ml-auto">
+                    <PreviewButton />
+                    <PublishSteps current={1} />
                     {/* Autosave status — DESKTOP only. Fixed-width right-aligned slot so toggling between
                         "Saving…" and "Saved · Xm ago" never shifts the buttons. On phones there's no room
                         beside the buttons, so it moves to its own line below the nav (see below). */}
                     <span className="hidden md:flex justify-end min-w-[108px]">
                         <SaveStatus status={saveStatus} savedAt={savedAt} />
                     </span>
-                    {/* Phase 1 of 2: this doesn't publish — it validates and advances to the publish
-                        setup form (description, tags, preview), where the actual "Publish" lives. So
-                        the label is "Continue", not "Publish". */}
+                    {/* Phase 1 of 3: this doesn't publish — it validates and advances to the publish
+                        details form (description, tags, preview), then the scroll-cover step where the
+                        actual "Publish" lives. So the label is "Continue", not "Publish". */}
                     <button className="btn-brand py-2 px-6"
                         onClick={handlePublishEvent}
                     >
@@ -669,6 +682,17 @@ const BlogEditor = () => {
                     </div>
                 </section>
             </AnimationWrapper>
+
+            {bannerToCrop && (
+                <ImageCropperModal
+                    imageSrc={bannerToCrop}
+                    aspect={ARTICLE_BANNER_ASPECT}
+                    cropShape="rect"
+                    title="Crop cover"
+                    onComplete={handleBannerCropped}
+                    onCancel={() => setBannerToCrop(null)}
+                />
+            )}
         </>
     )
 }

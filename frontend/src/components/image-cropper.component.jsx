@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Cropper from 'react-easy-crop';
 import toast from 'react-hot-toast';
 import { proxyImageUrl } from '../common/imageProxy';
@@ -123,13 +124,17 @@ export async function getCroppedImg(imageSrc, pixelCrop, rotation = 0) {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-const ImageCropperModal = ({ imageSrc, onComplete, onCancel, aspect = 1, cropShape = 'round', title = 'Edit image' }) => {
+const ImageCropperModal = ({ imageSrc, onComplete, onCancel, aspect = 1, cropShape = 'round', title = 'Edit image', aspectOptions = null }) => {
   // Round = circular profile-photo crop (fills a square, width-locked at min zoom). Any other shape
-  // (e.g. the wide publication banner) is a free-panning rectangular crop at the given aspect.
+  // (e.g. the wide publication/article banner) is a free-panning rectangular crop. With
+  // `aspectOptions` (article body images) the ratio is user-selectable via preset pills; otherwise
+  // the fixed `aspect` prop is used.
   const isRound = cropShape === 'round';
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
+  const [naturalAspect, setNaturalAspect] = useState(null); // the source image's own w/h ratio
+  const [selectedIdx, setSelectedIdx] = useState(0);         // index into aspectOptions (if provided)
 
   // Clamp horizontal position to prevent subpixel drift at min zoom (round mode only — the round
   // crop fills the full width, so there's nothing to pan horizontally; the banner pans both axes).
@@ -146,35 +151,47 @@ const ImageCropperModal = ({ imageSrc, onComplete, onCancel, aspect = 1, cropSha
   const [applying, setApplying] = useState(false);
   const containerRef = useRef(null);
 
-  // Measure container — circle fills full width so image edges touch circle edges
+  // The crop ratio in effect. Round is always 1. With aspectOptions the selected pill wins ('original'
+  // resolves to the image's own ratio once loaded; before that it falls back to the `aspect` prop).
+  const resolveOption = (opt) =>
+    !opt ? aspect : opt.value === 'original' ? (naturalAspect || aspect) : opt.value;
+  const activeAspect = isRound ? 1 : (aspectOptions ? resolveOption(aspectOptions[selectedIdx]) : aspect);
+
+  // Re-centre when the ratio changes (switching a preset, or 'original' resolving on image load).
+  useEffect(() => { setCrop({ x: 0, y: 0 }); setZoom(1); }, [activeAspect]);
+
+  // Measure the container and size the crop area EXPLICITLY. Round = a square (circle fills width).
+  // Rect = a rectangle of `activeAspect` FITTED inside the container (works for wide OR tall ratios).
+  // Explicit sizing (vs deriving from `aspect`) keeps the crop area from collapsing to 0×0 when the
+  // container is first measured off-screen.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
     const measure = () => {
       const w = el.clientWidth;
-      // Round mode: a square crop (the circle fills the width). Rect (banner) mode: a wide crop BAND
-      // that fills the width at the requested aspect, centred with image context above/below. We set
-      // cropSize EXPLICITLY (rather than letting react-easy-crop derive it from `aspect`) because the
-      // derived path can leave the crop area at 0×0 when the container is first measured off-screen.
-      setCropSize(isRound ? { width: w, height: w } : { width: w, height: Math.round(w / aspect) });
+      const h = el.clientHeight;
+      if (isRound) { setCropSize({ width: w, height: w }); return; }
+      const containerAspect = w / h;
+      if (activeAspect >= containerAspect) {
+        setCropSize({ width: w, height: Math.round(w / activeAspect) });
+      } else {
+        setCropSize({ width: Math.round(h * activeAspect), height: h });
+      }
     };
 
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [isRound, aspect]);
+  }, [isRound, activeAspect]);
 
-  // Detect image orientation and set objectFit accordingly
+  // Detect image orientation (for round objectFit) and capture its natural ratio (for 'original').
   useEffect(() => {
     const img = new Image();
     img.onload = () => {
-      if (img.naturalWidth <= img.naturalHeight) {
-        setImgObjectFit('horizontal-cover');
-      } else {
-        setImgObjectFit('vertical-cover');
-      }
+      setNaturalAspect(img.naturalWidth / img.naturalHeight);
+      setImgObjectFit(img.naturalWidth <= img.naturalHeight ? 'horizontal-cover' : 'vertical-cover');
     };
     img.referrerPolicy = 'no-referrer'; // don't leak Referer to Google (429 hotlink block)
     img.src = imageSrc;
@@ -210,8 +227,17 @@ const ImageCropperModal = ({ imageSrc, onComplete, onCancel, aspect = 1, cropSha
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: '#0C0A0A' }}>
+  // Portal to document.body: the cropper can be rendered from deep inside the Tiptap/ProseMirror +
+  // framer-motion tree (editor toolbar), where reconciling this fixed-overlay's DOM as a sibling
+  // throws `insertBefore ... not a child of this node`. A portal decouples it from the mount point.
+  return createPortal(
+    // Semi-transparent dark scrim + backdrop blur (matching the app's other modals) so the platform
+    // stays visible, blurred, behind the cropper — rather than a solid black screen that reads as a
+    // separate page. The scrim is a real dark rgba (NOT `bg-black`, whose token is theme-inverted).
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
+    >
       <div
         className="bg-white rounded-2xl shadow-2xl w-full max-w-[480px] lg:max-w-[780px] overflow-hidden flex flex-col animate-fade-in"
         style={{ animation: 'cropperSlideUp 0.25s ease-out' }}
@@ -239,7 +265,7 @@ const ImageCropperModal = ({ imageSrc, onComplete, onCancel, aspect = 1, cropSha
                 crop={crop}
                 zoom={zoom}
                 rotation={rotation}
-                aspect={aspect}
+                aspect={activeAspect}
                 cropShape={cropShape}
                 showGrid={true}
                 onCropChange={handleCropChange}
@@ -249,7 +275,12 @@ const ImageCropperModal = ({ imageSrc, onComplete, onCancel, aspect = 1, cropSha
                 maxZoom={5}
                 zoomSpeed={0.3}
                 restrictPosition={true}
-                objectFit={isRound ? imgObjectFit : 'horizontal-cover'}
+                objectFit={isRound
+                  ? imgObjectFit
+                  // Cover the crop box on the correct axis so there's never a letterbox at min zoom
+                  // and the panning axis is meaningful: a source WIDER than the crop fills height
+                  // (pan horizontally); a taller/equal source fills width (pan vertically).
+                  : (naturalAspect && naturalAspect > activeAspect ? 'vertical-cover' : 'horizontal-cover')}
                 cropSize={cropSize}
                 mediaProps={{ referrerPolicy: 'no-referrer' }}
                 style={{
@@ -278,6 +309,29 @@ const ImageCropperModal = ({ imageSrc, onComplete, onCancel, aspect = 1, cropSha
             </div>
 
             <div className="flex flex-col gap-3">
+              {/* Aspect-ratio presets (only when the caller offers a choice — e.g. body images) */}
+              {aspectOptions && (
+                <div>
+                  <p className="text-xs text-dark-grey mb-1.5 hidden lg:block">Aspect ratio</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {aspectOptions.map((opt, i) => (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        onClick={() => setSelectedIdx(i)}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                          selectedIdx === i
+                            ? 'bg-black text-white border-black'
+                            : 'border-grey text-dark-grey hover:bg-grey/60'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Zoom slider */}
               <div>
                 <p className="text-xs text-dark-grey mb-1.5 hidden lg:block">Zoom</p>
@@ -408,7 +462,8 @@ const ImageCropperModal = ({ imageSrc, onComplete, onCancel, aspect = 1, cropSha
           box-shadow: 0 1px 4px rgba(0,0,0,0.3);
         }
       `}</style>
-    </div>
+    </div>,
+    document.body
   );
 };
 

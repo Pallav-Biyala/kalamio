@@ -4,11 +4,11 @@ import Icon from '../Icon';
 import ToolbarButton from './ToolbarButton';
 import ToolbarDivider from './ToolbarDivider';
 import HeadingSelect from './HeadingSelect';
-import { uploadImageWithMeta, uploadFileRaw } from '../../common/aws';
+import { uploadFileRaw } from '../../common/aws';
 import SaveStatus from './SaveStatus';
 import EditorStats from './EditorStats';
 
-const EditorToolbar = ({ editor, onEmbedClick, onLinkClick, saveStatus, savedAt }) => {
+const EditorToolbar = ({ editor, onEmbedClick, onLinkClick, saveStatus, savedAt, onImagePicked }) => {
   const imageInputRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -47,31 +47,14 @@ const EditorToolbar = ({ editor, onEmbedClick, onLinkClick, saveStatus, savedAt 
     el.scrollBy({ left: dir * Math.max(140, el.clientWidth * 0.7), behavior: 'smooth' });
   }, []);
 
-  const handleImageUpload = useCallback(async (e) => {
+  // Pick a file → hand it to the editor, which opens the shared cropper (validates + inserts at the
+  // caret). Same path as paste/drop, so all three go through one cropper. Reset the input so the
+  // same file can be re-selected.
+  const handleImageUpload = useCallback((e) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file.');
-      return;
-    }
-
-    const loadingToast = toast.loading('Uploading image…');
-    try {
-      const { url, width, height } = await uploadImageWithMeta(file);
-      if (url) {
-        editor.chain().focus().setImage({ src: url, width, height }).run();
-        toast.success('Image uploaded', { id: loadingToast });
-      } else {
-        toast.error('Upload failed. Please try again.', { id: loadingToast });
-      }
-    } catch {
-      toast.error('Upload failed. Please try again.', { id: loadingToast });
-    }
-
-    // Reset input so the same file can be re-selected
+    if (file) onImagePicked?.(file);
     e.target.value = '';
-  }, [editor]);
+  }, [onImagePicked]);
 
   const handleFileUpload = useCallback(async (e) => {
     const file = e.target.files?.[0];

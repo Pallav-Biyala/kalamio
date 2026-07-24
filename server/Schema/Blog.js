@@ -9,6 +9,13 @@ const blogSchema = new mongoose.Schema({
     banner: {
         type: String,
     },
+    // Portrait cover for the vertical "scroll" (Reads/reels) feed. Optional — the reads page falls
+    // back to `banner` when this is empty. Lets the author crop the banner (or upload a different
+    // photo) to the reel's 9:16 shape instead of an arbitrary centre-crop of the landscape banner.
+    scroll_image: {
+        type: String,
+        default: '',
+    },
     des: {
         type: String,
         maxlength: 200,
