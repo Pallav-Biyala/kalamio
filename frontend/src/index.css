@@ -9211,4 +9211,437 @@
 .preview-reel-stage .reel-card__content { padding-bottom: 28px; }
 .preview-reel-stage .reel-card__actions { bottom: 28px; }
 .reel-card__actions--static { pointer-events: none; }
+
+/* ═══════════════════════════════════════════════════════
+   LANDING PAGE (/welcome) — single viewport, zero scroll
+   ═══════════════════════════════════════════════════════ */
+/* fixed + inset:0 pins the page to the exact viewport so the document can never
+   scroll, whatever the content does. dvh keeps it correct under mobile URL bars. */
+.landing {
+    position: fixed;
+    inset: 0;
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: rgb(var(--c-white));
+    color: rgb(var(--c-black));
+}
+
+/* ── Backdrop layers ── */
+.landing__grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(rgb(var(--c-black) / 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgb(var(--c-black) / 0.045) 1px, transparent 1px);
+    background-size: 54px 54px;
+    -webkit-mask-image: radial-gradient(ellipse 85% 75% at 50% 42%, black 25%, transparent 72%);
+    mask-image: radial-gradient(ellipse 85% 75% at 50% 42%, black 25%, transparent 72%);
+    pointer-events: none;
+}
+.landing__spotlight {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 64vmax;
+    height: 64vmax;
+    margin: -32vmax 0 0 -32vmax;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgb(var(--c-black) / 0.075) 0%, transparent 58%);
+    pointer-events: none;
+    will-change: transform;
+}
+.landing__grain {
+    position: absolute;
+    inset: 0;
+    opacity: 0.05;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── Header ── */
+.landing__header {
+    position: relative;
+    z-index: 2;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 clamp(16px, 4vw, 44px);
+    height: clamp(58px, 9vh, 76px);
+}
+.landing__logo {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+}
+.landing__logo img {
+    width: clamp(26px, 4.8vmin, 34px);
+    height: auto;
+    display: block;
+    object-fit: contain;
+}
+.landing__logo-text {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: clamp(17px, 3vmin, 22px);
+    color: rgb(var(--c-black));
+    letter-spacing: -0.3px;
+}
+.landing__beta {
+    background: rgb(255 107 0 / 0.1);
+    color: #FF6B00;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 999px;
+    margin-left: 8px;
+    margin-top: 4px;
+    border: 1px solid rgb(255 107 0 / 0.2);
+    line-height: 1;
+}
+.landing__header-actions {
+    display: flex;
+    align-items: center;
+    gap: clamp(8px, 1.6vw, 18px);
+}
+.landing__theme-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    color: rgb(var(--c-dark-grey));
+    font-size: 19px;
+    transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+.landing__theme-btn:hover {
+    color: rgb(var(--c-black));
+    background: rgb(var(--c-grey) / 0.8);
+    transform: rotate(15deg);
+}
+.landing__signin {
+    font-size: 14px;
+    font-weight: 600;
+    color: rgb(var(--c-dark-grey));
+    text-decoration: none;
+    transition: color 0.2s ease;
+    white-space: nowrap;
+}
+.landing__signin:hover { color: rgb(var(--c-black)); }
+
+/* Solid + ghost pill buttons */
+.landing__btn-solid {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgb(var(--c-black));
+    color: rgb(var(--c-white));
+    border-radius: 999px;
+    padding: 9px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+.landing__btn-solid:hover {
+    opacity: 0.85;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+.landing__btn-solid:active { transform: scale(0.97); }
+.landing__btn-solid--lg {
+    padding: clamp(11px, 1.8vmin, 14px) clamp(22px, 3.4vmin, 30px);
+    font-size: clamp(14px, 2.1vmin, 16px);
+}
+.landing__btn-solid--lg .material-symbols-rounded { font-size: 1.25em; }
+.landing__btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid rgb(var(--c-border));
+    color: rgb(var(--c-black));
+    border-radius: 999px;
+    padding: clamp(10px, 1.7vmin, 13px) clamp(20px, 3.2vmin, 28px);
+    font-size: clamp(14px, 2.1vmin, 16px);
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    background: rgb(var(--c-surface) / 0.5);
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+.landing__btn-ghost:hover {
+    border-color: rgb(var(--c-black) / 0.45);
+    background: rgb(var(--c-grey) / 0.7);
+    transform: translateY(-1px);
+}
+.landing__btn-ghost .material-symbols-rounded {
+    font-size: 1em;
+    transition: transform 0.2s ease;
+}
+.landing__btn-ghost:hover .material-symbols-rounded { transform: translate(2px, -2px); }
+
+/* ── Hero ── */
+.landing__hero {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.landing__center {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 0 20px;
+    max-width: 860px;
+}
+
+.landing__eyebrow {
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: clamp(10px, 1.6vmin, 12px);
+    font-weight: 700;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: rgb(var(--c-dark-grey));
+    margin-bottom: clamp(14px, 3vmin, 26px);
+}
+.landing__eyebrow-star { font-size: 0.9em; opacity: 0.6; letter-spacing: 0; }
+
+.landing__headline {
+    font-family: 'Playfair Display', serif;
+    font-weight: 600;
+    line-height: 1.08;
+    font-size: clamp(34px, 7.6vmin, 68px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(2px, 0.8vmin, 8px);
+}
+.landing__headline-line { letter-spacing: -0.01em; }
+
+/* The app-wide `* { @apply text-base }` reset declares font-size: 14px on EVERY
+   element, and a declared value — even at zero specificity — beats inheritance.
+   Without this, all the headline's inner spans (and the em-sized underline SVG)
+   render at body-text size instead of the h1's clamp. */
+.landing__headline-line,
+.landing__word,
+.landing__letter-mask,
+.landing__letter,
+.landing__word-stroke {
+    font-size: inherit;
+}
+
+/* The rotating word is a real button (click = shuffle) but dressed as text */
+.landing__word-btn {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.06em;
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 0.1em;
+    user-select: none;
+}
+.landing__word {
+    position: relative;
+    display: inline-flex;
+    font-style: italic;
+    font-weight: 700;
+    white-space: nowrap;
+    padding-bottom: 0.14em;
+}
+.landing__letter-mask {
+    display: inline-block;
+    overflow: hidden;
+    /* Italic Playfair descenders/ascenders overhang the em box; padding keeps
+       them from being shaved off by the overflow mask. */
+    padding: 0.08em 0.02em 0.02em;
+    margin: -0.08em -0.02em -0.02em;
+}
+.landing__letter {
+    display: inline-block;
+}
+.landing__word-stroke {
+    position: absolute;
+    left: -0.04em;
+    right: -0.04em;
+    bottom: -0.02em;
+    width: calc(100% + 0.08em);
+    height: 0.14em;
+    color: rgb(var(--c-black));
+    overflow: visible;
+}
+.landing__letter--q { font-style: normal; margin-left: 0.05em; }
+
+.landing__sub {
+    font-size: clamp(14px, 2.2vmin, 17px);
+    line-height: 1.65;
+    color: rgb(var(--c-dark-grey));
+    max-width: 560px;
+    margin-top: clamp(14px, 3.2vmin, 28px);
+}
+
+.landing__ctas {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: clamp(10px, 2vmin, 16px);
+    margin-top: clamp(18px, 4vmin, 36px);
+}
+.landing__hint {
+    font-size: clamp(10px, 1.7vmin, 12px);
+    letter-spacing: 0.08em;
+    /* Full-opacity token: /0.8 alpha dropped this below 4.5:1 AA in both themes */
+    color: rgb(var(--c-dark-grey));
+    margin-top: clamp(12px, 2.6vmin, 22px);
+}
+
+/* ── Floating parallax chips (desktop only — they'd crowd a phone hero) ── */
+.landing__chips { display: none; }
+@media (min-width: 900px) {
+    .landing__chips {
+        display: block;
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+    }
+}
+.landing__chip-slot {
+    position: absolute;
+    pointer-events: auto;
+    will-change: transform;
+}
+/* Bottom-center chips need vertical room below the hint line; on short viewports
+   that room disappears, so they go with it. */
+@media (max-height: 720px) {
+    .landing__chip-slot--inner { display: none; }
+}
+.landing__chip-bob {
+    display: inline-block;
+    animation: landingChipBob 8s ease-in-out infinite;
+}
+.landing__chip {
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 16px;
+    border-radius: 999px;
+    border: 1px solid rgb(var(--c-border));
+    background: rgb(var(--c-surface) / 0.72);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    color: rgb(var(--c-black) / 0.82);
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease,
+                background 0.2s ease, color 0.2s ease;
+}
+.landing__chip:hover {
+    border-color: rgb(var(--c-black) / 0.5);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px) scale(1.04);
+    color: rgb(var(--c-black));
+}
+.landing__chip.is-active {
+    background: rgb(var(--c-black));
+    border-color: rgb(var(--c-black));
+    color: rgb(var(--c-white));
+    box-shadow: var(--shadow-lg);
+}
+.landing__chip-icon { font-size: 15px; opacity: 0.75; }
+@keyframes landingChipBob {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-9px); }
+}
+
+/* ── Bottom marquee ── */
+.landing__footer {
+    position: relative;
+    z-index: 1;
+    flex: none;
+}
+.landing__marquee {
+    user-select: none;
+    overflow: hidden;
+    padding: clamp(12px, 2.4vmin, 20px) 0 clamp(14px, 2.8vmin, 24px);
+    -webkit-mask-image: linear-gradient(90deg, transparent, black 18%, black 82%, transparent);
+    mask-image: linear-gradient(90deg, transparent, black 18%, black 82%, transparent);
+}
+.landing__marquee-track {
+    display: flex;
+    width: max-content;
+    /* 80s: the track doubled to 4 topic sets, so double the duration keeps the
+       original scroll speed. */
+    animation: landingMarquee 80s linear infinite;
+}
+.landing__marquee:hover .landing__marquee-track { animation-play-state: paused; }
+.landing__marquee-item {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 0;
+    padding-right: 0;
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: clamp(14px, 2.4vmin, 18px);
+    color: rgb(var(--c-dark-grey));
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+.landing__marquee-item:hover { color: rgb(var(--c-black)); }
+.landing__marquee-star {
+    margin: 0 clamp(16px, 3vw, 34px);
+    font-size: 0.65em;
+    opacity: 0.45;
+    font-style: normal;
+}
+
+@keyframes landingMarquee {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .landing__marquee-track { animation: none; }
+    .landing__chip-bob { animation: none; }
+}
+
+/* Short-viewport guard (small landscape laptops/phones): tuck the sub copy in
+   so the hero always clears 100dvh without scroll. */
+@media (max-height: 560px) {
+    .landing__eyebrow { margin-bottom: 8px; }
+    .landing__sub { display: none; }
+    .landing__hint { display: none; }
+}
+
+/* Narrow-phone guard: the header's min-content width is ~343px, so below ~360px
+   the Get-started CTA gets clipped by the page's overflow:hidden (which can never
+   scroll). Shed "Sign in" first, then the BETA pill for fold-cover widths. */
+@media (max-width: 420px) {
+    .landing__header { padding: 0 12px; }
+    .landing__signin { display: none; }
+}
+@media (max-width: 340px) {
+    .landing__beta { display: none; }
+}
 

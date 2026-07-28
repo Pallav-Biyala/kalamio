@@ -1,4 +1,5 @@
 import User from '../Schema/User.js';
+import { clearRefreshCookie } from '../utils/authCookie.js';
 
 // ────────────────────────────────────────────────────────
 // NOTIFICATION PREFERENCES
@@ -167,10 +168,20 @@ export const deactivateAccount = async (req, res) => {
         await User.findByIdAndUpdate(req.user, {
             $set: {
                 'account_status.status': 'deactivated',
-                'account_status.deactivated_at': new Date()
+                'account_status.deactivated_at': new Date(),
+                // Revoke EVERY device, not just the legacy single-session field. `$unset refreshToken`
+                // alone left every entry in refresh_sessions working, so other devices kept refreshing
+                // indefinitely against a deactivated account. Same pattern as the password-reset and
+                // password-change paths in auth.controller.js.
+                refresh_sessions: []
             },
             $unset: { refreshToken: 1 }
         });
+
+        // The refresh cookie is httpOnly, so only the server can clear it — otherwise this device
+        // keeps a cookie that now matches no session. Signing back in still reactivates the account
+        // (signin does not inspect account_status and mints a fresh session).
+        clearRefreshCookie(res);
 
         return res.status(200).json({ deactivated: true });
     } catch (err) {
@@ -211,7 +222,10 @@ export const deleteAccount = async (req, res) => {
     try {
         const { password, reason } = req.body;
 
-        const user = await User.findById(req.user).select('+password');
+        // The hash lives at `personal_info.password` (select:false), NOT at a top-level `password`.
+        // Selecting/reading the wrong path left `user.password` undefined, so bcrypt.compare threw
+        // and account deletion 500'd for every non-Google account. Matches auth.controller.js.
+        const user = await User.findById(req.user).select('+personal_info.password');
         if (!user) return res.status(404).json({ error: "User not found" });
 
         // Google auth users can skip password check
@@ -219,7 +233,12 @@ export const deleteAccount = async (req, res) => {
             if (!password) {
                 return res.status(400).json({ error: "Password is required to delete your account" });
             }
-            const isMatch = await bcrypt.compare(password, user.password);
+            // A local account with no stored hash can't be verified — refuse rather than let
+            // bcrypt.compare throw on an undefined hash and surface as a 500.
+            if (!user.personal_info?.password) {
+                return res.status(403).json({ error: "Incorrect password" });
+            }
+            const isMatch = await bcrypt.compare(password, user.personal_info.password);
             if (!isMatch) {
                 return res.status(403).json({ error: "Incorrect password" });
             }
@@ -233,10 +252,14 @@ export const deleteAccount = async (req, res) => {
                 'account_status.status': 'deleted',
                 'account_status.deactivated_at': new Date(),
                 'account_status.deletion_scheduled_at': thirtyDaysFromNow,
-                'account_status.deletion_reason': reason || ''
+                'account_status.deletion_reason': reason || '',
+                // See deactivateAccount: revoke every device, not just the legacy field.
+                refresh_sessions: []
             },
             $unset: { refreshToken: 1 }
         });
+
+        clearRefreshCookie(res);
 
         return res.status(200).json({
             deleted: true,

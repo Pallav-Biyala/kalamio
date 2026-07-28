@@ -13,6 +13,7 @@ import CustomTooltip from "./components/CustomTooltip";
 
 // Lazy load all pages — only downloaded when the user navigates to them
 const UserAuthForm = lazy(() => import("./pages/userAuthForm.page"));
+const LandingPage = lazy(() => import("./pages/landing.page"));
 const Editor = lazy(() => import("./pages/editor.pages"));
 const HomePage = lazy(() => import("./pages/home.page"));
 const ReadsPage = lazy(() => import("./pages/reads.page"));
@@ -177,6 +178,7 @@ const App = () => {
                     <Routes>
                         <Route path="/editor" element={<Editor/>} />
                         <Route path="/editor/:blog_id" element={<Editor/>} />
+                        <Route path="/welcome" element={<LandingPage />} />
                         <Route path="/" element={<MainLayout />} >
                             <Route index element={<HomePage />} />
                         <Route path="reads" element={<ReadsPage />} />
