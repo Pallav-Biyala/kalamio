@@ -38,7 +38,11 @@ steps:
         'us-central1',
         '--platform',
         'managed',
-        '--allow-unauthenticated'
+        '--allow-unauthenticated',
+        # Basic-auth users for dev.kalamio.com, mounted as a file nginx reads. The secret must
+        # exist and the runtime service account needs roles/secretmanager.secretAccessor on it.
+        '--update-secrets',
+        '/etc/nginx/auth/htpasswd=web-dev-htpasswd:latest'
       ]
 
 images:

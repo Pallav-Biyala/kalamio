@@ -4,6 +4,7 @@ dist/
 .gitignore
 .env
 .env.local
+.htpasswd
 *.md
 .DS_Store
 Thumbs.db

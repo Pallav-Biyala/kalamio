@@ -25,7 +25,8 @@ FROM nginx:alpine
 
 RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx/conf.d/
-COPY .htpasswd /etc/nginx/.htpasswd
+# Dev basic-auth file is not baked in: Cloud Run mounts the "web-dev-htpasswd" secret
+# at /etc/nginx/auth/htpasswd (see cloudbuild-web-dev.yaml).
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Fix permissions for non-root nginx user:

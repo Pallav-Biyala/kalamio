@@ -89,6 +89,22 @@ GETs into edge caching itself.
 
 ---
 
+## 🔒 Dev site password (dev.kalamio.com)
+
+`dev.kalamio.com` is behind HTTP Basic Auth. The users file is **not in git** — it lives in
+Secret Manager as `web-dev-htpasswd`, and `cloudbuild-web-dev.yaml` mounts it into Cloud Run at
+`/etc/nginx/auth/htpasswd`. To add or change a user, generate a line and add a new secret version:
+
+```bash
+printf '%s' '<password>' | openssl passwd -apr1 -stdin   # → put "username:<hash>" in the file
+gcloud secrets versions add web-dev-htpasswd --data-file=frontend/.htpasswd
+```
+
+Then redeploy `kalamio-web-development`. The runtime service account needs
+`roles/secretmanager.secretAccessor` on the secret (same as the Upstash secrets).
+
+---
+
 ## 🛠️ Technologies Used
 
 ### Frontend
