@@ -2,30 +2,39 @@ import nodemailer from 'nodemailer';
 
 /**
  * Lazily-initialized SMTP transporter.
- * Uses Gmail App Password — NOT the user's actual Gmail password.
+ * Default: Gmail with an App Password — NOT the user's actual Gmail password.
  * Generate one at: https://myaccount.google.com/apppasswords
+ * If SMTP_HOST is set, uses that server instead (e.g. Mailpit from docker-compose.yml
+ * for local dev, which catches every email in a web inbox at http://localhost:8025).
  */
 let transporter = null;
 
 const getTransporter = () => {
     if (!transporter) {
-        transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS,
-            },
-        });
+        const auth = {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+        };
+        const port = Number(process.env.SMTP_PORT) || 587;
+        transporter = nodemailer.createTransport(process.env.SMTP_HOST
+            ? { host: process.env.SMTP_HOST, port, secure: port === 465, auth }
+            : { service: 'gmail', auth });
     }
     return transporter;
 };
+
+/**
+ * Visible sender. With an SMTP relay (e.g. Resend) EMAIL_USER is the relay login, not a
+ * mailbox, so EMAIL_FROM sets the address; it falls back to EMAIL_USER for plain Gmail.
+ */
+const fromAddress = () => `"Kalamio" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`;
 
 /**
  * Sends an OTP email for email verification (signup flow).
  */
 export const sendVerificationEmail = async (email, otp) => {
     const mailOptions = {
-        from: `"Kalamio" <${process.env.EMAIL_USER}>`,
+        from: fromAddress(),
         to: email,
         subject: 'Verify Your Email — Kalamio',
         html: buildOtpEmailHtml({
@@ -44,7 +53,7 @@ export const sendVerificationEmail = async (email, otp) => {
  */
 export const sendPasswordResetEmail = async (email, otp) => {
     const mailOptions = {
-        from: `"Kalamio" <${process.env.EMAIL_USER}>`,
+        from: fromAddress(),
         to: email,
         subject: 'Reset Your Password — Kalamio',
         html: buildOtpEmailHtml({
