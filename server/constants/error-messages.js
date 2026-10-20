@@ -41,6 +41,7 @@ export const ERRORS = {
 
     // Auth — Google
     GOOGLE_AUTH_FAILED: 'Google authentication failed. Please try again',
+    GOOGLE_AUTH_DISABLED: 'Google sign-in is not set up on this server. Please use email and password',
     GOOGLE_ACCOUNT_EXISTS: 'This email was registered with a password. Please log in with your password',
     LOCAL_ACCOUNT_EXISTS: 'This email was registered via Google. Please use Google Sign-In',
 

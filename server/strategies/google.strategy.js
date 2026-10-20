@@ -11,7 +11,11 @@ import { generateUsername } from '../utils/helpers.js';
  *   3. This validate function finds or creates the user in MongoDB
  *   4. The user object is attached to req.user for the callback route handler.
  */
-const googleStrategy = new GoogleStrategy(
+// Google sign-in is optional (see server/.env.example). Without credentials no strategy is
+// created (constructing one throws), and the auth routes redirect with a "disabled" error.
+export const isGoogleAuthEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+
+const googleStrategy = isGoogleAuthEnabled && new GoogleStrategy(
     {
         clientID: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,

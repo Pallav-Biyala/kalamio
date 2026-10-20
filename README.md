@@ -1,5 +1,7 @@
 # Blog App (Work in Progress)
 
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+
 A full‑stack blog application currently under active development.
 
 ---
@@ -14,23 +16,31 @@ Advanced blog features and polishing are in progress.
 
 ## 🚀 Getting Started (Local Setup)
 
+No cloud accounts needed — Docker runs MongoDB, Redis, S3-compatible storage and an
+email inbox locally. Full guide: **[CONTRIBUTING.md](CONTRIBUTING.md)**.
+
 > **Heads-up:** `.env` files are git-ignored, so a fresh clone will **not** include them.
 > You must create them from the provided examples or every API call 404s against the
 > dev server (you'll see requests to `undefinedapi/v1/...` in the console).
 
 ```bash
-# 1. Install dependencies
+# 1. Start local services (MongoDB, Redis, storage, email inbox)
+docker compose up -d
+
+# 2. Create env files from the examples (they already point at the local services)
+cp frontend/.env.example frontend/.env      # sets VITE_SERVER_DOMAIN
+cp server/.env.example   server/.env        # local DB, storage, email, dev JWT secrets
+
+# 3. Install dependencies
 cd frontend && npm install
 cd ../server && npm install
 
-# 2. Create env files from the examples (required)
-cp frontend/.env.example frontend/.env      # sets VITE_SERVER_DOMAIN
-cp server/.env.example   server/.env        # DB URL, JWT secret, AWS, etc.
-
-# 3. Run (two terminals)
+# 4. Run (two terminals)
 cd server   && npm run dev                  # API on :8080
 cd frontend && npm run dev                  # app on :5173
 ```
+
+Sign-up codes land in the local inbox at http://localhost:8025.
 
 The frontend expects `VITE_SERVER_DOMAIN` to point at the running backend (default
 `http://localhost:8080/`, **trailing slash required**). Restart `npm run dev` after
@@ -193,6 +203,25 @@ Then redeploy `kalamio-web-development`. The runtime service account needs
 * Managing global state in React
 * Handling media uploads securely
 
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Start with **[CONTRIBUTING.md](CONTRIBUTING.md)** — it covers
+local setup, the [CLA](CLA.md), and how to open a pull request. Please follow our
+[Code of Conduct](CODE_OF_CONDUCT.md), and report security issues privately as described
+in [SECURITY.md](SECURITY.md).
+
+---
+
+## 📄 License
+
+Kalamio is licensed under the **GNU Affero General Public License v3.0** — see [LICENSE](LICENSE).
+
+You're free to use, modify, and self-host it. If you run a modified version as a network
+service, you must make your modified source code available to its users under the same license.
+By contributing, you agree that your contributions are licensed under the AGPL-3.0 as well.
 
 ---
 

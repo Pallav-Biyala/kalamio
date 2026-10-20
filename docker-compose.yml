@@ -1,0 +1,78 @@
+# Local development services — run Kalamio without MongoDB Atlas, AWS S3, or Gmail.
+#
+#   docker compose up -d      # start (first run pulls images)
+#   docker compose down       # stop  (add -v to also wipe the local data)
+#
+# Then run the API and frontend with `npm run dev` (see CONTRIBUTING.md).
+# server/.env.example is already filled in for these services.
+#
+#   MongoDB         localhost:27017
+#   Redis           localhost:6379
+#   Object storage  localhost:9000   S3-compatible (RustFS), bucket "kalamio-dev"
+#   Storage UI      http://localhost:9001   login: kalamio / kalamio-dev-secret
+#   Email inbox     http://localhost:8025   every email the API sends lands here
+#
+# Ports are bound to 127.0.0.1 only, so nothing is reachable from your network.
+
+name: kalamio
+
+services:
+  mongo:
+    image: mongo:7
+    ports: ["127.0.0.1:27017:27017"]
+    volumes: [mongo-data:/data/db]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 })"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports: ["127.0.0.1:6379:6379"]
+
+  # S3-compatible object storage for image uploads (stands in for AWS S3)
+  storage:
+    image: rustfs/rustfs:1.0.3
+    environment:
+      RUSTFS_ACCESS_KEY: kalamio
+      RUSTFS_SECRET_KEY: kalamio-dev-secret
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports: ["127.0.0.1:9000:9000", "127.0.0.1:9001:9001"]
+    volumes: [storage-data:/data]
+    healthcheck:
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "http://localhost:9000/"]
+      interval: 3s
+      retries: 20
+
+  # One-shot: creates the bucket, makes images publicly readable (like the real bucket),
+  # and allows browser uploads from the Vite dev server. Safe to re-run.
+  storage-init:
+    image: amazon/aws-cli:2.38.1
+    depends_on:
+      storage: { condition: service_healthy }
+    environment:
+      AWS_ACCESS_KEY_ID: kalamio
+      AWS_SECRET_ACCESS_KEY: kalamio-dev-secret
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        S3="aws --endpoint-url http://storage:9000 s3api"
+        $$S3 head-bucket --bucket kalamio-dev 2>/dev/null || $$S3 create-bucket --bucket kalamio-dev
+        $$S3 put-bucket-policy --bucket kalamio-dev --policy '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::kalamio-dev/*"]}]}'
+        $$S3 put-bucket-cors --bucket kalamio-dev --cors-configuration '{"CORSRules":[{"AllowedOrigins":["http://localhost:5173","http://localhost:5174"],"AllowedMethods":["GET","PUT"],"AllowedHeaders":["*"],"MaxAgeSeconds":3000}]}'
+        echo "Bucket kalamio-dev ready"
+    restart: "no"
+
+  # Catches all outgoing email (signup / password-reset codes) — nothing is really sent
+  mail:
+    image: axllent/mailpit:v1
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    ports: ["127.0.0.1:1025:1025", "127.0.0.1:8025:8025"]
+
+volumes:
+  mongo-data:
+  storage-data:

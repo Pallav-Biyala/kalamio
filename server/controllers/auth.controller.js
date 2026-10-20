@@ -6,6 +6,7 @@ import AuthCode from '../Schema/AuthCode.js';
 import passport from 'passport';
 import { emailRegex, passwordRegex } from '../utils/regex.js';
 import { generateUsername } from '../utils/helpers.js';
+import { isGoogleAuthEnabled } from '../strategies/google.strategy.js';
 import { generateTokenPair, generateAccessToken, verifyRefreshToken, verifyAccessToken, hashToken, safeEqual } from '../services/token.service.js';
 import { generateOtp, verifyOtp } from '../services/otp.service.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email.service.js';
@@ -314,14 +315,24 @@ export const signin = async (req, res) => {
 // Google Auth — Passport OAuth 2.0 redirect flow
 // ─────────────────────────────────────────────
 
+// Google sign-in is optional — without credentials there's no 'google' strategy to run.
+const redirectGoogleDisabled = (res) => res.redirect(
+    `${process.env.FRONTEND_URL}/auth/callback?error=${encodeURIComponent(ERRORS.GOOGLE_AUTH_DISABLED)}`
+);
+
+const authenticateGoogle = passport.authenticate('google', {
+    scope: ['email', 'profile'],
+    session: false,
+});
+
 /**
  * Step 1: Initiates Google OAuth — redirects user to Google consent screen.
  * GET /api/auth/google
  */
-export const googleAuthRedirect = passport.authenticate('google', {
-    scope: ['email', 'profile'],
-    session: false,
-});
+export const googleAuthRedirect = (req, res, next) => {
+    if (!isGoogleAuthEnabled) return redirectGoogleDisabled(res);
+    return authenticateGoogle(req, res, next);
+};
 
 /**
  * Step 2: Google callback — uses Passport's custom callback pattern
@@ -330,6 +341,7 @@ export const googleAuthRedirect = passport.authenticate('google', {
  * GET /api/auth/google/callback
  */
 export const googleAuthCallback = (req, res, next) => {
+    if (!isGoogleAuthEnabled) return redirectGoogleDisabled(res);
     passport.authenticate('google', { session: false }, async (err, user, info) => {
         const frontendUrl = process.env.FRONTEND_URL;
 

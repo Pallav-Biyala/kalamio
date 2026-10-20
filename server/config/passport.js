@@ -9,7 +9,11 @@ import googleStrategy from '../strategies/google.strategy.js';
  * because we use JWT tokens instead of server-side sessions.
  */
 export const initializePassport = (app) => {
-    passport.use(googleStrategy);
+    if (googleStrategy) {
+        passport.use(googleStrategy);
+    } else {
+        console.warn('⚠️  GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not set — Google sign-in disabled');
+    }
     app.use(passport.initialize());
 };
 

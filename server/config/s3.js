@@ -4,7 +4,12 @@ import { nanoid } from 'nanoid';
 
 const BUCKET = process.env.AWS_BUCKET || 'blog-app-82817';
 const REGION = process.env.AWS_REGION || 'ap-south-1';
-const S3_ORIGIN = `https://${BUCKET}.s3.${REGION}.amazonaws.com`;
+// Optional S3-compatible endpoint (e.g. MinIO from docker-compose.yml for local dev).
+// Unset = real AWS S3. Such servers use path-style URLs: <endpoint>/<bucket>/<key>.
+const S3_ENDPOINT = (process.env.S3_ENDPOINT || '').replace(/\/+$/, '');
+const S3_ORIGIN = S3_ENDPOINT
+    ? `${S3_ENDPOINT}/${BUCKET}`
+    : `https://${BUCKET}.s3.${REGION}.amazonaws.com`;
 const CDN_DOMAIN = (process.env.CDN_DOMAIN || '').replace(/\/+$/, '');
 
 // AWS SDK v3 — modular client (replaces deprecated aws-sdk v2)
@@ -14,6 +19,7 @@ const s3 = new S3Client({
         accessKeyId: process.env.AWS_ACCESS_KEY,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     },
+    ...(S3_ENDPOINT && { endpoint: S3_ENDPOINT, forcePathStyle: true }),
 });
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB max upload size
@@ -45,12 +51,15 @@ export const generateUploadURL = async (mimeType = 'image/jpeg') => {
 /**
  * Extracts the S3 object key from a full S3 URL.
  * e.g. "https://blog-app-82817.s3.ap-south-1.amazonaws.com/abc123.jpeg" → "abc123.jpeg"
+ *      "http://localhost:9000/kalamio-dev/abc123.jpeg" (S3_ENDPOINT) → "abc123.jpeg"
  */
 const extractKeyFromUrl = (url) => {
     try {
         const parsed = new URL(url);
         // Remove leading slash from pathname
-        return decodeURIComponent(parsed.pathname.slice(1));
+        const path = decodeURIComponent(parsed.pathname.slice(1));
+        // Path-style URLs carry the bucket as the first segment
+        return S3_ENDPOINT && url.startsWith(S3_ORIGIN) ? path.slice(BUCKET.length + 1) : path;
     } catch {
         return null;
     }
