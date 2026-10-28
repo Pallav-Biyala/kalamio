@@ -8,7 +8,7 @@ import { uploadFileRaw } from '../../common/aws';
 import SaveStatus from './SaveStatus';
 import EditorStats from './EditorStats';
 
-const EditorToolbar = ({ editor, onEmbedClick, onLinkClick, saveStatus, savedAt, onImagePicked }) => {
+const EditorToolbar = ({ editor, onEmbedClick, onLinkClick, onKeyboardShortcutsClick,saveStatus, savedAt, onImagePicked }) => {
   const imageInputRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -293,6 +293,16 @@ const EditorToolbar = ({ editor, onEmbedClick, onLinkClick, saveStatus, savedAt,
             label="Clear all"
             onClick={handleClearAll}
             isDisabled={editor.isEmpty}
+          />
+        </div>
+        {/* Adds the Button to open the Keyboard shortcuts modal*/}
+        <ToolbarDivider />
+
+        <div className="toolbar-group">
+          <ToolbarButton
+            icon="keyboard"
+            label="Keyboard shortcuts"
+            onClick={onKeyboardShortcutsClick}
           />
         </div>
 

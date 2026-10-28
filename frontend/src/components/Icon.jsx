@@ -25,7 +25,7 @@ import {
   Mail, Key, LockOpen, Bold, Italic, Underline, Strikethrough, List, ListOrdered,
   AlignLeft, AlignCenter, AlignRight, Minus, Highlighter, Redo2, Undo2, Table, Terminal, Paperclip,
   Save, ChevronLeft, ChevronRight,
-  Smartphone, Tablet, Laptop,
+  Smartphone, Tablet, Laptop, Keyboard,
 } from 'lucide-react';
 
 // Material Symbols name → lucide-react component. Covers every name used across the app
@@ -70,6 +70,7 @@ const ICONS = {
   format_align_left: AlignLeft, format_align_center: AlignCenter, format_align_right: AlignRight,
   horizontal_rule: Minus, ink_highlighter: Highlighter, redo: Redo2, undo: Undo2,
   table_chart: Table, terminal: Terminal, attach_file: Paperclip,
+  keyboard: Keyboard,
 };
 
 // Solid-fill handling. `favorite` is inherently the filled heart — its outline counterpart is the

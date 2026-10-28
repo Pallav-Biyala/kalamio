@@ -11,6 +11,7 @@ import BlockHandle from './BlockHandle';
 import { mentionSuggestionConfig } from './MentionList';
 import { uploadImageWithMeta } from '../../common/aws';
 import ImageCropperModal from '../image-cropper.component';
+import KeyboardShortcutsModal from './KeyboardShortcutsModal';
 
 // Body images have no fixed display ratio, so the cropper offers a choice. 'Original' keeps the
 // image's own ratio (a zoom-to-region crop); the rest reshape it. Default is the first ('Original').
@@ -24,6 +25,7 @@ const BODY_IMAGE_ASPECTS = [
 const TiptapEditor = ({ content, onUpdate, onEditorReady, saveStatus, savedAt }) => {
   const [showEmbedModal, setShowEmbedModal] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const debounceRef = useRef(null);
   const editorRef = useRef(null);
   const [imageToCrop, setImageToCrop] = useState(null); // object URL of the image being cropped
@@ -131,11 +133,28 @@ const TiptapEditor = ({ content, onUpdate, onEditorReady, saveStatus, savedAt })
       // Ctrl/Cmd-K opens the link modal (the near-universal "add link" shortcut; otherwise the
       // browser's address-bar/search shortcut steals it).
       handleKeyDown: (view, event) => {
-        if ((event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && (event.key === 'k' || event.key === 'K')) {
+        if (
+          !event.isComposing &&
+          (event.metaKey || event.ctrlKey) &&
+          !event.altKey &&
+          (event.key === '/' || event.code === 'Slash')
+        ) {
+          event.preventDefault();
+          setShowShortcutsModal(true);
+          return true;
+        }
+
+        if (
+          (event.metaKey || event.ctrlKey) &&
+          !event.altKey &&
+          !event.shiftKey &&
+          (event.key === 'k' || event.key === 'K')
+        ) {
           event.preventDefault();
           setShowLinkModal(true);
           return true;
         }
+
         return false;
       },
     },
@@ -160,10 +179,12 @@ const TiptapEditor = ({ content, onUpdate, onEditorReady, saveStatus, savedAt })
 
   const handleOpenLink = useCallback(() => setShowLinkModal(true), []);
   const handleCloseLink = useCallback(() => setShowLinkModal(false), []);
+  const handleOpenShortcuts = useCallback(() => setShowShortcutsModal(true),[]);
+  const handleCloseShortcuts = useCallback(() => setShowShortcutsModal(false),[]);
 
   return (
     <div className="tiptap-editor-wrapper notranslate" translate="no">
-      <EditorToolbar editor={editor} onEmbedClick={handleOpenEmbed} onLinkClick={handleOpenLink} saveStatus={saveStatus} savedAt={savedAt} onImagePicked={openImageCropper} />
+      <EditorToolbar editor={editor} onEmbedClick={handleOpenEmbed} onLinkClick={handleOpenLink} onKeyboardShortcutsClick={handleOpenShortcuts} saveStatus={saveStatus} savedAt={savedAt} onImagePicked={openImageCropper} />
       <BubbleMenuComponent editor={editor} />
       <div className="tiptap-content-relative">
         {isDesktop && <BlockHandle editor={editor} />}
@@ -177,6 +198,9 @@ const TiptapEditor = ({ content, onUpdate, onEditorReady, saveStatus, savedAt })
       )}
       {showLinkModal && (
         <LinkInsertModal editor={editor} onClose={handleCloseLink} />
+      )}
+      {showShortcutsModal && (
+        <KeyboardShortcutsModal onClose={handleCloseShortcuts} />
       )}
       {imageToCrop && (
         <ImageCropperModal
