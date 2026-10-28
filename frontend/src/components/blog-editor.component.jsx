@@ -20,6 +20,7 @@ import { getDay } from "../common/date";
 import ImageCropperModal from "./image-cropper.component";
 import PublishSteps from "./publish-steps.component";
 import PreviewButton from "./preview/PreviewButton";
+import { dragHasFiles, pickDroppedImage } from "../common/image-drop";
 import AiAssistant from "./editor/ai-assistant/AiAssistant";
 
 // The article banner displays 2:1 on desktop (aspect-[2/1], object-cover), so crop to that ratio.
@@ -326,18 +327,50 @@ const BlogEditor = () => {
     };
 
     // ── Existing handlers ──
-    // Pick a file → open the cropper (don't upload the raw image). Reset the input so re-picking the
-    // same file fires onChange again.
+    // Pick or drop a file → open the cropper (don't upload the raw image).
+    const openBannerCropper = (img) => {
+        if (!img.type.startsWith('image/')) {
+            return toast.error("Please select an image file (.png, .jpg, .jpeg)");
+        }
+        setBannerToCrop(URL.createObjectURL(img));
+    };
+
+    // Reset the input so re-picking the same file fires onChange again.
     const handleBanner = (e) => {
         const img = e.target.files[0];
-        if (img) {
-            if (!img.type.startsWith('image/')) {
-                return toast.error("Please select an image file (.png, .jpg, .jpeg)");
-            }
-            setBannerToCrop(URL.createObjectURL(img));
-        }
+        if (img) openBannerCropper(img);
         e.target.value = null;
     }
+
+    // ── Drag & drop onto the banner ── same path as picking a file. dragenter/leave fire for every
+    // child element, so a depth counter (not a boolean) decides when the drag really left the zone.
+    const [bannerDragActive, setBannerDragActive] = useState(false);
+    const bannerDragDepth = useRef(0);
+    const handleBannerDragEnter = (e) => {
+        if (!dragHasFiles(e)) return;
+        e.preventDefault();
+        bannerDragDepth.current += 1;
+        setBannerDragActive(true);
+    };
+    const handleBannerDragOver = (e) => {
+        if (!dragHasFiles(e)) return;
+        e.preventDefault(); // required, or the browser won't fire `drop` (it would open the image instead)
+        e.dataTransfer.dropEffect = "copy";
+    };
+    const handleBannerDragLeave = (e) => {
+        if (!dragHasFiles(e)) return;
+        bannerDragDepth.current = Math.max(0, bannerDragDepth.current - 1);
+        if (bannerDragDepth.current === 0) setBannerDragActive(false);
+    };
+    const handleBannerDrop = (e) => {
+        if (!dragHasFiles(e)) return;
+        e.preventDefault();
+        bannerDragDepth.current = 0;
+        setBannerDragActive(false);
+        const { file, rejected } = pickDroppedImage(e.dataTransfer);
+        if (file) openBannerCropper(file);
+        else if (rejected) toast.error("Please drop an image file (.png, .jpg, .jpeg)");
+    };
 
     // Cropper returns the cropped 2:1 cover as a File → upload that.
     const handleBannerCropped = (croppedFile) => {
@@ -619,17 +652,25 @@ const BlogEditor = () => {
             <AnimationWrapper>
                 <section>
                     <div className="mx-auto max-w-[783px] w-full">
-                        <div className="relative aspect-[2/1] md:aspect-video hover:opacity-80 bg-surface border-2 border-dashed border-border rounded-radius-lg overflow-hidden cursor-pointer group transition-all hover:border-brand/40">
+                        <div
+                            onDragEnter={handleBannerDragEnter}
+                            onDragOver={handleBannerDragOver}
+                            onDragLeave={handleBannerDragLeave}
+                            onDrop={handleBannerDrop}
+                            className={`relative aspect-[2/1] md:aspect-video bg-surface border-2 border-dashed rounded-radius-lg overflow-hidden cursor-pointer group transition-all ${bannerDragActive ? "border-brand" : "border-border hover:opacity-80 hover:border-brand/40"}`}
+                        >
                             <label htmlFor="uploadbanner" className="cursor-pointer">
                                 <img
                                     src={banner || (theme === "light" ? lightBanner : darkBanner)}
                                     className="z-20"
                                     onError={handleImgError}
                                     />
-                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/10">
+                                <div className={`absolute inset-0 flex items-center justify-center transition-opacity ${bannerDragActive ? "opacity-100 bg-black/30" : "opacity-0 group-hover:opacity-100 bg-black/10"}`}>
                                     <div className="bg-surface/90 backdrop-blur-sm rounded-full py-2 px-5 flex items-center gap-2 shadow-md">
-                                        <Icon name="add_photo_alternate" className="text-xl text-dark-grey" />
-                                        <span className="text-sm font-medium">{banner ? "Change Cover" : "Add Cover"}</span>
+                                        <Icon name={bannerDragActive ? "upload" : "add_photo_alternate"} className="text-xl text-dark-grey" />
+                                        <span className="text-sm font-medium">
+                                            {bannerDragActive ? "Drop image to set cover" : banner ? "Change Cover" : "Add Cover"}
+                                        </span>
                                     </div>
                                 </div>
                                 <input
@@ -638,6 +679,7 @@ const BlogEditor = () => {
                                     accept=".png, .jpg, .jpeg"
                                     hidden
                                     onChange={handleBanner}
+                                    aria-describedby="banner-upload-hint"
                                 />
                             </label>
 
@@ -655,6 +697,11 @@ const BlogEditor = () => {
                                 </button>
                             ) : null}
                         </div>
+                        {/* Recommended size: the cover shows 2:1 up to ~783px wide (≈1566px on retina), and
+                            uploads are downscaled to 2048px max — so 1600×800 is sharp without waste. */}
+                        <p id="banner-upload-hint" className="mt-2 text-center text-xs text-dark-grey">
+                            Drag & drop an image or click to upload · Recommended 1600 × 800 px (2:1) · JPG or PNG
+                        </p>
 
                         <textarea
                             rows={1}
